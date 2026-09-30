@@ -578,6 +578,116 @@ describe('getAccessToken - 회전은 한 곳에서, 한 번에 하나만(스펙 
     expect(h.stored()).toBeNull()
     expect(h.log).toEqual([`send ${REFRESH_PATH}`, 'clear'])
   })
+
+  // 로그인(establish)의 쓰기가 붙잡혀 있는 동안에는 옛 세션이 아직 세션이라 getAccessToken 이 그것을 회전한다. 그
+  // 회전은 옛 세션의 것이다 - 응답이 로그인의 쓰기보다 먼저 오든 나중에 오든 새 로그인을 덮어쓰거나 로그아웃시키지
+  // 않는다.
+  const inLoginWindow: [string, string, JsonApiResult<unknown>][] = [
+    ['옛 세션의 회전이 성공해도', '먼저', ROTATED],
+    ['옛 세션의 회전이 성공해도', '나중에', ROTATED],
+    ['옛 세션의 refresh 가 거절돼도', '먼저', REVOKED],
+    ['옛 세션의 refresh 가 거절돼도', '나중에', REVOKED],
+  ]
+  it.each(inLoginWindow)(
+    '로그인의 쓰기 창 안에서 시작된 회전이라면 %s 응답이 쓰기보다 %s 오면 새 로그인이 남는다',
+    async (_label, order, result) => {
+      const response = deferred<JsonApiResult<unknown>>()
+      const h = harness(oldSession(0), response.promise)
+      await h.manager.restore()
+      const release = holdWrites(h.storage)
+
+      const establishing = h.manager.establish(
+        {
+          accessToken: 'probe-access-login',
+          refreshToken: 'probe-refresh-login',
+          accessExpiresAt: NOW + 137_000,
+        },
+        8641,
+      )
+      await settle()
+      const token = h.manager.getAccessToken()
+      await settle()
+      expect(h.sent).toHaveLength(1)
+
+      if (order === '먼저') {
+        response.resolve(result)
+        await settle()
+        release()
+      } else {
+        release()
+        await establishing
+        response.resolve(result)
+      }
+      await Promise.all([establishing, token])
+
+      const loggedIn: StoredSession = {
+        accessToken: 'probe-access-login',
+        refreshToken: 'probe-refresh-login',
+        accessExpiresAt: NOW + 137_000,
+        refreshExpiresAt: NOW + 8_641_000,
+      }
+      expect(h.manager.current()).toEqual(loggedIn)
+      expect(h.manager.status()).toBe('signedIn')
+      expect(h.stored()).toBe(serializeSession(loggedIn))
+      // 쓰기는 로그인의 것 하나뿐이고 지우기는 없다 - 옛 세션의 회전은 저장소를 건드리지 않았다.
+      expect(h.log).toEqual([`send ${REFRESH_PATH}`, 'write'])
+    },
+  )
+
+  it('establish 로 세운 세션도 만료가 임박하면 회전한다 - 로그인 뒤의 첫 회전이 걸러지지 않는다', async () => {
+    const h = harness(null, ROTATED)
+    await h.manager.restore()
+    await h.manager.establish(
+      {
+        accessToken: 'probe-access-login',
+        refreshToken: 'probe-refresh-login',
+        accessExpiresAt: NOW + 137_000,
+      },
+      8641,
+    )
+    h.advance(137_000)
+
+    await expect(h.manager.getAccessToken()).resolves.toBe('probe-access-new')
+
+    expect(h.sent[0]?.options.body).toEqual({
+      data: { type: 'refreshTokens', attributes: { refreshToken: 'probe-refresh-login' } },
+    })
+    // 회전은 움직인 시계를 기준으로 새 세션을 저장한다.
+    const rotated: StoredSession = {
+      accessToken: 'probe-access-new',
+      refreshToken: 'probe-refresh-new',
+      accessExpiresAt: NOW + 137_000 + 137_000,
+      refreshExpiresAt: NOW + 137_000 + 8_641_000,
+    }
+    expect(h.manager.current()).toEqual(rotated)
+    expect(h.stored()).toBe(serializeSession(rotated))
+  })
+
+  it('저장 실패로 거절된 회전 뒤에 새 access 가 다시 만료 임박이 되면 다시 회전한다 - 거절을 붙들고 있지 않는다', async () => {
+    const h = harness(oldSession(0), ROTATED, ROTATED_AGAIN)
+    await h.manager.restore()
+    const working = h.storage.write
+    h.storage.write = () => Promise.reject(new Error('probe keystore write failure'))
+    await expect(h.manager.getAccessToken()).rejects.toThrow('probe keystore write failure')
+
+    h.storage.write = working
+    h.advance(137_000)
+
+    await expect(h.manager.getAccessToken()).resolves.toBe('probe-access-newer')
+    expect(h.sent).toHaveLength(2)
+    // 저장에 실패해도 메모리의 새 세션이 남았으므로 두 번째 회전은 그 refresh 를 낸다.
+    expect(h.sent[1]?.options.body).toEqual({
+      data: { type: 'refreshTokens', attributes: { refreshToken: 'probe-refresh-new' } },
+    })
+    expect(h.stored()).toBe(
+      serializeSession({
+        accessToken: 'probe-access-newer',
+        refreshToken: 'probe-refresh-newer',
+        accessExpiresAt: NOW + 137_000 + 137_000,
+        refreshExpiresAt: NOW + 137_000 + 8_641_000,
+      }),
+    )
+  })
 })
 
 describe('signOut - 인증 오류를 받았을 때(스펙 9.2)', () => {

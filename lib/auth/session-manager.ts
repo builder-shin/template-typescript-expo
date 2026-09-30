@@ -30,9 +30,11 @@ import { isAccessExpiring, type Session } from './tokens'
  *     캐시 비움과 폐기 요청을 끝낸다. 오류는 그 뒤에 호출자에게 거절로 간다 - 호출자는 삼키지 말고
  *     알리되, 화면 이동은 거절이 아니라 `status()` 를 따른다.
  *   - 저장소가 늦어도 메모리가 먼저다. 쓰기와 지우기는 한 줄로 세운다 - 나중에 부른 지우기가 먼저 부른
- *     쓰기보다 앞서 끝나 지운 세션이 저장소에 남는 일이 없다. 세션을 세우거나 지울 때마다 `generation`
- *     을 올리고, 저장소나 전송을 기다린 뒤에는 그 값을 다시 본다 - 그 사이 로그아웃이나 새 로그인이
- *     있었으면 늦게 끝난 쓰기·회전은 세션을 되살리지 않는다. `signOut()` 은 메모리부터 비운다.
+ *     쓰기보다 앞서 끝나 지운 세션이 저장소에 남는 일이 없다. 세션을 세우거나 지우는 일이 시작될 때마다
+ *     `generation` 을 올리고, 저장소나 전송을 기다린 뒤에는 그 값을 다시 본다 - 그 사이 로그아웃이나 새
+ *     로그인이 있었으면 늦게 끝난 쓰기·회전은 세션을 되살리지 않는다. 회전은 지금 세션이 세워진 세대를
+ *     달고 출발하므로, 로그인의 쓰기가 끝나기 전에 옛 세션이 시작한 회전도 결과를 버린다. `signOut()` 은
+ *     메모리부터 비운다.
  *   - `logout()` 은 진행 중인 회전이 있으면 끝나길 기다린 뒤(결과는 보지 않는다) 폐기한다 - 회전이
  *     새 refresh 를 냈다면 폐기할 것은 그것이다.
  *
@@ -97,9 +99,13 @@ export function createSessionManager({ storage, send, now }: SessionManagerDeps)
   let session: StoredSession | null = null
   let status: SessionStatus = 'restoring'
   let rotation: Promise<string | null> | null = null
-  // 세션을 세우거나 지울 때마다 늘린다. 회전이나 쓰기가 끝났을 때 값이 바뀌어 있으면 그 사이에 로그아웃이나
-  // 새 로그인이 있었던 것이다 - 늦게 끝난 결과로 덮어쓰지 않는다(로그아웃한 세션이 되살아나지 않게).
+  // 세션을 세우거나 지우는 일이 시작될 때마다 늘린다. 회전이나 쓰기가 끝났을 때 값이 바뀌어 있으면 그 사이에
+  // 로그아웃이나 새 로그인이 있었던 것이다 - 늦게 끝난 결과로 덮어쓰지 않는다(로그아웃한 세션이 되살아나지 않게).
   let generation = 0
+  // 지금 세션이 세워진 시점의 generation. 회전은 이 값을 달고 출발한다. 로그인은 쓰기가 끝나야 세션이 바뀌므로
+  // 그 쓰기 창 안에서는 generation 이 이미 앞서 있다 - 그 창에서 옛 세션이 시작한 회전은 응답이 로그인의 쓰기보다
+  // 먼저 오든 나중에 오든 걸러진다.
+  let sessionGeneration = 0
   // 복원은 저장소를 한 번만 읽는다 - 읽는 동안의 호출은 이 Promise 를 같이 기다린다.
   let restoring: Promise<StoredSession | null> | null = null
   let restoreDone = false
@@ -115,6 +121,7 @@ export function createSessionManager({ storage, send, now }: SessionManagerDeps)
 
   function publish(next: StoredSession | null): void {
     session = next
+    sessionGeneration = generation
     status = next === null ? 'signedOut' : 'signedIn'
     for (const listener of listeners) {
       try {
@@ -162,7 +169,9 @@ export function createSessionManager({ storage, send, now }: SessionManagerDeps)
   }
 
   async function rotate(current: StoredSession): Promise<string | null> {
-    const startedIn = generation
+    // 회전하는 세션이 세워진 세대를 단다(지금의 generation 이 아니다) - 그 뒤에 세션을 바꾸는 일이 시작됐다면,
+    // 로그인의 쓰기가 아직 끝나지 않아 이 세션이 그대로여도, 이 회전은 옛 세션의 것이라 결과를 버린다.
+    const startedIn = sessionGeneration
     // 요청을 보내기 직전의 시각을 만료의 기준으로 쓴다 - 응답이 늦게 와도 만료가 늦게 잡히지 않는다.
     const at = now()
     const outcome = await rotateSession(current.refreshToken, send, at)
