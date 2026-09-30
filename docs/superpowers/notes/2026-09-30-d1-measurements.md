@@ -708,7 +708,7 @@ npm `latest`는 1.12.0(2026-09-04)이라 고쳐진 릴리스는 아직 없다.
    실패한다(`types`를 바꾸기 전에도, `expo-env.d.ts`가 있어도 같았다). `types`에 `"node"`를 전역으로 더하면(`["expo/types", "node"]`, 순서를 바꿔도 같다) 그 시험 파일은 통과하지만 전역 `setTimeout`의 반환형이
    `NodeJS.Timeout`이 되어 앱 코드의 `const handle: number = setTimeout(…)`이 `TS2322`로 실패한다. 그래서 루트 `tsconfig.json`(`types: ["expo/types"]`, `expo/tsconfig.base`의 `exclude` 여섯 항목에 `test`를 더한 `exclude`)은
    `app/`·`components/`·`lib/`·`platform/`·`app.config.ts`·`css.d.ts`·`uniwind-types.d.ts`·타입드 라우트 파일을 Node 전역 없이 검사한다(프로그램 안의 `@types/node` 파일 0개). `test/tsconfig.json`(루트를 `extends`,
-   `types: ["expo/types", "node"]`, `include: ["**/*.ts"]`, 루트의 `test` 제외를 물려받지 않도록 `exclude: []`)은 시험 파일과 그들이 import하는 `lib/`·`app.config.ts` 파일을 Node 타입과 함께 검사한다(프로그램 안의 `@types/node` 파일이 66개다). `pnpm typecheck`는
+   `types: ["expo/types", "node"]`, `include: ["**/*.ts"]`, 루트의 `test` 제외를 물려받지 않도록 `exclude: []`)은 시험 파일과 그들이 import하는 `lib/`·`app.config.ts` 파일을 Node 타입과 함께 검사한다(프로그램 안의 `@types/node` 파일이 66개다 - 세는 명령은 아래 "게이트를 세우며 확인한 것"). `pnpm typecheck`는
    `tsc --noEmit -p tsconfig.json && tsc --noEmit -p test/tsconfig.json`이다. 시험 파일이 import하는 `lib/` 파일은 두 프로그램에서 모두 검사된다. 그런 파일에서 타이머 핸들의 타입은 `ReturnType<typeof setTimeout>`만 둘 다 통과한다(`number`는 테스트 프로그램에서 `TS2322`,
    `NodeJS.Timeout`은 앱 프로그램에서 `TS2694`로 실패한다).
    ESLint의 `projectService`는 파일에서 가장 가까운 `tsconfig.json`을 쓰므로 시험 파일은 `test/tsconfig.json`으로 타입 규칙을 받는다. 임시 프로브로 확인했다. `node:fs`·`node:child_process`·`process.env`를 쓰는 시험 파일과
@@ -720,6 +720,71 @@ npm `latest`는 1.12.0(2026-09-04)이라 고쳐진 릴리스는 아직 없다.
    실행 셋은 모두 exit 0이었다. 원인은 찾지 못했다(`node.exe`의 Windows 오류 보고 이벤트가 남지 않았다). `--clear`는 `os.tmpdir()/metro-cache`(관찰 4)를 지워 같은 머신의 다른 Metro와 부딪힐 수
    있어 게이트에 넣지 않았다. 게이트가 [10/11]에서 139로 끝나면 같은 명령이 다시 통과하는지 본다.
 
+### 게이트를 세우며 확인한 것 (`css.d.ts` · `@types/node` 파일 수 · `secretlint` 스크립트)
+
+아래 "정한 것"의 세 문장이 기대는 명령과 출력이다. 파일과 `package.json`은 재고 나서 원래대로 되돌렸다.
+
+**`css.d.ts`와 `expo-env.d.ts`를 치운 트리의 타입체크.** 두 파일을 미리 다른 폴더에 복사해 두고 지운 뒤 두 프로그램을 따로 돌렸다.
+
+```bash
+rm css.d.ts expo-env.d.ts
+pnpm exec tsc --noEmit -p tsconfig.json;      echo "app-program tsc exit=$?"
+pnpm exec tsc --noEmit -p test/tsconfig.json; echo "test-program tsc exit=$?"
+```
+
+```text
+app-program tsc exit=0
+test-program tsc exit=0
+```
+
+**프로그램 안의 `@types/node` 파일 수(관찰 7의 "66개").** 시험 프로그램은 66개, 앱 프로그램은 0개다.
+
+```bash
+pnpm exec tsc --noEmit -p test/tsconfig.json --listFilesOnly | grep -c '/@types/node/'
+pnpm exec tsc --noEmit -p tsconfig.json --listFilesOnly | grep -c '/@types/node/'
+```
+
+```text
+66
+0
+```
+
+**`secretlint` 스크립트 이름과 expo-doctor.** `expo-doctor`는 `expo config`를 불러 `app.config.ts`를 평가하므로 `BACKEND_URL`이 필요하다. 없이 돌리면 doctor가 그 하위 호출의 실패를 그대로 낸다.
+
+```bash
+pnpm exec expo-doctor
+```
+
+```text
+Error: node <저장소 루트>\node_modules\expo\bin\cli config --json --full exited with non-zero code: 1
+```
+
+값을 주고 스크립트 이름을 `lint:secrets`로 둔 상태(이 저장소)와, `sed`로 `secretlint`로 되돌린 같은 트리다.
+
+```bash
+BACKEND_URL=https://gate-check.invalid pnpm exec expo-doctor; echo "doctor exit=$?"
+```
+
+```text
+Running 21 checks on your project...
+21/21 checks passed. No issues detected!
+doctor exit=0
+```
+
+```text
+Running 21 checks on your project...
+20/21 checks passed. 1 checks failed. Possible issues detected:
+Use the --verbose flag to see more details about passed checks.
+
+✖ Check package.json for common issues
+The following scripts in package.json conflict with the contents of node_modules/.bin: secretlint.
+Advice:
+Update your package.json to remove conflicts.
+
+1 check failed, indicating possible issues with the project.
+doctor exit=1
+```
+
 ### 정한 것
 
 - **M1 = 예.** Uniwind + React Native Reusables를 유지한다. Release 빌드에서 렌더되고 라이트·다크 토큰이 그대로 나온다.
@@ -729,13 +794,13 @@ npm `latest`는 1.12.0(2026-09-04)이라 고쳐진 릴리스는 아직 없다.
   더한 때에는 새 체크아웃의 `pnpm typecheck`를 통과시키는 파일이었다. 그 뒤 `tsconfig.json`에 `types: ["expo/types"]`를 두자(다음 항목, 관찰 6)
   `expo/types`의 `global.d.ts`(29행)가 같은 `declare module '*.css'`를 준다. 지금 새 체크아웃의 typecheck를 통과시키는 것은 `types: ["expo/types"]`이고,
   `css.d.ts`는 같은 선언을 한 번 더 하는 무해한 중복이다. `css.d.ts`와 `expo-env.d.ts`를 모두 치운 트리에서 `tsc --noEmit -p tsconfig.json`과
-  `tsc --noEmit -p test/tsconfig.json`이 둘 다 exit 0이다.
+  `tsc --noEmit -p test/tsconfig.json`이 둘 다 exit 0이다(위 "게이트를 세우며 확인한 것").
 - **`tsconfig.json`에 `"types": ["expo/types"]`를 둔다.** 새 체크아웃의 `pnpm lint`가 `expo-env.d.ts` 없이 통과한다(관찰 6).
 - **타입 프로그램은 앱(`tsconfig.json`)과 시험(`test/tsconfig.json`) 둘이다.** 앱 코드에 Node 전역을 들이지 않으면서 시험이 `node:` 모듈을 import할 수 있다(관찰 7).
 - **받은 컴포넌트는 `text.tsx`의 `ROLE` 타입 한 줄만 고쳤다.**
 - **`secretlint` 스크립트를 `lint:secrets`로 바꾼다(게이트를 세울 때).** 스크립트 이름이 `node_modules/.bin/secretlint`를 가려 expo-doctor의
   `Check package.json for common issues`가 실패했다(관찰 1). 이름을 바꾸면 expo-doctor가 21/21(exit 0)이고, 같은 트리에서 옛 이름으로 되돌리면
-  20/21(exit 1)에 같은 오류가 다시 난다.
+  20/21(exit 1)에 같은 오류가 다시 난다(명령과 출력은 위 "게이트를 세우며 확인한 것").
   expo-doctor는 `expo config`를 불러 `app.config.ts`를 평가하므로 `BACKEND_URL`이 없으면 그 호출이 exit 1로 죽는다 - 게이트의 9단계도 다른 설정 평가 단계처럼 값을 준다.
 
 아래는 이 기록이 정하지 않은 것이다.

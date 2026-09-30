@@ -37,7 +37,7 @@
     "scripts/check-citations.sh",
     "test/unit/scripts/check-citations.test.ts"
   ],
-  "note": "복사본이다. 원본에서 계약 버그가 고쳐지면 이 커밋과 원본을 비교해 반영 여부를 판단한다. 개별 이탈은 divergences 배열에 기록한다(스펙 6.3). 복사본의 주석이 말하는 '스펙'·'D2 Task N'·'proxy.ts' 같은 자리는 원본 저장소의 것이다. scripts/check-citations.sh 머리말의 게이트 단계 번호 '[5/9]' 도 원본 게이트의 번호다(이 저장소의 게이트에서는 [5/11]). 복사한 시드 파일과 시드 시험도 원본 저장소의 것을 가리킨다 - 원본의 web 서비스와 TZ, test/e2e/*.spec.ts, lib/resources/view.ts, 원본 루트 AGENTS.md 의 문장은 이 저장소에 없다.",
+  "note": "복사본이다. 원본에서 계약 버그가 고쳐지면 이 커밋과 원본을 비교해 반영 여부를 판단한다. 개별 이탈은 divergences 배열에 기록한다(스펙 6.3). 복사본의 주석이 말하는 '스펙'·'D2 Task N'·'proxy.ts' 같은 자리는 원본 저장소의 것이다. scripts/check-citations.sh 머리말의 게이트 단계 번호 '[5/9]' 도 원본 게이트의 번호다(이 저장소의 게이트에서는 [5/11]). 같은 머리말이 계약이 적혀 있다고 가리키는 '루트 AGENTS.md 의 R21 절'도 원본 저장소의 것이고 이 저장소의 루트 AGENTS.md 에는 없다(이 저장소에서 그 계약은 '사라질 자리를 인용하지 마라' 절이다). test/unit/scripts/check-citations.test.ts 의 toPosix 주석은 원본의 실측 문장(계정 이름이 든 예시 경로)을 그대로 둔 것이다. 복사한 시드 파일과 시드 시험도 원본 저장소의 것을 가리킨다 - 원본의 web 서비스와 TZ, test/e2e/*.spec.ts, lib/resources/view.ts, 원본 루트 AGENTS.md 의 문장은 이 저장소에 없다.",
   "divergences": [
     {
       "path": "lib/config/settings.ts",
@@ -62,7 +62,7 @@
     {
       "path": "lib/jsonapi/client.ts",
       "what": "fetch 에 cache: 'no-store' 를 넘기지 않는다.",
-      "why": "앱의 전역 fetch(SDK 57 의 expo/fetch)는 cache 를 읽지 않고, RN 폴리필(EXPO_PUBLIC_USE_RN_FETCH=1)은 cache 가 no-store·no-cache 인 GET·HEAD 의 URL 끝에 `_=<시각>` 을 붙인다. 어느 쪽이든 캐시 정책은 TanStack Query 가 소유하므로 넘기지 않는다(스펙 8.5). 근거(2026-09-30 소스 확인, 기기에서 재지는 않았다): SDK 57(expo 57.0.26)의 winter 런타임이 EXPO_PUBLIC_USE_RN_FETCH 가 1·true 가 아닌 한 전역 fetch 를 expo/fetch 로 바꿔 끼운다(node_modules/expo/src/winter/runtime.native.ts:41-53). 기기의 Release APK 가 그 fetch 로 도는 것은 실측 기록 M6 이 확인했다. expo/fetch 는 init 에서 body·signal·redirect·method·credentials·headers 만 읽고 cache 는 읽지 않는다(node_modules/expo/src/winter/fetch/fetch.ts:39-75. expo/src/winter/fetch/*.ts 에는 cache 라는 낱말이 없다). whatwg-fetch 3.6.20 의 `_=<시각>` 덧붙임은 Request 생성자 안에 있다(node_modules/whatwg-fetch/fetch.js:398-407). JSON:API 요청 URL 은 백엔드의 쿼리 문법 검사를 거치므로 바뀌면 안 된다. 네이티브 HTTP 캐시(Android OkHttp 10MB, iOS URLCache)는 요청의 cache 옵션이 아니라 응답 헤더(Cache-Control 등)를 따른다."
+      "why": "앱의 전역 fetch(SDK 57 의 expo/fetch)는 cache 를 읽지 않고, RN 폴리필(EXPO_PUBLIC_USE_RN_FETCH=1)은 cache 가 no-store·no-cache 인 GET·HEAD 의 URL 끝에 `_=<시각>` 을 붙인다. 어느 쪽이든 캐시 정책은 TanStack Query 가 소유하므로 넘기지 않는다(스펙 8.5). 근거(2026-09-30 소스 확인, 기기에서 재지는 않았다): SDK 57(expo 57.0.26)의 winter 런타임이 EXPO_PUBLIC_USE_RN_FETCH 가 1·true 가 아닌 한 전역 fetch 를 expo/fetch 로 바꿔 끼운다(node_modules/expo/src/winter/runtime.native.ts:41-53). 기기의 Release APK 가 그 fetch 로 도는 것은 실측 기록 M6 이 확인했다. expo/fetch 는 init 에서 body·signal·redirect·method·credentials·headers 만 읽고 cache 는 읽지 않는다(node_modules/expo/src/winter/fetch/fetch.ts:39-75. expo/src/winter/fetch/*.ts 에는 cache 라는 낱말이 없다). whatwg-fetch 3.6.20 의 `_=<시각>` 덧붙임은 Request 생성자 안에 있다(node_modules/whatwg-fetch/fetch.js:398-407). JSON:API 요청 URL 은 백엔드의 쿼리 문법 검사를 거치므로 바뀌면 안 된다. 네이티브 HTTP 캐시(Android OkHttp 10MB, iOS URLCache)는 요청의 cache 옵션이 아니라 응답 헤더(Cache-Control 등)를 따른다. 백엔드가 어떤 캐시 헤더를 싣는지는 재지 않았다(D2 가 잰다)."
     },
     {
       "path": "lib/jsonapi/client.ts",
@@ -86,8 +86,8 @@
     },
     {
       "path": "test/unit/scripts/check-citations.test.ts",
-      "what": "GATE_TARGETS 를 app·components·lib·platform·test 로 바꿨고, 주석의 원본 게이트 단계 번호 [5/9] 를 이 저장소의 [5/11] 로 바꿨다. toPosix 주석의 예시 경로(`C:Users\\…`)에서 원본의 계정 이름을 `<사용자>` 로 바꿨다.",
-      "why": "이 저장소에는 proxy.ts 가 없고 platform/ 이 있다. 테스트는 check.sh 의 호출 인자와 이 목록을 맞대므로 둘이 같아야 한다. queries/ 는 첫 파일이 생길 때 두 자리에 함께 더한다. 계정 이름이 든 경로를 이 저장소에 남기지 않는다(실측 기록·계획 문서와 같은 처리)."
+      "what": "GATE_TARGETS 를 app·components·lib·platform·test 로 바꿨고, 주석의 원본 게이트 단계 번호 [5/9] 를 이 저장소의 [5/11] 로 바꿨다.",
+      "why": "이 저장소에는 proxy.ts 가 없고 platform/ 이 있다. 테스트는 check.sh 의 호출 인자와 이 목록을 맞대므로 둘이 같아야 한다. queries/ 는 첫 파일이 생길 때 두 자리에 함께 더한다."
     }
   ]
 }

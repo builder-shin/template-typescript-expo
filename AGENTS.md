@@ -80,9 +80,12 @@ pnpm install --frozen-lockfile
 
 `./scripts/check.sh` 하나가 유일한 게이트다(typecheck · lint · format · secretlint · 인용 ·
 복사 출처 · unit · 설정 · 의존성 호환 · 번들 · compose). 전제 조건(Docker, 네트워크)은 그
-파일 머리말에 있다. 실행 권한이 살아 있어야 통과한다 - `git ls-tree HEAD scripts/`가
-`100755`인지 확인한다. `core.filemode=false`인 머신에서는 권한이 빠져도 `git status`로
-드러나지 않는다.
+파일 머리말에 있다. Windows에서는 Git Bash에서 `./scripts/check.sh`로 돌린다 - `package.json`의
+`check` 스크립트(`pnpm check`)는 pnpm이 cmd.exe로 돌려 `./`를 못 찾고 실패한다. 실행 권한이 살아
+있어야 통과한다 - `git ls-tree HEAD scripts/ test/e2e/android.sh`에서 `scripts/check.sh`·
+`scripts/check-citations.sh`·`test/e2e/android.sh` 셋이 `100755`인지 확인한다
+(`scripts/check-provenance.mjs`는 `node`가 부르므로 `100644`가 맞다). `core.filemode=false`인
+머신에서는 권한이 빠져도 `git status`로 드러나지 않는다.
 
 secretlint 단계는 `pnpm lint:secrets`다. 스크립트 이름을 `secretlint`로 두면
 `node_modules/.bin/secretlint`를 가려서 의존성 호환 단계(expo-doctor)의 package.json 검사가

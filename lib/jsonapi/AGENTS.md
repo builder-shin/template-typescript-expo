@@ -41,7 +41,8 @@ vitest에서 그대로 돌고, 앱에서는 SDK 57의 `expo/fetch` 위에서 돈
 
 - `expo/fetch`는 `cache`를 읽지 않고, RN 폴리필(`EXPO_PUBLIC_USE_RN_FETCH=1`)은 `cache`가
   no-store인 GET의 URL에 `_=<시각>`을 붙인다. 어느 쪽이든 캐시 정책은 TanStack Query가 소유하므로
-  `request()`는 `cache`를 넘기지 않는다(스펙 8.5).
+  `request()`는 `cache`를 넘기지 않는다(스펙 8.5). 네이티브 HTTP 캐시(Android OkHttp·iOS URLCache)는
+  응답 헤더를 따른다(미측정 - D2가 잰다).
 - 취소는 단계마다 다르게 거절된다. 요청 단계의 취소는 `AbortError`가 아니라 `Error`(`FetchError`)이고
   (실측 M6), 본문을 스트림(`response.body`)으로 읽는 중의 취소는 `AbortError`다. `request()`가 쓰는
   `response.json()`은 스트림이 아니라 네이티브 `text()`를 기다려서 이 구분 밖이다. 그래서 취소를 오류
