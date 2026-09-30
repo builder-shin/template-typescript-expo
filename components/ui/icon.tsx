@@ -23,6 +23,9 @@ const StyledIcon = withUniwind(IconImpl, {
   },
 })
 
+// 원본과 다른 곳: 아래 예시의 아이콘 import 를 통(`from 'lucide-react-native'`)에서 깊은 import 로 바꿨다 - 통을
+// 값으로 받으면 Metro 가 아이콘 전부를 번들에 싣고, eslint.config.js 가 그 import 를 막는다(루트 AGENTS.md 의
+// "React Native Reusables 컴포넌트").
 /**
  * A wrapper component for Lucide icons with Uniwind `className` support via `withUniwind`.
  *
@@ -32,7 +35,7 @@ const StyledIcon = withUniwind(IconImpl, {
  * @component
  * @example
  * ```tsx
- * import { ArrowRight } from 'lucide-react-native';
+ * import ArrowRight from 'lucide-react-native/icons/arrow-right';
  * import { Icon } from '@/registry/uniwind/registry/components/ui/icon';
  *
  * <Icon as={ArrowRight} className="text-red-500 size-4" />

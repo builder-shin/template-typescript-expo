@@ -18,11 +18,19 @@
 const SCHEME_URL = /^([A-Za-z][A-Za-z0-9+.-]*):\/\/(.*)$/s
 
 /**
+ * 개발 클라이언트가 이 앱의 scheme 으로도 보내는 링크의 호스트(`<scheme>://expo-development-client/?url=…`). Expo
+ * Router 의 `fromDeepLink` 가 이 호스트를 알아보고 `url` 파라미터(개발 서버의 주소)를 따로 푼다 - 앱 안 주소로 바꾸면
+ * 그 갈래를 지나지 못한다.
+ */
+const DEV_CLIENT_HOST = 'expo-development-client'
+
+/**
  * 이 앱의 scheme(`schemes`, 대소문자를 가리지 않는다)으로 들어온 링크 `<scheme>://<호스트>/<경로>?<쿼리>` 를
  * `/<호스트>/<경로>?<쿼리>` 로 바꾼다. `<scheme>:///…` 처럼 호스트 자리가 빈 모양은 앞의 `/` 를 하나로 모은다.
  *
  * 이 앱의 scheme 이 아닌 주소 - `https://…`, 개발 클라이언트의 `exp+…://expo-development-client/?url=…`, 이미
- * 앱 안 주소인 `/…` - 는 그대로 돌려준다. 그런 주소는 Expo Router 가 원래대로 푼다.
+ * 앱 안 주소인 `/…` - 와, 이 앱의 scheme 이어도 호스트가 `expo-development-client` 인 링크는 그대로 돌려준다.
+ * 그런 주소는 Expo Router 가 원래대로 푼다.
  */
 export function appPathFromDeepLink(url: string, schemes: readonly string[]): string {
   const match = SCHEME_URL.exec(url)
@@ -30,6 +38,8 @@ export function appPathFromDeepLink(url: string, schemes: readonly string[]): st
   const [, scheme = '', rest = ''] = match
   const own = schemes.some((known) => known.toLowerCase() === scheme.toLowerCase())
   if (!own) return url
+  const host = /^[^/?#]*/.exec(rest)?.[0] ?? ''
+  if (host.toLowerCase() === DEV_CLIENT_HOST) return url
   return `/${rest.replace(/^\/+/, '')}`
 }
 

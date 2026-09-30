@@ -34,8 +34,8 @@
 `components.json`의 `hooks` 별칭이 가리키는 자리다. React Native Reusables의 훅은 UI 도우미라 데이터를
 다루는 `queries/`와 섞지 않는다. `lib/navigation/`은 트리에도 없었다 - Expo Router 가 밖에서 들어온 딥링크의
 쿼리 값을 두 번 디코딩해 바꾸는 것을 막으려고(`app/+native-intent.tsx`가 잇는다, 스펙 8.2의 둘째 D3 정정) D3가
-뒀다. 자원에 매이지 않는 주소 판단이라 `lib/resources/`에 두지 않았다. `lib/config/`의 제약은 그 디렉터리의
-`AGENTS.md`에 있다.
+뒀다. 자원에 매이지 않는 주소 판단이라 `lib/resources/`에 두지 않았다. `lib/config/`의 제약과 `lib/navigation/`이
+바꾸지 않는 주소는 각 디렉터리의 `AGENTS.md`에 있다.
 `settings.ts`가 읽는 설정 자리(`process.env`, 앱에서는 `extra`)를 정하는 바인딩은
 `platform/config.ts`가 한다.
 
@@ -87,6 +87,14 @@ Expo Router는 `app/` 아래의 모든 파일을 라우트로 취급한다. 판�
 `printf 'n\n' | BACKEND_URL=https://gate-check.invalid pnpm dlx @react-native-reusables/cli@0.7.1 add <이름> --styling-library uniwind --yes`
 (이미 있는 `text.tsx` 등의 덮어쓰기는 "아니오"). 받은 파일을 고친 곳은 그 파일에 "원본과 다른 곳" 주석으로
 남긴다.
+
+lucide 아이콘은 아이콘마다 깊은 경로의 기본 내보내기로 받는다 -
+`import ArrowRight from 'lucide-react-native/icons/arrow-right'`(이름은 kebab-case). 통
+(`import { ArrowRight } from 'lucide-react-native'`)을 값으로 받으면 Metro 가 트리 셰이킹을 하지 않아 아이콘
+1800여 개가 모두 번들에 실린다 - 깊은 import 로 바꿔 Android 번들의 Hermes 바이트코드가 6.6MB 에서 4.5MB 로 줄었다.
+`eslint.config.js` 가 통을 값으로 받는 import 를 막는다(`test/unit/lint/lucide-imports.test.ts` 가 잰다) - CLI 로
+받은 파일(select·checkbox 등)이 통에서 아이콘을 받으면 lint 에서 멈추니, 받은 뒤 깊은 import 로 바꾸고 "원본과
+다른 곳" 주석을 단다. 타입(`import type { LucideIcon }`)은 통에서 받아도 된다.
 
 `app/`·`components/` 의 클래스에 **`@media` 로 컴파일되는 변형을 쓰지 않는다** - 너비(`sm:`·`md:`·`lg:`·`xl:`·
 `2xl:` 과 그 `max-`·`min-` 꼴), 방향(`portrait:`·`landscape:`), 플랫폼(`ios:`·`android:`·`native:`·`tv:`·
@@ -143,5 +151,5 @@ secretlint 단계는 `pnpm lint:secrets`다. 스크립트 이름을 `secretlint`
 실측 기록은 `docs/superpowers/notes/2026-09-30-d1-measurements.md`다. 기기 위의 동작(M1–M8)이
 궁금하면 거기부터 읽는다. 세 백엔드가 싣는 캐시 머리글(D2 실측 H1)은
 `docs/superpowers/notes/2026-09-30-d2-measurements.md`에 있다.
-목록 주소의 인코딩 규칙, Uniwind 결함의 대응, 네이티브 HTTP 캐시 아래의 신선도(D3 실측 L1–L6)는
+목록 주소의 인코딩 규칙, Uniwind 결함의 대응, 네이티브 HTTP 캐시 아래의 신선도, 닿지 못한 재조회(D3 실측 L1–L7)는
 `docs/superpowers/notes/2026-09-30-d3-measurements.md`에 있다.

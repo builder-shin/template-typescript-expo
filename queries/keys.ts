@@ -26,7 +26,7 @@ export type CacheWrite =
   | { kind: 'delete'; type: string; id: string }
   | { kind: 'logout' }
 
-/** 쓰기 하나가 캐시에 하는 일. `removeAll` 은 캐시 전체를 비운다. */
+/** 쓰기 하나가 캐시에 하는 일. `removeAll` 은 조회 캐시 전체를 비운다(쓰기 캐시는 둔다 - `applyCacheEffects`). */
 export type CacheEffect =
   | { action: 'invalidate'; queryKey: readonly string[] }
   | { action: 'remove'; queryKey: readonly string[] }

@@ -127,6 +127,15 @@ describe('appPathFromDeepLink - 이 앱의 scheme 으로 들어온 링크를 앱
     expect(appPathFromDeepLink(url, SCHEMES)).toBe(url)
   })
 
+  it('이 빌드의 scheme 이어도 개발 클라이언트의 링크(expo-development-client 호스트)는 그대로 둔다', () => {
+    // Expo Router 의 fromDeepLink 가 호스트로 알아보고 url 파라미터(개발 서버의 주소)를 따로 푼다 - / 로 바꾸면 그
+    // 갈래가 이 링크를 보지 못하고 `expo-development-client` 라는 경로로 연다.
+    const link =
+      'templateexpo-e2e://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081%2Fexamples'
+    expect(appPathFromDeepLink(link, SCHEMES)).toBe(link)
+    expect(extractExpoPathFromURL([], appPathFromDeepLink(link, SCHEMES))).toBe('examples')
+  })
+
   it('scheme 목록이 비면 아무것도 바꾸지 않는다', () => {
     expect(appPathFromDeepLink(REPRO_LINK, [])).toBe(REPRO_LINK)
   })
