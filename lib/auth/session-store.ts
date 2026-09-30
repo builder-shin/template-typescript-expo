@@ -30,8 +30,10 @@ export interface SessionStorage {
 }
 
 /**
- * 로그인·회전 응답에서 저장할 세션을 만든다. `now` 는 응답을 받은 순간의 기기 시각이다 -
+ * 로그인·회전 응답에서 저장할 세션을 만든다. `now` 는 만료 시각의 기준인 기기 시각이다 -
  * `session.accessExpiresAt` 을 만든 시각과 같은 값을 넘긴다(tokens.ts 의 sessionFromTokenDocument).
+ * 로그인은 응답을 받은 뒤의 시각을, 회전은 요청을 보내기 직전의 시각을 넘긴다 - 회전은 요청이 걸린
+ * 시간만큼 만료가 이르게 잡히는 안전한 쪽이다.
  */
 export function storedSessionFrom(
   session: Session,

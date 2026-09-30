@@ -25,6 +25,10 @@ import { isAccessExpiring, type Session } from './tokens'
  *     로그인으로 보낸다(스펙 9.2).
  *   - 백그라운드 타이머를 두지 않는다. 앱이 다시 앞으로 나올 때의 재조회가 이 경로를 지나며
  *     필요하면 회전한다.
+ *   - 저장소가 실패해도 메모리의 세션 상태가 먼저다. 백엔드가 이미 내준 토큰(로그인·회전)은 쓰기에
+ *     실패해도 메모리에 세우고(버리면 폐기된 옛 refresh 만 남는다), 로그아웃은 못 지워도 메모리를 비운 뒤
+ *     캐시 비움과 폐기 요청을 끝낸다. 오류는 그 뒤에 호출자에게 거절로 간다 - 호출자는 삼키지 말고
+ *     알리되, 화면 이동은 거절이 아니라 `status()` 를 따른다.
  *
  * 저장소·전송·시계를 주입받는다 - 앱에서는 platform/session.ts 가 SecureStore·API 클라이언트·
  * Date.now 를 꽂고, 시험은 가짜를 꽂아 node 에서 잰다.
@@ -53,18 +57,27 @@ export interface SessionManager {
   current: () => StoredSession | null
   /** 상태가 바뀔 때마다 부른다. 돌려준 함수로 구독을 끊는다. */
   subscribe: (listener: () => void) => () => void
-  /** 로그인·가입이 받은 토큰으로 세션을 세운다 - 저장소에 먼저 쓰고 그다음 알린다. */
+  /**
+   * 로그인·가입이 받은 토큰으로 세션을 세운다 - 저장소에 먼저 쓰고 그다음 알린다. 쓰기가 실패하면
+   * 메모리에는 세우고(서버가 이미 내준 토큰이다) 그 오류로 거절한다.
+   */
   establish: (session: Session, refreshExpiresIn: number) => Promise<void>
   /**
    * 인증이 필요한 요청이 실을 access token. 세션이 없으면 null 이다 - 쓰기 훅은 요청하지 않고
-   * 로그인으로 보낸다(스펙 7.3 의 두 번째 겹). 만료까지 60초 이하면 회전한다.
+   * 로그인으로 보낸다(스펙 7.3 의 두 번째 겹). 만료까지 60초 이하면 회전한다. 회전한 세션을 저장소에
+   * 쓰지 못하면 새 세션은 메모리에 두고 그 오류로 거절한다 - 다음 호출은 새 access 를 받는다.
    */
   getAccessToken: () => Promise<string | null>
-  /** 기기 세션을 지운다 - 인증 오류를 받았을 때(스펙 9.2). 백엔드를 부르지 않는다. */
+  /**
+   * 기기 세션을 지운다 - 인증 오류를 받았을 때(스펙 9.2). 백엔드를 부르지 않는다. 저장소를 지우지
+   * 못해도 메모리는 signedOut 이 되고 그 오류로 거절한다.
+   */
   signOut: () => Promise<void>
   /**
    * 로그아웃(스펙 7.4) - 기기 세션과 캐시(`clearCaches`)를 먼저 비우고 refresh 폐기를 요청한다.
-   * 요청이 실패해도 기기 쪽은 이미 비어 있다(logout.ts 의 endSession).
+   * 요청이 실패해도 기기 쪽은 이미 비어 있다(logout.ts 의 endSession). 저장소를 지우지 못해도 메모리는
+   * signedOut 이고 캐시 비움과 폐기 요청은 이어서 한다 - 못 지운 항목이 남았어도 폐기가 그 refresh 를
+   * 죽여 둔다. 그 오류는 끝에 거절로 나간다.
    */
   logout: (clearCaches: () => void) => Promise<LogoutOutcome>
 }
@@ -101,18 +114,29 @@ export function createSessionManager({ storage, send, now }: SessionManagerDeps)
   }
 
   async function save(next: StoredSession): Promise<void> {
-    await storage.write(serializeSession(next))
-    publish(next)
+    try {
+      await storage.write(serializeSession(next))
+    } finally {
+      // 쓰기가 실패해도 메모리에는 세운다 - 백엔드가 이미 이 토큰을 내줬고(회전이면 옛 refresh 는
+      // 폐기됐다) 버리면 사용자가 갇힌다. 오류는 호출자에게 그대로 간다.
+      publish(next)
+    }
   }
 
   async function signOut(): Promise<void> {
     generation += 1
-    await storage.clear()
-    publish(null)
+    try {
+      await storage.clear()
+    } finally {
+      // 못 지워도 메모리는 로그아웃이다. 남은 항목은 다음 실행에서 되살아날 수 있다 - logout() 이 폐기를
+      // 이어서 요청하는 까닭이다. 오류는 호출자에게 그대로 간다.
+      publish(null)
+    }
   }
 
   async function rotate(current: StoredSession): Promise<string | null> {
     const startedIn = generation
+    // 요청을 보내기 직전의 시각을 만료의 기준으로 쓴다 - 응답이 늦게 와도 만료가 늦게 잡히지 않는다.
     const at = now()
     const outcome = await rotateSession(current.refreshToken, send, at)
     if (generation !== startedIn) return session?.accessToken ?? null
@@ -159,10 +183,20 @@ export function createSessionManager({ storage, send, now }: SessionManagerDeps)
       return rotation
     },
     signOut,
-    logout: (clearCaches) =>
-      endSession(session ?? undefined, send, async () => {
-        await signOut()
+    logout: async (clearCaches) => {
+      // 저장소를 못 지워도 signOut 이 메모리를 이미 signedOut 으로 만들었다. 캐시 비움과 폐기 요청은
+      // 이어서 하고, 저장소 오류는 그것을 다 끝낸 뒤에 던진다.
+      const failures: unknown[] = []
+      const outcome = await endSession(session ?? undefined, send, async () => {
+        try {
+          await signOut()
+        } catch (error) {
+          failures.push(error)
+        }
         clearCaches()
-      }),
+      })
+      if (failures.length > 0) throw failures[0]
+      return outcome
+    },
   }
 }

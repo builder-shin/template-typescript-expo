@@ -54,6 +54,25 @@ const ROTATED: JsonApiResult<AuthTokensDocument> = {
   },
 }
 
+/** 두 번째 회전의 응답 - 첫 회전이 준 토큰과 서로 다르다. */
+const ROTATED_AGAIN: JsonApiResult<AuthTokensDocument> = {
+  ok: true,
+  status: 200,
+  document: {
+    data: {
+      type: 'authTokens',
+      id: 'probe-jti-again',
+      attributes: {
+        accessToken: 'probe-access-newer',
+        refreshToken: 'probe-refresh-newer',
+        tokenType: 'ProbeBearer',
+        expiresIn: 137,
+        refreshExpiresIn: 8641,
+      },
+    },
+  },
+}
+
 const REVOKED: JsonApiResult<unknown> = {
   ok: false,
   status: 401,
@@ -73,7 +92,8 @@ type ScriptedResponse = JsonApiResult<unknown> | Promise<JsonApiResult<unknown>>
 
 /**
  * 관리자 하나와 그 가짜 저장소·전송. `log` 가 저장소 쓰기·지우기와 요청을 불린 순서대로 모은다 -
- * "저장이 반환보다 먼저", "기기 쪽을 비운 뒤에 요청" 같은 순서를 한 배열로 잰다.
+ * "저장이 반환보다 먼저", "기기 쪽을 비운 뒤에 요청" 같은 순서를 한 배열로 잰다. 시계는 `NOW` 에 서 있고
+ * `advance` 로만 움직인다.
  */
 function harness(stored: StoredSession | null, ...responses: ScriptedResponse[]) {
   const log: string[] = []
@@ -99,8 +119,18 @@ function harness(stored: StoredSession | null, ...responses: ScriptedResponse[])
     if (next === undefined) return Promise.reject(new Error(`준비하지 않은 요청: ${path}`))
     return Promise.resolve(next) as Promise<JsonApiResult<T>>
   }
-  const manager = createSessionManager({ storage, send, now: () => NOW })
-  return { manager, storage, log, sent, stored: () => value }
+  let clock = NOW
+  const manager = createSessionManager({ storage, send, now: () => clock })
+  return {
+    manager,
+    storage,
+    log,
+    sent,
+    stored: () => value,
+    advance: (ms: number) => {
+      clock += ms
+    },
+  }
 }
 
 function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
@@ -179,6 +209,31 @@ describe('establish - 로그인·가입이 받은 토큰', () => {
     expect(storedWhenNotified).toEqual([serializeSession(ROTATED_SESSION)])
     expect(h.manager.current()).toEqual(ROTATED_SESSION)
     expect(h.manager.status()).toBe('signedIn')
+  })
+
+  it('저장소에 쓰지 못해도 새 세션을 메모리에 세우고 그 오류로 거절한다 - 서버가 이미 내준 토큰을 버리지 않는다', async () => {
+    const h = harness(null)
+    await h.manager.restore()
+    h.storage.write = () => Promise.reject(new Error('probe keystore write failure'))
+    const notified: string[] = []
+    h.manager.subscribe(() => {
+      notified.push(h.manager.status())
+    })
+
+    await expect(
+      h.manager.establish(
+        {
+          accessToken: 'probe-access-new',
+          refreshToken: 'probe-refresh-new',
+          accessExpiresAt: NOW + 137_000,
+        },
+        8641,
+      ),
+    ).rejects.toThrow('probe keystore write failure')
+
+    expect(h.manager.current()).toEqual(ROTATED_SESSION)
+    expect(h.manager.status()).toBe('signedIn')
+    expect(notified).toEqual(['signedIn'])
   })
 })
 
@@ -289,6 +344,27 @@ describe('getAccessToken - 회전은 한 곳에서, 한 번에 하나만(스펙 
     expect(h.sent).toHaveLength(1)
   })
 
+  it('회전이 끝난 뒤 새 access 가 다시 만료 임박이 되면 다시 회전한다 - 끝난 회전을 붙들고 있지 않는다', async () => {
+    const h = harness(oldSession(0), ROTATED, ROTATED_AGAIN)
+    await h.manager.restore()
+    await expect(h.manager.getAccessToken()).resolves.toBe('probe-access-new')
+
+    h.advance(137_000)
+
+    await expect(h.manager.getAccessToken()).resolves.toBe('probe-access-newer')
+    expect(h.sent).toHaveLength(2)
+    // 두 번째 회전은 첫 회전이 준 refresh 를 낸다.
+    expect(h.sent[1]?.options.body).toEqual({
+      data: { type: 'refreshTokens', attributes: { refreshToken: 'probe-refresh-new' } },
+    })
+    expect(h.manager.current()).toEqual({
+      accessToken: 'probe-access-newer',
+      refreshToken: 'probe-refresh-newer',
+      accessExpiresAt: NOW + 137_000 + 137_000,
+      refreshExpiresAt: NOW + 137_000 + 8_641_000,
+    })
+  })
+
   it('회전하는 동안 로그아웃하면 늦게 온 회전 결과가 세션을 되살리지 않는다', async () => {
     const response = deferred<JsonApiResult<unknown>>()
     const h = harness(oldSession(0), response.promise)
@@ -303,6 +379,47 @@ describe('getAccessToken - 회전은 한 곳에서, 한 번에 하나만(스펙 
     expect(h.manager.current()).toBeNull()
     expect(h.stored()).toBeNull()
     expect(h.log).toEqual([`send ${REFRESH_PATH}`, 'clear'])
+  })
+
+  it('회전하는 동안 새 로그인이 세워지면 늦게 온 회전 결과가 새 세션을 덮지 않는다', async () => {
+    const response = deferred<JsonApiResult<unknown>>()
+    const h = harness(oldSession(0), response.promise)
+    await h.manager.restore()
+
+    const token = h.manager.getAccessToken()
+    await settle()
+    await h.manager.establish(
+      {
+        accessToken: 'probe-access-login',
+        refreshToken: 'probe-refresh-login',
+        accessExpiresAt: NOW + 137_000,
+      },
+      8641,
+    )
+    response.resolve(ROTATED)
+
+    const loggedIn: StoredSession = {
+      accessToken: 'probe-access-login',
+      refreshToken: 'probe-refresh-login',
+      accessExpiresAt: NOW + 137_000,
+      refreshExpiresAt: NOW + 8_641_000,
+    }
+    await expect(token).resolves.toBe('probe-access-login')
+    expect(h.manager.current()).toEqual(loggedIn)
+    expect(h.stored()).toBe(serializeSession(loggedIn))
+  })
+
+  it('회전 뒤 저장소에 쓰지 못해도 새 세션을 메모리에 두고 그 오류로 거절한다 - 다음 호출은 옛 refresh 를 다시 내지 않는다', async () => {
+    const h = harness(oldSession(0), ROTATED)
+    await h.manager.restore()
+    h.storage.write = () => Promise.reject(new Error('probe keystore write failure'))
+
+    await expect(h.manager.getAccessToken()).rejects.toThrow('probe keystore write failure')
+
+    expect(h.manager.current()).toEqual(ROTATED_SESSION)
+    expect(h.manager.status()).toBe('signedIn')
+    await expect(h.manager.getAccessToken()).resolves.toBe('probe-access-new')
+    expect(h.sent).toHaveLength(1)
   })
 })
 
@@ -380,5 +497,33 @@ describe('logout - 기기 쪽을 먼저 비우고 refresh 폐기를 요청한다
 
     expect(outcome).toEqual({ kind: 'noSession' })
     expect(h.log).toEqual(['clear', 'caches'])
+  })
+
+  it('저장소를 지우지 못해도 메모리는 signedOut 이고 캐시를 비우고 폐기를 요청한 뒤 그 오류로 거절한다', async () => {
+    const h = harness(oldSession(600_000), LOGGED_OUT)
+    await h.manager.restore()
+    h.storage.clear = () => {
+      h.log.push('clear')
+      return Promise.reject(new Error('probe keystore clear failure'))
+    }
+    const notified: string[] = []
+    h.manager.subscribe(() => {
+      notified.push(h.manager.status())
+    })
+
+    await expect(
+      h.manager.logout(() => {
+        h.log.push('caches')
+      }),
+    ).rejects.toThrow('probe keystore clear failure')
+
+    expect(h.manager.current()).toBeNull()
+    expect(h.manager.status()).toBe('signedOut')
+    expect(notified).toEqual(['signedOut'])
+    // 못 지운 항목이 남았을 수 있다 - 옛 refresh 를 폐기해 다음 실행에서 되살아나도 죽어 있게 한다.
+    expect(h.log).toEqual(['clear', 'caches', `send ${LOGOUT_PATH}`])
+    expect(h.sent[0]?.options.body).toEqual({
+      data: { type: 'refreshTokens', attributes: { refreshToken: 'probe-refresh-old' } },
+    })
   })
 })
