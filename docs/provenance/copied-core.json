@@ -64,7 +64,7 @@
     },
     {
       "path": "test/unit/jsonapi/client.test.ts",
-      "what": "'캐시를 쓰지 않는다' 를 cache 가 없고 URL 이 그대로인지로 바꿨다. 'signal 을 그대로 전달한다' 를 '호출자 signal 이 끊기면 요청도 끊긴다'·'이미 끊긴 signal 을 주면 요청이 시작부터 끊겨 있다' 로 바꿨다. 타임아웃 describe(6개)를 더했다.",
+      "what": "'캐시를 쓰지 않는다' 를 cache 가 없고 URL 이 그대로인지로 바꿨다. 'signal 을 그대로 전달한다' 를 '호출자 signal 이 끊기면 요청도 끊긴다'·'이미 끊긴 signal 을 주면 요청이 시작부터 끊겨 있다' 로 바꿨다. 타임아웃 describe(8개)를 더했다. fetchMock 의 타입을 ReturnType<typeof vi.fn> 에서 Mock<(url: string, init: RequestInit) => Promise<Response>> 로 좁혔다(vitest 5 의 ReturnType<typeof vi.fn> 은 Mock<Procedure | Constructable> 이고, 그 void 갈래 때문에 @typescript-eslint/no-misused-promises 가 Promise 를 돌려주는 mockImplementation 을 오탐한다). 좁힌 타입에서 lastCall() 의 'as RequestInit' 단언은 불필요해져 뺐다.",
       "why": "위 두 이탈을 따라간다. 타임아웃이 자기 컨트롤러를 쓰므로 fetch 가 받는 signal 은 호출자의 것과 같은 객체가 아니다 - 지켜야 할 성질은 동일성이 아니라 중단의 전달이다."
     }
   ]

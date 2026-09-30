@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { getEventListeners } from 'node:events'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import {
   JSONAPI_MEDIA_TYPE,
   REQUEST_TIMEOUT_MS,
@@ -22,11 +23,14 @@ function jsonApiResponse(body: unknown, status = 200): Response {
   })
 }
 
-let fetchMock: ReturnType<typeof vi.fn>
+// `ReturnType<typeof vi.fn>` 은 vitest 5 에서 `Mock<Procedure | Constructable>` 다. 그 void 갈래
+// 때문에 Promise 를 돌려주는 mockImplementation 을 @typescript-eslint/no-misused-promises 가
+// 오탐하므로, fetch 시그니처로 좁힌다.
+let fetchMock: Mock<(url: string, init: RequestInit) => Promise<Response>>
 
 beforeEach(() => {
   process.env.BACKEND_URL = BACKEND
-  fetchMock = vi.fn()
+  fetchMock = vi.fn<(url: string, init: RequestInit) => Promise<Response>>()
   vi.stubGlobal('fetch', fetchMock)
 })
 
@@ -39,7 +43,7 @@ afterEach(() => {
 function lastCall(): [string, RequestInit] {
   const call = fetchMock.mock.calls.at(-1)
   if (call === undefined) throw new Error('fetch was not called')
-  return [String(call[0]), (call[1] ?? {}) as RequestInit]
+  return [String(call[0]), call[1] ?? {}]
 }
 
 function headerOf(init: RequestInit, name: string): string | null {
@@ -149,8 +153,6 @@ describe('request — 요청 조립', () => {
 
   it('호출자 signal 이 끊기면 요청도 끊긴다', async () => {
     fetchMock.mockImplementation(
-      // vi.fn() 모의의 인자 타입에 void 를 돌려주는 갈래가 섞여 있어 이 규칙이 오탐한다.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       (_url: string, init: RequestInit) =>
         new Promise((_resolve, reject) => {
           init.signal?.addEventListener('abort', () => {
@@ -481,8 +483,6 @@ describe('request — 타임아웃(스펙 8.5)', () => {
   /** 응답하지 않다가 signal 이 끊기면 AbortError 로 거절하는 fetch. */
   function hangUntilAborted(): void {
     fetchMock.mockImplementation(
-      // vi.fn() 모의의 인자 타입에 void 를 돌려주는 갈래가 섞여 있어 이 규칙이 오탐한다.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       (_url: string, init: RequestInit) =>
         new Promise((_resolve, reject) => {
           init.signal?.addEventListener('abort', () => {
@@ -524,8 +524,6 @@ describe('request — 타임아웃(스펙 8.5)', () => {
   })
 
   it('본문을 읽다가 멈춰도 끊는다', async () => {
-    // vi.fn() 모의의 인자 타입에 void 를 돌려주는 갈래가 섞여 있어 이 규칙이 오탐한다.
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     fetchMock.mockImplementation((_url: string, init: RequestInit) =>
       Promise.resolve({
         status: 200,
@@ -555,5 +553,26 @@ describe('request — 타임아웃(스펙 8.5)', () => {
     fetchMock.mockRejectedValue(new TypeError('probe network failure'))
     await request('/api/v1/examples')
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  // 호출자 signal 은 요청보다 오래 살 수 있다(같은 signal 로 여러 번 부르는 호출자). 리스너가
+  // 남으면 늦은 abort 가 이미 끝난 요청의 컨트롤러까지 닿고, 요청마다 리스너가 쌓인다.
+
+  it('끝난 요청은 호출자 signal 에 리스너를 남기지 않는다', async () => {
+    fetchMock.mockResolvedValue(jsonApiResponse(COLLECTION_EMPTY))
+    const caller = new AbortController()
+    await request('/api/v1/examples', { signal: caller.signal })
+    expect(getEventListeners(caller.signal, 'abort')).toHaveLength(0)
+    caller.abort()
+    expect(lastCall()[1].signal?.aborted).toBe(false)
+  })
+
+  it('실패한 요청도 호출자 signal 에 리스너를 남기지 않는다', async () => {
+    fetchMock.mockRejectedValue(new TypeError('probe network failure'))
+    const caller = new AbortController()
+    await request('/api/v1/examples', { signal: caller.signal })
+    expect(getEventListeners(caller.signal, 'abort')).toHaveLength(0)
+    caller.abort()
+    expect(lastCall()[1].signal?.aborted).toBe(false)
   })
 })
