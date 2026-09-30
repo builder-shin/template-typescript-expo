@@ -4,11 +4,15 @@ import { describe, expect, it } from 'vitest'
 /**
  * lib/ 경계 규칙(스펙 5장)을 잰다.
  *
- * 축이 둘이다. (1) eslint.config.js 가 lib/ 아래 어느 깊이·어느 확장자의 파일에도
- * no-restricted-imports 를 오류로 거는가 - calculateConfigForFile 로 해석된 설정을
- * 본다. (2) 그렇게 걸린 규칙이 실제로 무엇을 막고 무엇을 통과시키는가 - 해석된 규칙
- * 항목만 떼어 core Linter 로 돌린다. 전체 설정으로 가상 파일을 lint 하면 타입 인식
- * 규칙의 projectService 가 "프로젝트에 없는 파일"로 죽으므로 두 축을 나눈다.
+ * 축이 둘이다. (1) eslint.config.js 가 lib/ 아래 어느 깊이·어느 디렉터리의
+ * ts·tsx·js·jsx·mjs·cjs 파일에도 no-restricted-imports 를 오류로 거는가 -
+ * calculateConfigForFile 로 해석된 설정을 본다. (2) 그렇게 걸린 규칙이 실제로 무엇을
+ * 막고 무엇을 통과시키는가 - 해석된 규칙 항목만 떼어 core Linter 로 돌린다. 전체
+ * 설정으로 가상 파일을 lint 하면 타입 인식 규칙의 projectService 가 "프로젝트에 없는
+ * 파일"로 죽으므로 두 축을 나눈다.
+ *
+ * no-restricted-imports 는 import 선언과 export ... from 만 본다. 동적 import() 와
+ * require() 는 대상이 아니라서 .cjs 행은 규칙 항목이 걸려 있는지만 잰다.
  */
 const eslint = new ESLint()
 
@@ -64,15 +68,19 @@ const FORBIDDEN = [
 
 const ALLOWED = ['@/lib/jsonapi/query', './define', 'clsx', 'tailwind-merge']
 
-// 계약의 lib/** 는 깊이와 확장자를 가리지 않는다. 깊이가 하나뿐인 표본은 files 패턴이
-// lib/*.ts 로 좁아지는 후퇴를, 확장자가 하나뿐인 표본은 lib/**/*.ts 로 좁아지는 후퇴를 놓친다.
+// 계약의 lib/** 는 깊이·디렉터리·확장자를 가리지 않는다. 표본이 세 축을 모두 걸쳐야
+// files 패턴이 좁아지는 후퇴를 잡는다. 깊이 0(lib/x.ts), 소유 표의 디렉터리
+// (lib/jsonapi/ 등), 소유 표에 없는 더 깊은 디렉터리(lib/config/deep/), 그리고
+// 확장자 여섯 개를 둔다.
 const LIB_FILES = [
+  'lib/boundary-probe.ts',
   'lib/jsonapi/boundary-probe.ts',
   'lib/resources/boundary-probe.tsx',
   'lib/auth/boundary-probe.js',
   'lib/lab/boundary-probe.jsx',
   'lib/jsonapi/boundary-probe.mjs',
   'lib/jsonapi/boundary-probe.cjs',
+  'lib/config/deep/boundary-probe.ts',
 ]
 
 /*
