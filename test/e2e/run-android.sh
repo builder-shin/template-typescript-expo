@@ -22,7 +22,7 @@
 # 플로 파일의 주석 두 가지를 읽는다(test/e2e/AGENTS.md):
 #
 #   # e2e-allow-http: 409     플로가 일부러 일으키는 2xx 밖의 상태. 여기 없는 상태가 기기 로그에
-#                             나오면 실패다(test/e2e/guard-log.sh)
+#                             나와도, 여기 적은 상태가 한 번도 나오지 않아도 실패다(test/e2e/guard-log.sh)
 #   # e2e-app-locale: ko-KR   앱별 언어. 주면 앱 상태를 지우고(pm clear) 그 언어를 정하고, 키보드 자판이
 #                             없는 입력기(IME)로 바꾼 뒤 돈다(아래 "입력기" 절)
 #
@@ -71,8 +71,10 @@ readonly ADB="$ANDROID_HOME/platform-tools/adb"
 MAESTRO="${MAESTRO:-$(command -v maestro || printf '%s' "$HOME/.maestro/bin/maestro")}"
 # 이 하네스와 플로가 기대는 Maestro 의 동작 - 사용 통계를 끄는 MAESTRO_CLI_NO_ANALYTICS, 글자마다 키 이벤트를
 # 보내는 inputText(아래 "입력기" 절) - 은 2.11.0 에서 쟀다. 다른 판이면 돌리지 않는다.
-maestro_version=$("$MAESTRO" --version 2>/dev/null | tr -d '\r' | tail -n 1) ||
+maestro_out=$("$MAESTRO" --version 2>/dev/null) ||
   fail "Maestro 를 실행하지 못한다: $MAESTRO - cli-2.11.0 을 ~/.maestro 에 푼다(docs/superpowers/notes/2026-09-30-d1-measurements.md 의 M8 절)"
+# 버전 앞뒤에 안내 줄이 붙을 수 있다(사용 통계·분석 안내 - D1 실측 M8) - 숫자로 시작하는 마지막 줄을 버전으로 읽는다.
+maestro_version=$(printf '%s\n' "$maestro_out" | tr -d '\r' | grep -E '^[0-9]' | tail -n 1 || true)
 case "$maestro_version" in
   2.11.*) ;;
   *) fail "Maestro 는 2.11.x 여야 한다 - $MAESTRO 는 ${maestro_version:-버전을 내지 않았다}. 사용 통계를 끄는 변수와 inputText 의 동작은 2.11.0 에서 쟀다(docs/superpowers/notes/2026-09-30-d1-measurements.md 의 M8 절)" ;;

@@ -30,7 +30,8 @@ import { useIsLoggingOut } from '@/queries/auth'
  */
 
 // 딥링크나 로그인 뒤 복귀로 안쪽 화면에 바로 들어와도 그 아래에 홈이 깔린다 - 뒤로 가기가 앱을
-// 닫지 않는다.
+// 닫지 않는다. 앵커는 콜드 스타트의 딥링크에는 저절로 실리지만, 이미 떠 있는 앱에서 (app) 을 새로
+// 만드는 이동에는 실리지 않는다 - 로그인·가입 뒤 복귀(dismissTo)가 withAnchor 를 주는 까닭이다.
 export const unstable_settings = { anchor: 'index' }
 
 const renderLogoutButton = () => <LogoutButton />

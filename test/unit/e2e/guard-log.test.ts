@@ -108,8 +108,9 @@ describe('test/e2e/guard-log.sh', () => {
     expect(run.stderr).toContain('ReactNativeJS')
   })
 
-  it('앱이 치명 오류로 죽으면 실패한다', () => {
-    expect(guard([RUNNING, 'E/AndroidRuntime( 4321): FATAL EXCEPTION: main']).status).toBe(1)
+  it('치명 오류(FATAL EXCEPTION) 줄이 있으면 실패한다 - 어느 프로세스의 것인지 가리지 않는다', () => {
+    // 앱(4321)이 아닌 pid 의 줄이다 - 하네스가 모으는 AndroidRuntime 의 E 줄에는 다른 프로세스의 것도 든다.
+    expect(guard([RUNNING, 'E/AndroidRuntime( 9999): FATAL EXCEPTION: main']).status).toBe(1)
   })
 
   it('플로가 선언한 HTTP 실패는 통과한다', () => {

@@ -45,9 +45,12 @@ export default function LoginScreen() {
                 return
               }
               // plan.to 는 safeRedirectTarget 을 지난 앱 안의 경로다(단언은 위와 같은 이유로 변수에).
-              // dismissTo 는 그 화면이 스택에 있으면 거기까지 닫고, 없으면 지금 화면을 바꾼다.
+              // dismissTo 는 그 화면이 스택에 있으면 거기까지 닫고, 없으면 지금 화면을 바꾼다. withAnchor 를
+              // 준다 - 경로 가드의 Redirect 는 루트의 (app) 을 로그인 화면으로 바꿔 끼우므로 복귀할 때 (app) 이
+              // 새로 만들어진다. 앵커를 싣지 않으면 (app) 이 복귀한 화면 하나로 시작해 뒤로 가기가 앱을 닫는다
+              // (test/e2e/flows/guard-return.yaml 이 잰다).
               const target = plan.to as Href
-              router.dismissTo(target)
+              router.dismissTo(target, { withAnchor: true })
             },
             onError: () => {
               setState(unusableResponseState({ email: credentials.email, accountCreated: false }))

@@ -42,8 +42,9 @@ export default function RegisterScreen() {
                 setState(plan.state)
                 return
               }
+              // withAnchor 는 login.tsx 와 같은 이유다 - 가드가 바꿔 끼운 (app) 을 새로 만들 때 홈을 아래에 깐다.
               const target = plan.to as Href
-              router.dismissTo(target)
+              router.dismissTo(target, { withAnchor: true })
             },
             onError: () => {
               setState(unusableResponseState({ email: credentials.email, accountCreated: false }))

@@ -124,3 +124,45 @@ selected_input_method_subtype=1594443099
 
 **재지 않은 것.** 음성 입력이 없는 에뮬레이터 이미지(CI 가 고를 이미지), iOS 시뮬레이터의 키보드, 드라이버 설치와 입력기
 재활성화의 인과.
+
+## H3 — 가드 뒤 로그인 복귀와 뒤로 가기
+
+**왜 재는가.** D2 최종 리뷰가 설치된 expo-router 57.0.24 의 소스로 판독했다. 경로 가드의 `<Redirect>`(replace)가 루트의
+`(app)` 을 로그인 화면으로 바꿔 끼우고, 로그인 뒤 `router.dismissTo(next)`(POP_TO)는 `(app)` 을 새로 만드는데 `withAnchor` 가
+없으면 앵커(`unstable_settings.anchor` - 홈)를 싣지 않는다 - 복귀한 화면에서 뒤로 가면 앱이 닫힌다는 판독이다.
+`app/(app)/_layout.tsx` 의 주석과 D2 계획 결정 18 은 그 반대를 적었다. 그때까지의 플로는 뒤로 가기를 한 번도 누르지 않았다.
+
+**명령.** `test/e2e/flows/guard-return.yaml`(보호 경로 → 로그인 → `new-example-screen` 으로 복귀) 끝에 `pressKey: back` 과
+`home-screen` 대기를 더하고, 확인하는 동안만 뒤로 가기 앞에 스크린숏 단계(`takeScreenshot`)를 하나 두었다.
+`E2E_FLOW=guard-return ./test/e2e/run-android.sh` - 플로는 APK 지문 밖이라 빌드 없이 돈다.
+
+**출력 - 고치기 전.**
+
+```text
+Assert that id: logout-button is visible... COMPLETED
+Take screenshot guard-return-before-back... COMPLETED
+Press Back key... COMPLETED
+Assert that id: home-screen is visible... FAILED
+```
+
+뒤로 가기 앞의 스크린숏은 `Example 만들기` 화면이다 - 헤더에 뒤로 화살표가 없고(스택에 그 화면 하나뿐이다) 키보드는 내려가
+있다. 실패 스크린숏은 Android 런처다 - 뒤로 가기가 앱을 닫았다. 판독이 맞았다.
+
+**고친 것.** `app/(auth)/login.tsx`·`app/(auth)/register.tsx` 의 `router.dismissTo(target)` 을
+`router.dismissTo(target, { withAnchor: true })` 로 바꿨다. 하네스가 APK 를 다시 만들었다(`BUILD SUCCESSFUL in 4m 7s`,
+`APK 의 앱 설정: extra.appVariant=e2e`).
+
+**출력 - 고친 뒤.**
+
+```text
+Take screenshot guard-return-before-back... COMPLETED
+Press Back key... COMPLETED
+Assert that id: home-screen is visible... COMPLETED
+Assert that id: logout-button is visible... COMPLETED
+```
+
+뒤로 가기 앞의 헤더에 뒤로 화살표가 생겼다 - 홈이 아래에 깔렸다. 확인용 스크린숏 단계는 지우고 뒤로 가기와 홈 단언은
+플로에 남겼다.
+
+**재지 않은 것.** 가드가 보낸 로그인 화면 자체에서의 뒤로 가기(루트가 `[(auth)/login]` 하나라 앱이 닫힌다 - D4 로 넘겼다,
+`2026-10-01-d2-carry-forward.md`), iOS.
