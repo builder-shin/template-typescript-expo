@@ -458,6 +458,15 @@ templateexpo://examples?filter[status]=active&sort=-createdAt
   먼저 실측한다(15장). 보존하지 않으면 인코딩 규칙을 `lib/resources`에 두고 그
   결정을 `docs/superpowers/notes/`에 기록한다.
 
+> 정정(2026-09-30, D3): 대괄호 키의 인코딩 규칙 - 앱이 만드는 목록 주소(정렬 메뉴·필터 시트·필터 지우기)는
+> `URLSearchParams` 의 직렬화 그대로 키와 값을 퍼센트 인코딩한다(`filter%5Bstatus%5D=active`). 0단계 실측
+> M2 가 그 모양의 딥링크에서 두 단계 키까지 평평한 키로 돌아오는 것을 쟀고, 앱 안의 이동(`router.push(주소)`)도
+> 같은 해석을 지난다. 인코딩하지 않은 링크는 한 단계 키만 쟀으므로 문서와 E2E 의 딥링크는 인코딩한 모양으로
+> 쓴다. `useLocalSearchParams` 가 값을 한 번 더 디코딩해 값 안의 `%XX` 는 바뀐다(알고 넘어간다). 조건을 바꾸는
+> 이동은 `router.push` 다 - 새 목록 화면이 쌓여 뒤로 가기가 이전 조건을 되살린다(`router.setParams` 는 기록을
+> 남기지 않는다). 규칙·왕복 시험·근거는 `lib/resources/view.ts` 의 `filterHref`,
+> `test/unit/resources/view-expo.test.ts`, `docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L1.
+
 ### 8.3 페이지네이션 배정 — Next.js와 반대
 
 offset과 cursor는 섞을 수 없다(백엔드가 거부한다). 한 화면은 한 모드를 쓴다.
@@ -470,6 +479,11 @@ offset과 cursor는 섞을 수 없다(백엔드가 거부한다). 한 화면은 
 - **offset은 계약 실험실이 실증한다(8.6).** Next.js는 목록이 offset이고 실험실이
   cursor다. 두 템플릿을 합치면 같은 표면을 덮는다.
 - `page[totals]`는 기본으로 켜지 않는다. 총 개수는 실험실에서만 켠다.
+
+> 정정(2026-09-30, D3): URL 에 실린 쪽 위치(`page[number]`·`page[after]`·`page[before]`)는 보내지 않는다 -
+> 무한 스크롤은 언제나 커서의 입구에서 시작한다. `page[size]` 는 URL 에 있으면 그 값이다(없으면 20). 다음 쪽은
+> `links.next` 의 쿼리 그대로이고, 빈 쪽을 받으면 링크가 있어도 끝이다 - NestJS 는 커서 모드의 끝에서도
+> `next` 를 채워 보낸다. 판단은 `lib/resources/view.ts` 의 `listQuery`·`nextPageQuery`·`listView`(쪽 배열).
 
 ### 8.4 데이터 흐름
 
@@ -568,6 +582,12 @@ Next.js와 같다.
 > 응답에도 뜬다 - 2xx 인데 토큰 문서가 없거나, 오류 문서인데 문구가 하나도 없을 때다(복사한 `lib/auth/flow.ts`).
 > 사용자에게는 둘이 같다("지금은 안 된다, 이따 다시"). (c) 인증 폼에는 "다시 시도" 버튼이 없다 - 입력이 그대로 남은
 > 폼의 제출 버튼이 곧 다시 시도다(D2 계획 결정 23). 이 절의 버튼은 조회 화면(D3)의 오류 상태에 둔다.
+
+> 정정(2026-09-30, D3): 조회 화면에서 백엔드가 응답조차 주지 못하면 던지지 않는다 - `listView`·`detailView` 가
+> `unreachable` 을 돌려주고 화면이 `UNUSABLE_RESPONSE_MESSAGE`(복사본, 앱 문구 하나)와 "다시 시도" 를 그린다.
+> `ErrorBoundary` 는 요청을 다시 보내지 않아 그 자리가 될 수 없다. 문구 없는 오류 문서·본문 없는 성공 응답 같은
+> 계약 위반만 던져 `ErrorBoundary` 로 간다. 무한 스크롤의 뒤따르는 쪽이 실패하면 읽은 행은 두고 목록 끝에
+> 그린다.
 
 ### 9.4 Accept-Language
 

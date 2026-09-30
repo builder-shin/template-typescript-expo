@@ -6,7 +6,25 @@
 
 `define.ts`·`example.ts`·`category.ts`·`tag.ts`·`index.ts`·`mirror.ts`는
 `template-typescript-nextjs`에서 복사했다. 출처와 이탈은 `docs/provenance/copied-core.json`.
-목록·상세·폼 판단(`view.ts`·`form.ts`)은 그것을 쓰는 화면이 생길 때 같은 방식으로 복사한다.
+목록·상세 판단 `view.ts` 는 D3 가 복사했다 - 목록을 커서로(`listQuery`·`nextPageQuery`), 필터 입력을 폼
+상태 객체로(`FilterFormValues`·`filterFormValues`·`filterHref`), 백엔드에 닿지 못함을 던지지 않는
+`unreachable` 로 고쳤고 offset 쪽 이동을 뺐다. 요청 조립(`listRequest`·`detailRequest`·`referenceRequest`)은
+Accept-Language 를 싣지 않는다 - 싣는 자리는 `platform/api.ts` 하나다(스펙 9.4). 이 저장소가 더한 판단의
+시험은 `test/unit/resources/view-expo.test.ts` 다. 폼 판단 `form.ts` 는 쓰기 화면(D4)이 같은 방식으로 복사한다.
+
+## 목록 주소의 인코딩
+
+앱이 만드는 목록 주소(정렬·필터 적용·필터 지우기)는 `hrefWithQuery` 의 `URLSearchParams` 직렬화 그대로
+키와 값을 퍼센트 인코딩한다(`filter%5Bstatus%5D=…`). Expo Router 57 은 그 모양의 대괄호 키를 평평한 키로
+되살린다. 새 인코딩 코드를 만들지 않는다 - 규칙과 한계는 `docs/superpowers/notes/2026-09-30-d3-measurements.md`
+의 L1.
+
+라우트 파라미터에는 조건이 아닌 값도 섞여 든다. 로그인·가입 뒤 복귀처럼 `withAnchor` 로 이동하면 도착한
+화면의 파라미터에 `initial: 'false'` 가 실린다(expo-router 57.0.24 의 `build/global-state/getNavigationAction.js`).
+`listQuery` 는 JSON:API 문법에 맞는 이름(`filter[...]`·`sort`·`page[...]`·`include`)만 고르므로 그 값은 백엔드에
+닿지 않고 `filtered` 도 바꾸지 않는다. 주소를 만드는 함수(`filterHref`·`sortOptions`·`clearFiltersHref`)는 남의
+파라미터를 그대로 옮긴다(스펙 8.1) - `initial` 도 다음 주소로 옮겨 가지만 그 주소에서 다시 `listQuery` 를 지난다.
+시험은 `view-expo.test.ts` 의 "라우트 파라미터의 initial".
 
 ## 선언은 데이터다
 

@@ -52,7 +52,7 @@
   막고(정적 import·`export … from`만 잰다 - `import x = require()`와 동적 `import()`·`require()` 호출은
   재지 않는다) `test/unit/lint/request-boundary.test.ts`가 그 규칙을 잰다.
 - `queries/`에 JSX가 있거나 쿼리 문자열을 조립하면 위반이다. 요청 조립은 `lib/resources`의
-  `listRequest()`·`detailRequest()`·`referenceRequest()`가 한다(`view.ts`를 복사할 때 들어온다).
+  `listRequest()`·`detailRequest()`·`referenceRequest()`(`lib/resources/view.ts`)가 한다.
 - `components/resource/*`에 자원 이름으로 분기하는 코드가 있으면 위반이다.
 - `platform/`에 분기 판단이 자라면 위반이다. 판단은 `lib/`로 옮기고 `platform/`은 호출과 배선만
   한다.
