@@ -190,6 +190,12 @@ docs/superpowers/specs/ · plans/ · notes/
 > `QueryClientProvider` 로 감싼다. 복원이 끝나면 스플래시를 내린다. 시작 설정의 판단은
 > `lib/config/startup.ts` 에 있다(`platform/config.ts` 는 `expo-constants` 와 설정 자리 바인딩만 한다).
 
+> 정정(2026-09-30, D3): 트리에 둘을 더한다. `lib/navigation/` 은 밖에서 들어온 딥링크를 앱 안 주소로 바꾸는
+> 판단(`deep-link.ts`)을 둔다 - 자원에 매이지 않는다(로그인의 `next` 처럼 인코딩한 값을 싣는 인증 딥링크도 같은 길을
+> 지난다). `app/+native-intent.tsx` 는 Expo Router 의 특별 파일(라우트가 아니다)로, 들어온 링크가 라우터에 닿기
+> 전에 그 판단을 잇기만 한다 - 이 빌드의 scheme 은 `platform/config.ts` 가 `expo-constants` 에서 읽는다. 까닭은
+> 8.2 의 둘째 D3 정정, 소유 규칙은 루트 `AGENTS.md` 의 표다.
+
 ## 5. 계층 소유권
 
 | 위치 | 소유하는 것 | 소유하지 않는 것 |
@@ -458,6 +464,27 @@ templateexpo://examples?filter[status]=active&sort=-createdAt
   먼저 실측한다(15장). 보존하지 않으면 인코딩 규칙을 `lib/resources`에 두고 그
   결정을 `docs/superpowers/notes/`에 기록한다.
 
+> 정정(2026-09-30, D3): 대괄호 키의 인코딩 규칙 - 앱이 만드는 목록 주소(정렬 메뉴·필터 시트·필터 지우기)는
+> `URLSearchParams` 의 직렬화 그대로 키와 값을 퍼센트 인코딩한다(`filter%5Bstatus%5D=active`). 0단계 실측
+> M2 가 그 모양의 딥링크에서 두 단계 키까지 평평한 키로 돌아오는 것을 쟀고, 앱 안의 이동(`router.push(주소)`)도
+> 같은 해석을 지난다. 인코딩하지 않은 링크는 한 단계 키만 쟀으므로 문서와 E2E 의 딥링크는 인코딩한 모양으로
+> 쓴다. `useLocalSearchParams` 가 값을 한 번 더 디코딩해 값 안의 `%XX` 는 바뀐다(알고 넘어간다). 조건을 바꾸는
+> 이동은 `router.push` 다 - 새 목록 화면이 쌓여 뒤로 가기가 이전 조건을 되살린다(`router.setParams` 는 기록을
+> 남기지 않는다). 규칙·왕복 시험·근거는 `lib/resources/view.ts` 의 `filterHref`,
+> `test/unit/resources/view-expo.test.ts`, `docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L1.
+
+> 정정(2026-09-30, D3): 밖에서 들어온 딥링크는 앱 안의 이동과 다르게 풀렸다. Expo Router 57.0.24 의
+> `build/fork/extractPathFromURL.js` 에서 `fromDeepLink`(60행)가 쿼리를 다시 짤 때(97–102행) `searchParams` 로 한 번
+> 디코딩한 값에 `safeDecodeURIComponent` 를 한 번 더 걸고, 다시 인코딩하지 않은 채 `이름=값` 을 `&` 로 잇는다. 라우터가
+> 그 문자열을 다시 풀어 값의 `+` 는 공백, `&` 는 다음 파라미터의 시작, `#` 은 조각의 시작이 됐다 - 기기에서
+> `…contains%5D=probe-d3-repro%20%EA%B0%80%2B%EB%82%98%26…` 딥링크가 `…contains%5D=probe-d3-repro+%EA%B0%80+%EB%82%98`
+> (`probe-d3-repro 가 나`) 요청이 됐다(D3 실측 L1). 그래서 `app/+native-intent.tsx` 의 `redirectSystemPath` 가 이 빌드의
+> scheme 으로 들어온 링크를 쿼리의 인코딩을 그대로 둔 앱 안 주소(`/examples?…`)로 바꿔 넘긴다
+> (`lib/navigation/deep-link.ts` 의 `appPathFromDeepLink`). `fromDeepLink` 는 `/` 로 시작하는 주소를 그대로
+> 돌려주므로(74–75행) 딥링크가 `router.push(주소)` 와 같은 해석을 지난다 - 위 정정의 "앱 안의 이동도 같은 해석을
+> 지난다" 는 딥링크에도 이 정규화 뒤에 참이다. `test/unit/navigation/deep-link.test.ts` 가 설치본의
+> `extractExpoPathFromURL` 을 지나는 왕복을 재고, E2E `examples-browse` 가 기기에서 잰다.
+
 ### 8.3 페이지네이션 배정 — Next.js와 반대
 
 offset과 cursor는 섞을 수 없다(백엔드가 거부한다). 한 화면은 한 모드를 쓴다.
@@ -470,6 +497,11 @@ offset과 cursor는 섞을 수 없다(백엔드가 거부한다). 한 화면은 
 - **offset은 계약 실험실이 실증한다(8.6).** Next.js는 목록이 offset이고 실험실이
   cursor다. 두 템플릿을 합치면 같은 표면을 덮는다.
 - `page[totals]`는 기본으로 켜지 않는다. 총 개수는 실험실에서만 켠다.
+
+> 정정(2026-09-30, D3): URL 에 실린 쪽 위치(`page[number]`·`page[after]`·`page[before]`)는 보내지 않는다 -
+> 무한 스크롤은 언제나 커서의 입구에서 시작한다. `page[size]` 는 URL 에 있으면 그 값이다(없으면 20). 다음 쪽은
+> `links.next` 의 쿼리 그대로이고, 빈 쪽을 받으면 링크가 있어도 끝이다 - NestJS 는 커서 모드의 끝에서도
+> `next` 를 채워 보낸다. 판단은 `lib/resources/view.ts` 의 `listQuery`·`nextPageQuery`·`listView`(쪽 배열).
 
 ### 8.4 데이터 흐름
 
@@ -507,6 +539,21 @@ offset과 cursor는 섞을 수 없다(백엔드가 거부한다). 한 화면은 
 | 로그아웃 | Query 캐시 전체 비움 |
 
 캐시 키와 무효화 표는 `queries/`의 순수 함수로 두고 단위 테스트로 고정한다.
+
+> 정정(2026-09-30, D3): TanStack Query 의 `networkMode` 는 조회·쓰기 모두 `offlineFirst` 다. 기본값 `online` 은
+> NetInfo 가 끊겼다고 하면 요청을 보내지 않고 멈춰 둬서, 첫 조회의 스켈레톤·쓰기의 스피너가 연결이 돌아올 때까지
+> 돈다 - 9.3 의 "네트워크 실패 → 앱 문구와 다시 시도" 가 오지 않는다. `offlineFirst` 는 요청을 한 번 보내고
+> (실패는 `request()` 가 결과로 준다) 연결이 돌아오면 다시 부른다. NetInfo 의 `isConnected` 가 `null` 이면
+> 연결된 것으로 본다. 요청에 TanStack Query 의 `signal` 을 넘기지 않는다. 캐시 키와 무효화 표는 `queries/keys.ts`
+> 이고 로그아웃도 그 표를 지난다. 배선은 `platform/query-client.ts`.
+
+> 정정(2026-10-01, D3): 위 표의 두 재조회(앱 복귀·네트워크 복귀)와 당겨서 새로고침·다시 들어온 상세·쓰기 뒤 무효화의
+> 재조회가 닿지 못해도 읽은 목록과 상세를 버리지 않는다. 조회의 `queryFn` 이 백엔드가 응답조차 주지 못한 실패를
+> 던지고(`queries/resource-options.ts` 의 `throwIfUnreachable`) TanStack Query 가 재조회의 실패에도 앞의 `data` 를
+> 둔다 - 무한 조회는 읽은 쪽 전부를 두고, 연결이 돌아온 뒤의 재조회도 그 쪽을 모두 다시 읽는다. 처음 판(실패를 결과
+> 값으로 캐시에 둔 것)은 재조회의 실패가 쪽 배열을 `[실패]` 하나로 바꿔 읽은 행이 전체 화면 실패로 바뀌고, 연결이
+> 돌아오면 첫 쪽만 다시 읽었다(D3 최종 검토가 설치본 query-core 5.104.0 으로 재 보였다 - 6행 → 실패 → 2행). 화면
+> 상태는 `lib/resources/screen-state.ts` 가 정한다(9.3 의 둘째 D3 정정).
 
 ### 8.6 계약 실험실
 
@@ -568,6 +615,21 @@ Next.js와 같다.
 > 응답에도 뜬다 - 2xx 인데 토큰 문서가 없거나, 오류 문서인데 문구가 하나도 없을 때다(복사한 `lib/auth/flow.ts`).
 > 사용자에게는 둘이 같다("지금은 안 된다, 이따 다시"). (c) 인증 폼에는 "다시 시도" 버튼이 없다 - 입력이 그대로 남은
 > 폼의 제출 버튼이 곧 다시 시도다(D2 계획 결정 23). 이 절의 버튼은 조회 화면(D3)의 오류 상태에 둔다.
+
+> 정정(2026-09-30, D3): 조회 화면에서 백엔드가 응답조차 주지 못하면 던지지 않는다 - `listView`·`detailView` 가
+> `unreachable` 을 돌려주고 화면이 `UNUSABLE_RESPONSE_MESSAGE`(복사본, 앱 문구 하나)와 "다시 시도" 를 그린다.
+> `ErrorBoundary` 는 요청을 다시 보내지 않아 그 자리가 될 수 없다. 문구 없는 오류 문서·본문 없는 성공 응답 같은
+> 계약 위반만 던져 `ErrorBoundary` 로 간다. 무한 스크롤의 뒤따르는 쪽이 실패하면 읽은 행은 두고 목록 끝에
+> 그린다.
+
+> 정정(2026-10-01, D3): 위 정정의 "던지지 않는다" 는 화면 쪽의 말이다 - 조회의 `queryFn` 은 닿지 못함을 던지고
+> (8.5 의 둘째 D3 정정) 화면 상태는 TanStack Query 의 데이터·오류에서 `listScreen`·`detailScreen`
+> (`lib/resources/screen-state.ts`)이 정한다. 읽은 데이터가 없으면(첫 조회) 앱 문구와 "다시 시도" 가 화면 전부다. 읽은
+> 목록·상세가 있으면 그것을 그대로 두고 작은 실패(`RequestFailed` 의 `compact`, testID `request-failed-compact`)와
+> "다시 시도" 를 더한다 - 재조회가 닿지 못했으면 목록·상세 위에(다시 시도는 읽은 것을 모두 다시 읽는다), 다음 쪽이
+> 닿지 못했으면 목록 끝에(다시 시도는 그 쪽만 읽는다 - 그 뒤로 끝에 닿아도 저절로 다시 부르지 않는다). 없는 자원
+> (404)은 재조회가 닿지 못해도 not-found 다. 닿지 못함이 아닌 오류는 결함이라 `ErrorBoundary` 로 간다. 백엔드 오류
+> 문서는 그대로 결과 값이라 배너다.
 
 ### 9.4 Accept-Language
 
@@ -739,6 +801,16 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > (`test/e2e/run-android.sh`)는 앱별 언어를 정한 플로 동안 키보드 자판이 없는 입력기(에뮬레이터의 음성 입력)를
 > 기본 입력기로 두고 끝나면 입력기 설정 셋을 되돌린다 - 순서는 `pm clear` → `set-app-locales` → 입력기 바꾸기
 > → 플로 → 입력기 되돌리기다. 그런 입력기가 없는 기기에서는 로캘 플로가 그 사실을 알리고 실패한다.
+
+> 정정(2026-09-30, D3): 목록·상세 E2E 가 씨앗(`probe-seed`) 말고 필요한 행 - 무한 스크롤의 25건, 새로고침·앱
+> 복귀·상세 재진입이 볼 새 행과 바뀐 제목 - 은 플로가 Maestro 의 `runScript`(호스트의 GraalJS `http`)로 백엔드에
+> 직접 만든다(`test/e2e/scripts/examples-api.js`). 앱에는 쓰기 화면이 아직 없다(D4). 하네스가 호스트의 백엔드
+> 주소를 `API_URL` 로 넘긴다. 제목은 실행·플로마다 다른 접두사(`probe-d3-<이메일 끝 12자>`)로 시작해 목록 단언을
+> 좁힌다. 같은 플로가 네이티브 HTTP 캐시 아래의 신선도(당겨서 새로고침·앱 복귀·상세 재진입이 백엔드의 새 값을
+> 받는다)를 기기에서 잰다 - 결과는 `docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L5. 딥링크의
+> 대괄호는 퍼센트 인코딩한다(8.2 의 첫째 D3 정정). 값의 `+`·`&`·`=`·`#`·한글도 인코딩한 딥링크가 같은 조건을
+> 재현하는지 `test/e2e/flows/examples-browse.yaml` 이 기기에서 잰다 - 들어온 딥링크를 앱 안 주소로 바꾸는 정규화
+> (8.2 의 둘째 D3 정정)가 그 전제다(같은 기록의 L1·L6).
 
 ### 11.4 E2E 스택
 
@@ -922,6 +994,16 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > 정정(2026-09-30, D2): 위 "Windows 에서 Android 네이티브 빌드 … 47자" 정정의 마지막 문장(`test/e2e/android.sh`
 > 는 경로 길이를 검사하지 않는다)은 더는 맞지 않는다 - E2E 하네스가 짧은 경로의 사본에서 빌드한다(12장의
 > D2 정정).
+
+> 정정(2026-09-30, D3): 위 Uniwind 결함의 대응은 **미디어 쿼리 변형을 쓰지 않는 것**이다. 결함은 `sm:` 같은 너비
+> 변형만이 아니라 `@media` 로 컴파일되는 모든 변형에 걸린다 - `ios:`·`android:`·`native:`·`tv:`·`android-tv:`·
+> `apple-tv:` 의 플랫폼 변형도 같은 블록의 둘째 규칙부터 플랫폼 조건을 잃어 `android:px-4` 가 iOS 에서도 적용된다
+> (`dark:` 는 영향이 없다). `app/`·`components/` 에서 `sm:`·`md:` 같은 브레이크포인트 변형과 `max-`·`min-` 꼴,
+> `portrait:`·`landscape:`, 플랫폼 변형, `[@media …]:` 꼴의 임의 변형을 `test/unit/ui/breakpoints.test.ts` 가 막고,
+> React Native Reusables 에서 받은 컴포넌트(`button`·`input`·`text`)의 변형을 뺐다. 플랫폼마다 다른 스타일은
+> `Platform.select`·`Platform.OS` 로 클래스 문자열을 고른다. 패치는 Metro 변환기 안쪽을 고쳐야 하고, 고쳐진
+> 릴리스는 아직 없다(npm `latest` 1.12.0). 폰과 태블릿이 같은 크기를 쓴다. 근거는
+> `docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L2.
 
 ## 17. 완료 조건
 

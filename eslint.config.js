@@ -85,6 +85,8 @@ module.exports = defineConfig([
       'node_modules/**',
       'dist/**',
       '.expo/**',
+      // 게이트·측정의 산출물 디렉터리(git 이 무시한다) - 그 안의 스크래치는 이 저장소의 lint 대상이 아니다.
+      '.maestro-output/**',
       'android/**',
       'ios/**',
       'coverage/**',
@@ -153,6 +155,35 @@ module.exports = defineConfig([
               allowTypeImports: true,
               message:
                 'request() 는 platform/api.ts 의 apiRequest 만 부른다(스펙 9.4) - Accept-Language 를 싣는 자리가 그 한 곳이다. 앱 코드는 apiRequest 를 쓴다. 타입 import 는 된다.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // lucide-react-native 의 통(barrel)을 값으로 import 하지 않는다. Metro 는 트리 셰이킹을 하지 않아 통을 부르면
+    // 아이콘 1800여 개가 모두 번들에 실린다 - 아이콘 네 개를 쓰는 화면 하나가 Android 번들에 모듈 1850여 개(소스
+    // 1.7MB, Hermes 바이트코드 2MB 남짓)를 더했다(2026-10-01 실측: 모듈 3892 -> 2038, 6.6MB -> 4.5MB). 아이콘마다
+    // 깊은 경로로 받는다(패키지의 exports 맵에 `./icons/*` 가 있다). 타입 import 는 된다.
+    //
+    // core `no-restricted-imports` 가 아니라 typescript-eslint 의 확장 규칙을 쓴다: core 규칙은 위의 두 블록(lib/ 경계,
+    // request 경계)이 옵션을 통째로 덮어쓴다 - 같은 규칙 이름의 옵션은 블록끼리 합쳐지지 않으므로, core 규칙에 이 항목을
+    // 더하면 그 블록마다 싣지 않는 한 그 파일들에서 조용히 풀린다. 이름이 다른 규칙은 덮이지 않는다. 플러그인은 ts 파일에만
+    // 등록되어 있어(eslint-config-expo) files 도 ts 계열이다 - js 계열에는 화면이 없다.
+    // 정적 import·`export … from`·`import x = require()` 만 잰다 - 동적 import() 와 require() 호출은 재지 않는다.
+    // test/unit/lint/lucide-imports.test.ts 가 잰다.
+    files: ['**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'lucide-react-native',
+              allowTypeImports: true,
+              message:
+                "lucide-react-native 의 통을 값으로 import 하지 않는다 - 아이콘 전부가 번들에 실린다. 아이콘마다 깊은 경로로 받는다: import ArrowDown from 'lucide-react-native/icons/arrow-down' (이름은 kebab-case, 기본 내보내기). 타입 import 는 된다.",
             },
           ],
         },

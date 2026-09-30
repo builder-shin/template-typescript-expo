@@ -17,20 +17,27 @@
 | `lib/auth/`            | 세션 모델과 직렬화, 만료 판정, 회전 결정, 자격증명 문서, 보호 경로 목록과 경로 가드 판단      | 저장 매체, 화면 이동                      |
 | `lib/lab/`             | 실험 정의, 결과 표현                                                                          | 화면, 세션                                |
 | `lib/config/`          | 설정 계약과 변형 규칙 - `app.config.ts`가 M7 제약 아래 직접 불러온다                          | 네이티브 모듈, 설정 자리의 바인딩         |
+| `lib/navigation/`      | 밖에서 들어온 URL·딥링크를 앱 안 주소로 바꾸는 정규화                                         | 화면, fetch, 네이티브 모듈                |
 | `platform/`            | SecureStore·로캘·AppState·NetInfo·Updates·Constants 호출, React Provider, API 클라이언트 조립 | 판단                                      |
 | `queries/`             | 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화                                                         | JSX, 쿼리 문자열 조립                     |
 | `app/`                 | 화면, 라우팅, 가드 배치                                                                       | fetch, `request()` 호출, 쿼리 문자열 조립 |
 | `components/ui/`       | React Native Reusables 복사본                                                                 | 자원 이름, fetch, 세션                    |
+| `components/hooks/`    | React Native Reusables 가 받는 UI 도우미 훅(`components.json`의 `hooks` 별칭)                 | 조회·쓰기 훅, 자원 이름, fetch, 세션      |
 | `components/app/`      | 앱 전체에 걸린 화면 조각(설정 오류 화면 `FatalConfig` 등)                                     | 자원 UI, fetch                            |
 | `components/form/`     | 폼 조각 - 필드 오류·배너·제출 버튼·자격증명 폼                                                | 자원 이름, fetch, 세션                    |
 | `components/resource/` | 선언을 읽어 만드는 획일 UI                                                                    | 자원 이름으로 분기                        |
 
-`lib/config/`·`components/ui/`·`components/form/`·`components/app/`은 스펙 5장의 표에 없다. 앞의 셋은
-스펙 4장의 트리에는 있지만 소유 규칙이 표에 없었다. `components/app/`은 트리에도 없다 - 시작 설정 오류
-화면(`FatalConfig`)처럼 앱 전체에 걸린 화면 조각이 `components/ui/`(React Native Reusables
-복사본)도 `components/resource/`(자원 UI)도 아니어서 따로 뒀다. `lib/config/`의 제약은 그
-디렉터리의 `AGENTS.md`에 있다. `settings.ts`가 읽는 설정 자리(`process.env`, 앱에서는
-`extra`)를 정하는 바인딩은 `platform/config.ts`가 한다.
+`lib/config/`·`components/ui/`·`components/form/`·`components/app/`·`components/hooks/`는 스펙 5장의 표에
+없다. 앞의 셋은 스펙 4장의 트리에는 있지만 소유 규칙이 표에 없었다. `components/app/`은 트리에도 없다 -
+시작 설정 오류 화면(`FatalConfig`)처럼 앱 전체에 걸린 화면 조각이 `components/ui/`(React Native Reusables
+복사본)도 `components/resource/`(자원 UI)도 아니어서 따로 뒀다. `components/hooks/`도 트리에 없다 -
+`components.json`의 `hooks` 별칭이 가리키는 자리다. React Native Reusables의 훅은 UI 도우미라 데이터를
+다루는 `queries/`와 섞지 않는다. `lib/navigation/`은 트리에도 없었다 - Expo Router 가 밖에서 들어온 딥링크의
+쿼리 값을 두 번 디코딩해 바꾸는 것을 막으려고(`app/+native-intent.tsx`가 잇는다, 스펙 8.2의 둘째 D3 정정) D3가
+뒀다. 자원에 매이지 않는 주소 판단이라 `lib/resources/`에 두지 않았다. `lib/config/`의 제약과 `lib/navigation/`이
+바꾸지 않는 주소는 각 디렉터리의 `AGENTS.md`에 있다.
+`settings.ts`가 읽는 설정 자리(`process.env`, 앱에서는 `extra`)를 정하는 바인딩은
+`platform/config.ts`가 한다.
 
 위반의 정의:
 
@@ -52,7 +59,7 @@
   막고(정적 import·`export … from`만 잰다 - `import x = require()`와 동적 `import()`·`require()` 호출은
   재지 않는다) `test/unit/lint/request-boundary.test.ts`가 그 규칙을 잰다.
 - `queries/`에 JSX가 있거나 쿼리 문자열을 조립하면 위반이다. 요청 조립은 `lib/resources`의
-  `listRequest()`·`detailRequest()`·`referenceRequest()`가 한다(`view.ts`를 복사할 때 들어온다).
+  `listRequest()`·`detailRequest()`·`referenceRequest()`(`lib/resources/view.ts`)가 한다.
 - `components/resource/*`에 자원 이름으로 분기하는 코드가 있으면 위반이다.
 - `platform/`에 분기 판단이 자라면 위반이다. 판단은 `lib/`로 옮기고 `platform/`은 호출과 배선만
   한다.
@@ -71,7 +78,31 @@
 ## `app/`에는 라우트 파일만 둔다
 
 Expo Router는 `app/` 아래의 모든 파일을 라우트로 취급한다. 판단 함수·타입·상수는
-`lib/`의 해당 계층에 둔다.
+`lib/`의 해당 계층에 둔다. `+native-intent.tsx`는 라우트가 아닌 라우터의 특별 파일이지만 `app/`에 있어야
+라우터가 찾는다 - 배선만 하고 판단은 `lib/navigation/`에 둔다.
+
+## React Native Reusables 컴포넌트
+
+`components/ui/` 는 React Native Reusables CLI 로 받는다 -
+`printf 'n\n' | BACKEND_URL=https://gate-check.invalid pnpm dlx @react-native-reusables/cli@0.7.1 add <이름> --styling-library uniwind --yes`
+(이미 있는 `text.tsx` 등의 덮어쓰기는 "아니오"). 받은 파일을 고친 곳은 그 파일에 "원본과 다른 곳" 주석으로
+남긴다.
+
+lucide 아이콘은 아이콘마다 깊은 경로의 기본 내보내기로 받는다 -
+`import ArrowRight from 'lucide-react-native/icons/arrow-right'`(이름은 kebab-case). 통
+(`import { ArrowRight } from 'lucide-react-native'`)을 값으로 받으면 Metro 가 트리 셰이킹을 하지 않아 아이콘
+1800여 개가 모두 번들에 실린다 - 깊은 import 로 바꿔 Android 번들의 Hermes 바이트코드가 6.6MB 에서 4.5MB 로 줄었다.
+`eslint.config.js` 가 통을 값으로 받는 import 를 막는다(`test/unit/lint/lucide-imports.test.ts` 가 잰다) - CLI 로
+받은 파일(select·checkbox 등)이 통에서 아이콘을 받으면 lint 에서 멈추니, 받은 뒤 깊은 import 로 바꾸고 "원본과
+다른 곳" 주석을 단다. 타입(`import type { LucideIcon }`)은 통에서 받아도 된다.
+
+`app/`·`components/` 의 클래스에 **`@media` 로 컴파일되는 변형을 쓰지 않는다** - 너비(`sm:`·`md:`·`lg:`·`xl:`·
+`2xl:` 과 그 `max-`·`min-` 꼴), 방향(`portrait:`·`landscape:`), 플랫폼(`ios:`·`android:`·`native:`·`tv:`·
+`android-tv:`·`apple-tv:`), `[@media …]:` 꼴의 임의 변형. Uniwind 1.12.0 이 한 미디어 블록의 둘째 규칙부터 조건을
+잃어 그 규칙이 모든 폭과 모든 플랫폼에서 적용된다(`sm:h-9` 가 폰에서도, `android:px-4` 가 iOS 에서도). 받은 파일에서도
+뺀다. 플랫폼마다 다른 스타일은 클래스 변형이 아니라 `Platform.select`·`Platform.OS` 로 클래스 문자열을 고른다.
+`dark:` 는 영향이 없다. `test/unit/ui/breakpoints.test.ts` 가 `app/`·`components/` 를 훑어 막는다. 근거와 잰 범위는
+`docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L2.
 
 ## 로딩 표현
 
@@ -120,3 +151,5 @@ secretlint 단계는 `pnpm lint:secrets`다. 스크립트 이름을 `secretlint`
 실측 기록은 `docs/superpowers/notes/2026-09-30-d1-measurements.md`다. 기기 위의 동작(M1–M8)이
 궁금하면 거기부터 읽는다. 세 백엔드가 싣는 캐시 머리글(D2 실측 H1)은
 `docs/superpowers/notes/2026-09-30-d2-measurements.md`에 있다.
+목록 주소의 인코딩 규칙, Uniwind 결함의 대응, 네이티브 HTTP 캐시 아래의 신선도, 닿지 못한 재조회(D3 실측 L1–L7)는
+`docs/superpowers/notes/2026-09-30-d3-measurements.md`에 있다.

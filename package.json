@@ -21,6 +21,7 @@
     "check": "./scripts/check.sh"
   },
   "dependencies": {
+    "@react-native-community/netinfo": "12.0.1",
     "@rn-primitives/portal": "1.5.3",
     "@rn-primitives/slot": "1.5.2",
     "@tanstack/react-query": "5.104.0",

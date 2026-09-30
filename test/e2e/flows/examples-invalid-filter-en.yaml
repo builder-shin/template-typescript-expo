@@ -1,0 +1,29 @@
+# e2e-app-locale: en-US
+# e2e-allow-http: 400
+# 정책에 없는 필터 연산자는 막지 않고 보낸다 - 백엔드의 400 INVALID_FILTER 가 배너로 뜬다(스펙 8.2).
+# 문구는 기기 언어를 따른다: 영어 쪽에 한글이 없다(스펙 9.4) - 목록의 요청도 Accept-Language 를
+# 싣는 한 자리(platform/api.ts)를 지난다. 헤더가 빠지면 백엔드가 ko 로 떨어져 여기서 실패한다.
+appId: com.example.templateexpo.e2e
+---
+# clearState 를 쓰지 않는다 - 하네스가 정한 앱별 언어가 지워진다(D1 실측 M3).
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 30000
+- openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bprobe%5D=probe-d3
+- extendedWaitUntil:
+    visible:
+      id: form-banner-message
+    timeout: 20000
+- assertNotVisible:
+    id: form-banner-message
+    text: '[\s\S]*[\uAC00-\uD7A3][\s\S]*'
+- assertVisible:
+    id: form-banner-message
+    text: '[\s\S]*[A-Za-z][\s\S]*'
+# 잘못된 조건의 화면에서도 필터·정렬을 열 수 있다 - 빠져나갈 수단이다.
+- assertVisible:
+    id: filter-button
+- assertVisible:
+    id: sort-button

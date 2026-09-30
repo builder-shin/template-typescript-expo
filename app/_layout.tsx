@@ -10,7 +10,7 @@ import { useUniwind } from 'uniwind'
 
 import { FatalConfig } from '@/components/app/fatal-config'
 import { loadStartupSettings } from '@/platform/config'
-import { queryClient } from '@/platform/query-client'
+import { queryClient, useQueryRefetchTriggers } from '@/platform/query-client'
 import { sessionManager, useSessionStatus } from '@/platform/session'
 import { NAV_THEME } from '@/platform/theme'
 
@@ -46,6 +46,9 @@ export default function RootLayout() {
  */
 function AppRoot({ scheme }: { scheme: 'light' | 'dark' }) {
   const ready = useSessionStatus() !== 'restoring'
+
+  // 앱 복귀·네트워크 복귀 때 다시 부른다(스펙 8.5, platform/query-client.ts).
+  useQueryRefetchTriggers()
 
   // 저장된 세션을 되살린다(스펙 7.1). 던지지 않고, 두 번 불려도(개발 모드의 StrictMode) 저장소는
   // 한 번만 읽는다(lib/auth/session-manager.ts).
