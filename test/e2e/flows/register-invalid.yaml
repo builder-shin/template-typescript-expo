@@ -1,0 +1,29 @@
+# e2e-allow-http: 422
+# 짧은 비밀번호로 가입하면 422 VALIDATION_ERROR 가 비밀번호 칸 아래 필드 오류로 뜬다(스펙 9.1).
+# 백엔드의 비밀번호 하한은 12자다 - probe 는 그보다 짧다.
+appId: com.example.templateexpo.e2e
+---
+- runFlow: ../subflows/start-signed-out.yaml
+- openLink: templateexpo-e2e://register
+- extendedWaitUntil:
+    visible:
+      id: register-screen
+    timeout: 15000
+- tapOn:
+    id: email-input
+- inputText: ${EMAIL}
+- tapOn:
+    id: password-input
+- inputText: probe
+- tapOn:
+    id: submit-button
+- extendedWaitUntil:
+    visible:
+      id: password-error
+    timeout: 20000
+- assertNotVisible:
+    id: email-error
+- assertNotVisible:
+    id: form-banner
+- assertVisible:
+    id: register-screen

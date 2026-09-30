@@ -1,0 +1,28 @@
+# e2e-app-locale: en-US
+# e2e-allow-http: 401
+# 없는 계정으로 로그인한 401 문구에 한글이 없다(스펙 9.4). 헤더를 싣는 자리(platform/api.ts)가
+# 끊기면 백엔드가 ko 로 떨어져 이 플로가 한글을 보고 실패한다.
+appId: com.example.templateexpo.e2e
+---
+# clearState 를 쓰지 않는다 - 하네스가 정한 앱별 언어가 지워진다(D1 실측 M3).
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 30000
+- openLink: templateexpo-e2e://login
+- extendedWaitUntil:
+    visible:
+      id: login-screen
+    timeout: 15000
+- runFlow: ../subflows/submit-credentials.yaml
+- extendedWaitUntil:
+    visible:
+      id: form-banner-message
+    timeout: 20000
+- assertNotVisible:
+    id: form-banner-message
+    text: '[\s\S]*[\uAC00-\uD7A3][\s\S]*'
+- assertVisible:
+    id: form-banner-message
+    text: '[\s\S]*[A-Za-z][\s\S]*'

@@ -1,0 +1,52 @@
+# 가입 → 앱을 다시 띄워도 세션이 남는다 → 로그아웃 → 다시 띄워도 로그아웃 상태다 → 다른 사용자로
+# 가입해 다시 로그인 상태가 된다(스펙 7.1·7.4, 11.3 의 "앱 재시작 후 세션 복원").
+appId: com.example.templateexpo.e2e
+---
+- runFlow: ../subflows/start-signed-out.yaml
+- assertNotVisible:
+    id: logout-button
+- runFlow: ../subflows/register.yaml
+- assertVisible:
+    id: home-screen
+# 앱을 멈췄다 다시 띄운다(clearState 없이) - SecureStore 의 세션을 되살려 헤더에 로그아웃 버튼이 있다.
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: logout-button
+    timeout: 30000
+- runFlow: ../subflows/logout.yaml
+- assertVisible:
+    id: home-screen
+# 로그아웃이 기기의 세션 항목까지 지웠다 - 다시 띄워도 로그아웃 상태다.
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 30000
+- assertNotVisible:
+    id: logout-button
+# 다른 사용자(OTHER_EMAIL)로 가입하면 그 사용자로 로그인 상태가 된다 - 앞 사용자의 세션·캐시가 새
+# 세션을 막지 않는다. 누구로 로그인했는지 그리는 화면은 없다(스펙 7.4 - 헤더는 로그아웃 버튼만).
+# 중첩 runFlow 의 env 범위에 기대지 않으려고 공통 단계를 풀어 쓴다.
+- openLink: templateexpo-e2e://register
+- extendedWaitUntil:
+    visible:
+      id: register-screen
+    timeout: 15000
+- tapOn:
+    id: email-input
+- inputText: ${OTHER_EMAIL}
+- tapOn:
+    id: password-input
+- inputText: ${PASSWORD}
+- tapOn:
+    id: submit-button
+- extendedWaitUntil:
+    visible:
+      id: logout-button
+    timeout: 20000
+- assertVisible:
+    id: home-screen
+- runFlow: ../subflows/logout.yaml

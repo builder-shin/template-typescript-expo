@@ -1,0 +1,22 @@
+# 보호 경로 → 로그인 → next 로 복귀(스펙 7.3·11.3). 로그인한 뒤 홈이 아니라 막혔던 화면에 닿아야 한다.
+appId: com.example.templateexpo.e2e
+---
+- runFlow: ../subflows/start-signed-out.yaml
+# 로그인할 계정을 만들고 로그아웃해 익명으로 돌아간다.
+- runFlow: ../subflows/register.yaml
+- runFlow: ../subflows/logout.yaml
+# 보호 경로를 딥링크로 연다 - 경로 가드가 로그인으로 보낸다.
+- openLink: templateexpo-e2e://examples/new
+- extendedWaitUntil:
+    visible:
+      id: login-screen
+    timeout: 15000
+- assertNotVisible:
+    id: new-example-screen
+- runFlow: ../subflows/submit-credentials.yaml
+- extendedWaitUntil:
+    visible:
+      id: new-example-screen
+    timeout: 20000
+- assertVisible:
+    id: logout-button

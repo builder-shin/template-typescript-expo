@@ -1,0 +1,27 @@
+# 보호 경로 화면에서 로그아웃하면 홈에 닿는다 - 로그인 화면으로 튕기지 않는다(스펙 7.3·7.4). 로그아웃은
+# 기기 세션을 먼저 비우고 폐기 요청이 끝난 뒤에 홈으로 보낸다. 그 사이와 끝난 직후의 렌더에서 경로가 아직
+# 보호 경로여도 경로 가드가 돌지 않아야 한다(lib/auth/guard-latch.ts 의 래치).
+appId: com.example.templateexpo.e2e
+---
+- runFlow: ../subflows/start-signed-out.yaml
+- runFlow: ../subflows/register.yaml
+# 로그인한 채 보호 경로를 딥링크로 연다 - 가드가 막지 않는다.
+- openLink: templateexpo-e2e://examples/new
+- extendedWaitUntil:
+    visible:
+      id: new-example-screen
+    timeout: 15000
+- runFlow: ../subflows/logout.yaml
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 15000
+# 화면이 멈출 때까지 기다린 뒤 본다 - 로그아웃이 끝난 뒤에 가드가 로그인으로 보냈다면 그 이동까지 끝난
+# 화면을 본다.
+- waitForAnimationToEnd
+- assertVisible:
+    id: home-screen
+- assertNotVisible:
+    id: logout-button
+- assertNotVisible:
+    id: login-screen

@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# Android 기기 도우미 - 실측과 E2E 하네스가 함께 쓴다.
+# Android 기기 도우미 - E2E 하네스(test/e2e/run-android.sh)가 쓴다.
 #
-#   test/e2e/android.sh boot      켜진 기기가 없으면 E2E_AVD 를 부팅하고 부팅 완료까지 기다린다.
-#                                 BOOT_TIMEOUT_SECONDS(기본 300) 안에 끝나지 않거나 에뮬레이터가
-#                                 죽으면 에뮬레이터 로그의 꼬리를 내고 실패한다
-#   test/e2e/android.sh build     e2e 변형 Release APK 를 만든다 (BACKEND_URL 필요).
-#                                 만든 APK 의 assets/app.config 가 e2e 변형인지 확인한다
-#   test/e2e/android.sh install   만든 APK 를 설치한다
+#   test/e2e/android.sh boot        켜진 기기가 없으면 E2E_AVD 를 부팅하고 부팅 완료까지 기다린다.
+#                                   BOOT_TIMEOUT_SECONDS(기본 300) 안에 끝나지 않거나 에뮬레이터가
+#                                   죽으면 에뮬레이터 로그의 꼬리를 내고 실패한다. 기기가 여럿인데
+#                                   ANDROID_SERIAL 이 없으면 곧바로 실패한다
+#   test/e2e/android.sh check-path  이 위치에서 Android 네이티브 빌드가 되는가 - Windows 에서 저장소
+#                                   경로가 47자를 넘으면 실패한다
+#   test/e2e/android.sh build       e2e 변형 Release APK 를 만든다 (BACKEND_URL 필요).
+#                                   만든 APK 의 assets/app.config 가 e2e 변형인지 확인한다
+#   test/e2e/android.sh install     만든 APK 를 설치한다
 #   test/e2e/android.sh wait-text <텍스트>
-#                                 그 텍스트가 화면에 나타날 때까지(최대 60초) 기다리고
-#                                 UI 덤프를 stdout 에 낸다
+#                                   그 텍스트가 화면에 나타날 때까지(최대 60초) 기다리고
+#                                   UI 덤프를 stdout 에 낸다
 #
 # 기기가 여럿이면 ANDROID_SERIAL 로 하나를 고른다(adb 의 표준 변수).
 set -euo pipefail
@@ -20,6 +23,11 @@ ADB="$ANDROID_HOME/platform-tools/adb"
 EMULATOR="$ANDROID_HOME/emulator/emulator"
 APK=android/app/build/outputs/apk/release/app-release.apk
 BOOT_TIMEOUT_SECONDS="${BOOT_TIMEOUT_SECONDS:-300}"
+WAIT_TEXT_TIMEOUT_SECONDS=60
+
+# Windows 에서 Android 네이티브 빌드(Gradle·CMake·ninja)는 저장소 루트가 이 길이 이하일 때만 된다
+# (docs/superpowers/notes/2026-09-30-d1-measurements.md 의 M1 절 - 47자 성공, 50자 실패).
+MAX_WINDOWS_ROOT_LENGTH=47
 
 # adb devices 는 ANDROID_SERIAL 을 무시하므로 고른 기기만 직접 센다.
 device_count() {
@@ -33,7 +41,14 @@ boot_completed() {
 boot() {
   local emulator_pid=''
   local emulator_log=''
-  if [ "$(device_count)" -ge 1 ]; then
+  local devices
+  devices=$(device_count)
+  # 기기가 여럿이면 adb shell 이 "more than one device" 로 죽는다 - 제한 시간 내내 기다리지 않는다.
+  if [ "$devices" -ge 2 ] && [ -z "${ANDROID_SERIAL:-}" ]; then
+    echo "기기가 ${devices}개 연결돼 있다 - ANDROID_SERIAL 로 하나를 고른다" >&2
+    exit 1
+  fi
+  if [ "$devices" -ge 1 ]; then
     echo "기기가 이미 연결돼 있다"
   else
     : "${E2E_AVD:?켜진 기기가 없다 - 부팅할 AVD 이름을 E2E_AVD 로 준다 (예: Pixel_9_API_36)}"
@@ -62,6 +77,20 @@ boot() {
   "$ADB" shell settings put global window_animation_scale 0
   "$ADB" shell settings put global transition_animation_scale 0
   "$ADB" shell settings put global animator_duration_scale 0
+  # 자동 완성 서비스를 끈다 - 비밀번호 칸이 있는 폼을 제출하면 "비밀번호를 저장할까요" 대화상자가
+  # 떠서 플로의 다음 단계를 가릴 수 있다. 앱의 입력은 자동 완성을 막지 않는다.
+  "$ADB" shell settings put secure autofill_service null
+}
+
+check_path() {
+  local root
+  # Git Bash 의 pwd -W 는 C:/… 모양의 Windows 경로를 준다. 다른 셸에는 -W 가 없다 - 검사하지 않는다.
+  root=$(pwd -W 2>/dev/null || true)
+  if [ -n "$root" ] && [ "${#root}" -gt "$MAX_WINDOWS_ROOT_LENGTH" ]; then
+    echo "저장소 경로가 ${#root}자다 - Windows 의 Android 빌드는 ${MAX_WINDOWS_ROOT_LENGTH}자 이하에서만 된다: $root" >&2
+    echo "test/e2e/run-android.sh 는 짧은 경로(E2E_STAGE_DIR)의 사본에서 빌드한다." >&2
+    return 1
+  fi
 }
 
 # Gradle 의 createExpoConfig 가 app.config.ts 를 다시 평가해 APK 의 assets/app.config(앱이 읽는
@@ -83,6 +112,7 @@ assert_apk_variant() {
 
 build() {
   : "${BACKEND_URL:?BACKEND_URL 이 필요하다 - 에뮬레이터에서 호스트는 http://10.0.2.2:<포트>}"
+  check_path || exit 1
   # prebuild 와 Gradle 이 같은 변형을 받도록 export 한다(접두 대입은 그 명령 하나에만 적용된다).
   export APP_VARIANT=e2e
   pnpm exec expo prebuild --platform android --clean --no-install
@@ -95,25 +125,31 @@ install() {
   "$ADB" install -r "$APK"
 }
 
-WAIT_TEXT_TIMEOUT_SECONDS=60
-
 wait_text() {
   local text="${1:?기다릴 텍스트가 필요하다}"
   local dump=''
-  local waited=0
-  until dump=$("$ADB" exec-out uiautomator dump /dev/tty 2>/dev/null) && grep -qF "text=\"$text\"" <<<"$dump"; do
-    if [ "$waited" -ge "$WAIT_TEXT_TIMEOUT_SECONDS" ]; then
+  local errors
+  errors=$(mktemp)
+  local deadline=$((SECONDS + WAIT_TEXT_TIMEOUT_SECONDS))
+  until dump=$("$ADB" exec-out uiautomator dump /dev/tty 2>"$errors") && grep -qF "text=\"$text\"" <<<"$dump"; do
+    if [ "$SECONDS" -ge "$deadline" ]; then
       echo "${WAIT_TEXT_TIMEOUT_SECONDS}초 안에 \"$text\" 가 화면에 나타나지 않았다" >&2
+      if [ -s "$errors" ]; then
+        echo "마지막 adb 오류:" >&2
+        cat "$errors" >&2
+      fi
+      rm -f "$errors"
       exit 1
     fi
     sleep 1
-    waited=$((waited + 1))
   done
+  rm -f "$errors"
   printf '%s\n' "$dump"
 }
 
 case "${1:-}" in
   boot) boot ;;
+  check-path) check_path ;;
   build) build ;;
   install) install ;;
   wait-text)
@@ -121,7 +157,7 @@ case "${1:-}" in
     wait_text "$@"
     ;;
   *)
-    echo "사용법: $0 boot|build|install|wait-text <텍스트>" >&2
+    echo "사용법: $0 boot|check-path|build|install|wait-text <텍스트>" >&2
     exit 1
     ;;
 esac

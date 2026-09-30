@@ -1,0 +1,28 @@
+# e2e-app-locale: ko-KR
+# e2e-allow-http: 401
+# 없는 계정으로 로그인하면 401 INVALID_CREDENTIALS 문구가 기기 언어로 뜬다(스펙 9.3·9.4). 짝인
+# login-error-en.yaml 이 영어 쪽에 한글이 없는지 본다 - 한국어 쪽만 보면 Accept-Language 배선을
+# 지워도 통과한다(헤더가 없으면 백엔드가 ko 로 떨어진다).
+appId: com.example.templateexpo.e2e
+---
+# clearState 를 쓰지 않는다 - 하네스가 정한 앱별 언어가 지워진다(D1 실측 M3).
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 30000
+- openLink: templateexpo-e2e://login
+- extendedWaitUntil:
+    visible:
+      id: login-screen
+    timeout: 15000
+- runFlow: ../subflows/submit-credentials.yaml
+- extendedWaitUntil:
+    visible:
+      id: form-banner-message
+    timeout: 20000
+# 완성형 한글 음절(가-힣)이 문구 어딘가에 있다. 정규식은 작은따옴표로 감싼다 - YAML 의 큰따옴표는
+# 역슬래시를 이스케이프로 읽는다.
+- assertVisible:
+    id: form-banner-message
+    text: '[\s\S]*[\uAC00-\uD7A3][\s\S]*'

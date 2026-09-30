@@ -91,13 +91,14 @@ pnpm install --frozen-lockfile
 ```
 
 `./scripts/check.sh` 하나가 유일한 게이트다(typecheck · lint · format · secretlint · 인용 ·
-복사 출처 · unit · 설정 · 의존성 호환 · 번들 · compose). 전제 조건(Docker, 네트워크)은 그
-파일 머리말에 있다. Windows에서는 Git Bash에서 `./scripts/check.sh`로 돌린다 - `package.json`의
-`check` 스크립트(`pnpm check`)는 pnpm이 cmd.exe로 돌려 `./`를 못 찾고 실패한다. 실행 권한이 살아
-있어야 통과한다 - `git ls-tree HEAD scripts/ test/e2e/android.sh`에서 `scripts/check.sh`·
-`scripts/check-citations.sh`·`test/e2e/android.sh` 셋이 `100755`인지 확인한다
-(`scripts/check-provenance.mjs`는 `node`가 부르므로 `100644`가 맞다). `core.filemode=false`인
-머신에서는 권한이 빠져도 `git status`로 드러나지 않는다.
+복사 출처 · unit · 설정 · 의존성 호환 · 번들 · compose · E2E). 전제 조건(Docker, 네트워크,
+Android SDK·Maestro·에뮬레이터)은 그 파일 머리말에 있다. Windows에서는 Git Bash에서
+`./scripts/check.sh`로 돌린다 - `package.json`의 `check` 스크립트(`pnpm check`)는 pnpm이 cmd.exe로
+돌려 `./`를 못 찾고 실패한다. 실행 권한이 살아 있어야 통과한다 - `git ls-tree HEAD scripts/ test/e2e/`에서
+`scripts/check.sh`·`scripts/check-citations.sh`·`test/e2e/android.sh`·`test/e2e/run-android.sh`·
+`test/e2e/guard-log.sh` 다섯이 `100755`인지 확인한다(`scripts/check-provenance.mjs`는 `node`가
+부르므로 `100644`가 맞다). `core.filemode=false`인 머신에서는 권한이 빠져도 `git status`로 드러나지
+않는다. E2E 플로를 쓰는 규칙과 하네스의 환경 변수는 `test/e2e/AGENTS.md`에 있다.
 
 번들 단계는 `expo export --clear`라서 Metro·Uniwind 캐시를 지운다 - 게이트를 돌리기 전에 이 저장소의
 `expo start`를 끈다. 캐시를 두면 이 개발 머신(Windows)에서 `expo export`가 끝날 때 간헐적으로 죽었다(실측 기록
@@ -117,4 +118,5 @@ secretlint 단계는 `pnpm lint:secrets`다. 스크립트 이름을 `secretlint`
 `ReturnType<typeof setTimeout>`으로 적는다.
 
 실측 기록은 `docs/superpowers/notes/2026-09-30-d1-measurements.md`다. 기기 위의 동작(M1–M8)이
-궁금하면 거기부터 읽는다.
+궁금하면 거기부터 읽는다. 세 백엔드가 싣는 캐시 머리글(D2 실측 H1)은
+`docs/superpowers/notes/2026-09-30-d2-measurements.md`에 있다.

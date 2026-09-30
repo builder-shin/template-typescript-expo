@@ -1,0 +1,9 @@
+# 헤더의 로그아웃 버튼을 누르고 버튼이 사라질 때까지 기다린다.
+appId: com.example.templateexpo.e2e
+---
+- tapOn:
+    id: logout-button
+- extendedWaitUntil:
+    notVisible:
+      id: logout-button
+    timeout: 20000

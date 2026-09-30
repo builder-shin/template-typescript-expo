@@ -1,0 +1,10 @@
+# 앱 상태를 지우고 띄워 홈이 보일 때까지 기다린다 - 세션 없이 시작한다.
+# 로캘 플로에서는 쓰지 않는다: clearState 가 앱별 언어까지 지운다(D1 실측 M3).
+appId: com.example.templateexpo.e2e
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 30000
