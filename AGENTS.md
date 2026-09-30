@@ -36,6 +36,13 @@
 `lib/resources/index.ts`는 손으로 채우는 배열이다. **여기 없으면 그 자원은 존재하지 않는
 것과 같다.** 자동 탐색(glob · 동적 `import`)을 쓰지 않는다.
 
+## 복사한 코어
+
+`lib/`의 상당 부분은 `template-typescript-nextjs`에서 복사했다(스펙 6장). 어떤 파일을
+복사했고 원본과 무엇이 다른지는 `docs/provenance/copied-core.json`이 정본이다. 복사한
+파일을 고치면 그 파일의 `divergences`에 `what`·`why`를 더한다 -
+`node scripts/check-provenance.mjs`가 기록의 형식과 경로를 검사한다.
+
 ## `app/`에는 라우트 파일만 둔다
 
 Expo Router는 `app/` 아래의 모든 파일을 라우트로 취급한다. 판단 함수·타입·상수는
