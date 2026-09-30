@@ -10,11 +10,24 @@ engineStrict: true
 
 # pnpm 11 은 릴리스 후 1일(minimumReleaseAge, 기본 1440분)이 지나지 않은 버전이 락파일에
 # 있으면 설치를 막는다(ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION). 아래는 2026-09-29 에
-# 릴리스된 Expo SDK 57 패키지를 2026-09-30 에 설치하며 pnpm 이 스스로 적은 예외다.
-# 가장 늦은 릴리스(expo-router 2026-09-29 10:59 UTC)로부터 하루가 지나면 없어도 설치된다.
+# 릴리스된 Expo SDK 57 패키지 다섯 개와 lucide-react-native 1.49.0 을 2026-09-30 에 설치하며
+# pnpm 이 스스로 적은 예외다. 가장 늦은 릴리스(lucide-react-native 2026-09-29 22:27 UTC)로부터
+# 하루가 지나면 없어도 설치된다.
 minimumReleaseAgeExclude:
   - expo-constants@57.0.20
   - expo-modules-core@57.0.20
   - expo@57.0.26
   - '@expo/ui@57.0.21'
   - expo-router@57.0.24
+  - lucide-react-native@1.49.0
+
+# 웹은 대상이 아니므로(스펙 1.2) expo-router 의 웹 전용 의존성이 요구하는 react-dom 은 설치하지 않는다.
+peerDependencyRules:
+  ignoreMissing:
+    - react-dom
+
+# Windows 에서 Android 네이티브 빌드(Gradle·CMake·ninja)는 isolated 링커의 node_modules/.pnpm 경로를
+# 감당하지 못한다. 저장소를 6자 경로에 두어도 isolated 는 실패하고 hoisted 는 성공했다(2026-09-30 실측,
+# docs/superpowers/notes/2026-09-30-d1-measurements.md 의 M1 절). hoisted 로도 저장소 경로가 길면 같은
+# 빌드가 실패한다(47자까지 성공, 50자에서 실패).
+nodeLinker: hoisted
