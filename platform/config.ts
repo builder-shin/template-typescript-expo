@@ -8,6 +8,7 @@ import {
   variantFromExtra,
   type StartupSettings,
 } from '@/lib/config/startup'
+import { schemesFromConfig } from '@/lib/navigation/deep-link'
 
 /**
  * 설정의 자리를 app.config.ts 의 extra 로 돌리고, 시작할 때 한 번 검증한다(스펙 10.1).
@@ -28,4 +29,12 @@ export function loadStartupSettings(): StartupSettings {
 /** 빌드가 extra.appVariant 로 실은 변형(스펙 10.2). 값은 app.config.ts 가 빌드 시점에 검증했다. */
 export function startupVariant(): AppVariant {
   return variantFromExtra(Constants.expoConfig?.extra)
+}
+
+/**
+ * 이 빌드의 딥링크 scheme 들 - app.config.ts 가 변형마다 정한 값(스펙 10.2의 D1 정정). 밖에서 들어온 링크를 앱 안
+ * 주소로 바꿀 때 이 빌드의 것만 바꾼다(`app/+native-intent.tsx`, 판단은 lib/navigation/deep-link.ts).
+ */
+export function appSchemes(): readonly string[] {
+  return schemesFromConfig(Constants.expoConfig?.scheme)
 }

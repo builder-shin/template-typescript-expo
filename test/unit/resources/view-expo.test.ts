@@ -17,6 +17,9 @@ import {
   sortOptions,
 } from '@/lib/resources/view'
 
+// Expo Router 가 앱 안 주소에서 라우트 파라미터를 꺼내는 순서의 모형 - 딥링크 정규화 시험과 같이 쓴다.
+import { routeParamsOf } from '../navigation/router-parse'
+
 /**
  * 이 저장소가 `lib/resources/view.ts`(template-typescript-nextjs 에서 복사)에 더한 판단 - 커서
  * 목록(스펙 8.3), 쪽 여럿의 목록 상태, 필터 시트의 폼 상태(스펙 6.2), 라우트 파라미터 왕복(스펙
@@ -290,36 +293,6 @@ describe('filterHref — 적용이 갈 주소', () => {
     expect(filterHref(PATH, filterFields(probeShelf(), {}), {}, {})).toBe(PATH)
   })
 })
-
-/**
- * Expo Router 57 이 주소에서 라우트 파라미터를 꺼내는 순서 그대로다(2026-09-30, expo-router
- * 57.0.24 설치본의 build/ 에서 읽었다):
- *
- * 1. `fork/getStateFromPath-forks.js` 의 `parseQueryParams` - `new URL(주소, 'file:')` 의
- *    `searchParams` 에서 이름마다 `getAll`, 값이 하나면 문자열
- * 2. `hooks/useLocalSearchParams.js` - 값마다 `decodeURIComponent` 를 한 번 더(실패하면 그대로)
- *
- * 딥링크도 앱 안의 이동(`router.push(주소)`)도 이 해석을 지난다. 기기 위의 확인은 D1 실측 M2
- * (인코딩한 대괄호 키의 딥링크)와 E2E 의 딥링크 플로다.
- */
-function routeParamsOf(href: string): Record<string, string | string[]> {
-  const searchParams = new URL(href, 'file:').searchParams
-  const params: Record<string, string | string[]> = {}
-  for (const name of new Set(searchParams.keys())) {
-    const values = searchParams.getAll(name).map(decodeOnceMore)
-    const [only] = values
-    params[name] = values.length === 1 && only !== undefined ? only : values
-  }
-  return params
-}
-
-function decodeOnceMore(value: string): string {
-  try {
-    return decodeURIComponent(value)
-  } catch {
-    return value
-  }
-}
 
 describe('라우트 파라미터 왕복 - 이 앱의 주소 인코딩 규칙 (스펙 8.2)', () => {
   it('대괄호 키가 평평한 키로 돌아오고, 같은 백엔드 쿼리가 다시 나온다', () => {

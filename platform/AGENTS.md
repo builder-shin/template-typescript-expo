@@ -3,15 +3,15 @@
 Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 판단을 두지 않는다 - 분기가
 자라면 `lib/`로 옮기고 여기서는 부르기만 한다.
 
-| 파일                        | 역할                                                                                                                                                             |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `config.ts`                 | 설정 자리를 `app.config.ts`의 `extra`로 돌리고 시작할 때 검증한다. 빌드 변형을 읽는다. 판단은 `lib/config/startup.ts`                                            |
-| `api.ts`                    | 앱의 API 클라이언트 `apiRequest`. Accept-Language 를 싣는 유일한 자리(스펙 9.4), e2e 변형의 실패 표식                                                            |
-| `secure-session-storage.ts` | 세션 항목의 SecureStore 저장 매체                                                                                                                                |
-| `session.ts`                | 세션 관리자 `sessionManager` 하나와 상태 훅 `useSessionStatus()`                                                                                                 |
-| `query-client.ts`           | Query 캐시 `queryClient` 하나와 기본 옵션(스펙 8.5, `networkMode: 'offlineFirst'`), 앱 복귀·네트워크 복귀의 재조회 `useQueryRefetchTriggers()`(AppState·NetInfo) |
-| `theme.ts`                  | 내비게이션 테마. 색은 `nav-colors.ts`                                                                                                                            |
-| `nav-colors.ts`             | 내비게이션 색 - `global.css` 토큰의 sRGB 값. import 가 없다 - `test/unit/ui/nav-colors.test.ts` 가 토큰과 맞댄다                                                 |
+| 파일                        | 역할                                                                                                                                                                 |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `config.ts`                 | 설정 자리를 `app.config.ts`의 `extra`로 돌리고 시작할 때 검증한다. 빌드 변형과 딥링크 scheme 을 읽는다. 판단은 `lib/config/startup.ts`·`lib/navigation/deep-link.ts` |
+| `api.ts`                    | 앱의 API 클라이언트 `apiRequest`. Accept-Language 를 싣는 유일한 자리(스펙 9.4), e2e 변형의 실패 표식                                                                |
+| `secure-session-storage.ts` | 세션 항목의 SecureStore 저장 매체                                                                                                                                    |
+| `session.ts`                | 세션 관리자 `sessionManager` 하나와 상태 훅 `useSessionStatus()`                                                                                                     |
+| `query-client.ts`           | Query 캐시 `queryClient` 하나와 기본 옵션(스펙 8.5, `networkMode: 'offlineFirst'`), 앱 복귀·네트워크 복귀의 재조회 `useQueryRefetchTriggers()`(AppState·NetInfo)     |
+| `theme.ts`                  | 내비게이션 테마. 색은 `nav-colors.ts`                                                                                                                                |
+| `nav-colors.ts`             | 내비게이션 색 - `global.css` 토큰의 sRGB 값. import 가 없다 - `test/unit/ui/nav-colors.test.ts` 가 토큰과 맞댄다                                                     |
 
 - 백엔드 요청은 전부 `apiRequest`를 지난다. `lib/jsonapi/client.ts`의 `request()`를 다른 곳에서
   직접 부르지 않는다 - ESLint가 `app/`·`components/`·`queries/`와 이 디렉터리의 `api.ts`가 아닌
