@@ -48,7 +48,7 @@ echo "=== [4/11] secretlint ==="
 pnpm lint:secrets
 
 echo "=== [5/11] 인용 ==="
-./scripts/check-citations.sh app components lib platform test
+./scripts/check-citations.sh app components lib platform queries test
 
 echo "=== [6/11] 복사 출처 ==="
 node scripts/check-provenance.mjs

@@ -101,7 +101,7 @@ secretlint 단계는 `pnpm lint:secrets`다. 스크립트 이름을 `secretlint`
 `node_modules/.bin/secretlint`를 가려서 의존성 호환 단계(expo-doctor)의 package.json 검사가
 실패한다.
 
-`pnpm typecheck`는 타입 프로그램 둘을 돈다. 앱 코드(`app/`·`components/`·`lib/`·`platform/`)는
+`pnpm typecheck`는 타입 프로그램 둘을 돈다. 앱 코드(`app/`·`components/`·`lib/`·`platform/`·`queries/`)는
 `tsconfig.json`으로 검사하고, 그 `types`는 `expo/types`뿐이라 Node 타입이 없다. 시험(`test/`)은
 `test/tsconfig.json`으로 검사하고, 이 설정은 루트 설정을 물려받아 `node` 타입을 더한다(시험이
 `node:fs` 같은 Node 모듈을 import하기 때문이다). 둘로 나눈 이유는 Node 전용 전역(`Buffer`,

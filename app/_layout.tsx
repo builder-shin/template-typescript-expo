@@ -65,7 +65,10 @@ function AppRoot({ scheme }: { scheme: 'light' | 'dark' }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={NAV_THEME[scheme]}>
         <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-        <Stack />
+        <Stack>
+          {/* 앱 셸은 자기 Stack 헤더를 그린다(app/(app)/_layout.tsx) - 헤더가 두 겹이 되지 않게 한다. */}
+          <Stack.Screen name="(app)" options={{ headerShown: false }} />
+        </Stack>
         <PortalHost />
       </ThemeProvider>
     </QueryClientProvider>
