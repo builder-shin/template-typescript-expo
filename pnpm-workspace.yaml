@@ -1,0 +1,10 @@
+# pnpm 11 은 릴리스 후 1일(minimumReleaseAge, 기본 1440분)이 지나지 않은 버전이 락파일에
+# 있으면 설치를 막는다(ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION). 아래는 2026-09-29 에
+# 릴리스된 Expo SDK 57 패키지를 2026-09-30 에 설치하며 pnpm 이 스스로 적은 예외다.
+# 가장 늦은 릴리스(expo-router 2026-09-29 10:59 UTC)로부터 하루가 지나면 없어도 설치된다.
+minimumReleaseAgeExclude:
+  - expo-constants@57.0.20
+  - expo-modules-core@57.0.20
+  - expo@57.0.26
+  - '@expo/ui@57.0.21'
+  - expo-router@57.0.24
