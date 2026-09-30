@@ -69,13 +69,14 @@
 23. 결정: 인증 폼의 네트워크 실패·타임아웃에는 따로 "다시 시도" 버튼을 두지 않는다 — 스펙 9.3의 앱 문구(`UNUSABLE_RESPONSE_MESSAGE`, 복사본)가 배너에 뜨고, 입력이 그대로 남은 폼의 제출 버튼이 곧 다시 시도다. 9.3의 버튼은 조회 화면의 오류 상태(D3)에 둔다 — 틀리면 배너에 버튼 하나를 더한다.
 24. 결정: D1이 넘긴 게이트 보강(lib 경계의 위 계층·`@react-navigation/*`, 원본 그대로인 사본의 내용 검사, 드라이브 문자 경로)을 새 Task 1로 앞세운다 — 이 계획이 `lib/` 파일 여덟과 복사본 열하나를 더하므로, 검사가 먼저 서야 그 파일들이 처음부터 검사를 받는다(D1 운반 기록의 "lib 경계"·"출처 검사") — 틀리면 태스크 순서만 바뀐다.
 25. 결정: `import/no-extraneous-dependencies`를 저장소 전체에 기본 옵션(devDependencies는 어디서든 허용)으로 켠다 — hoisted 링커가 선언하지 않은 전이 의존성(`expo-modules-core` 등)을 풀어 주고, 그 import는 번들·시험을 통과한다. 지금 트리의 위반은 0건이다(2026-09-30에 이 설정으로 확인). 앱 코드에서 devDependencies까지 막는 강한 설정은 막을 사례가 없어 쓰지 않는다 — 틀리면(정당한 import가 막히면) 그 패키지를 `package.json`에 선언한다.
-26. 결정: 위 계층 패턴은 `@/platform/*`가 아니라 `**/platform/*`처럼 앞에 `**`를 둔다 — 별칭과 상대 경로(`../../platform/api`)를 함께 막는다(ESLint 9.39.5의 `no-restricted-imports`로 두 모양을 확인했고, `@/lib/config/app-variant`·`../jsonapi/client`·`firebase/app` 같은 경로는 통과한다) — 틀리면(대가: `lib/` 안에 `platform`·`queries`·`components`·`app`이라는 디렉터리를 만들 수 없다) 그 디렉터리를 만드는 사람이 패턴을 별칭으로 좁힌다.
+26. 결정: 위 계층 패턴은 `@/platform/*`가 아니라 `**/platform/*`처럼 앞에 `**`를 둔다 — 별칭과 상대 경로(`../../platform/api`)를 함께 막는다(ESLint 9.39.5의 `no-restricted-imports`로 두 모양을 확인했고, `@/lib/config/app-variant`·`../jsonapi/client`·`firebase/app` 같은 경로는 통과한다) 판정 R32의 문구는 별칭 넷(`@/platform/*` 등)과 `@react-navigation/*`를 둘째 묶음 하나로 적었다. `@react-navigation/*`는 위 계층이 아니라 React 모듈이라 첫 묶음(플랫폼 모듈, 그 메시지)에 두고, 둘째 묶음은 별칭 넷의 상위 집합으로 쓴다 — 막는 범위가 판정보다 넓고 좁은 곳은 없다 — 틀리면(대가: `lib/` 안에 `platform`·`queries`·`components`·`app`이라는 디렉터리를 만들 수 없다) 그 디렉터리를 만드는 사람이 패턴을 별칭으로 좁힌다.
 27. 결정: 출처 기록에 `sourceBlobs`(경로 → 원본 blob SHA-1)를 더하고 이탈이 없는 경로만 적는다. 검사기는 작업 트리 바이트의 blob SHA-1을 직접 계산한다 — git 없이 돌고(`.gitattributes`의 `eol=lf` 덕에 `git hash-object`와 같다, 시험이 그 동일성을 git으로 잰다), 이탈이 생긴 파일은 항목을 지워야 해서 "고치고 적지 않음"과 "적고 항목을 남김"이 모두 걸린다 — 틀리면 기록의 키 하나와 검사기 한 절을 지운다.
-28. 결정: 시작 설정의 판단(extra 읽기, 검증 실패 → 문구)을 `lib/config/startup.ts`로 옮기되, 설정 자리를 바꾸는 `setSettingsSource` 호출과 `expo-constants` 호출은 `platform/config.ts`에 남긴다 — 루트 `AGENTS.md`의 계층 표가 `lib/config/`는 "설정 자리의 바인딩"을 소유하지 않는다고 적는다. 시험은 `platform/config.ts`와 같은 두 줄(`setSettingsSource(() => settingsEnvFromExtra(extra))` → `checkStartupSettings(getSettings)`)로 실패 경로 여섯(유효·빈 extra·extra 없음·문자열 아님·상대 URL·재호출)을 잰다 — 틀리면 바인딩까지 lib로 옮기고 표를 고친다.
-29. 결정: 네이티브 HTTP 캐시 운반 중 "E2E는 로그아웃 뒤 다른 사용자로 로그인하면 새 사용자가 보인다를 단언한다"는 그대로 하지 않는다. 대신 (a) 세 백엔드의 `GET /api/v1/users/me`(인증)와 `/api/v1/examples`·`/api/v1/examples/<id>`(공개) 응답 머리글을 재어 D2 실측 기록에 남기고(D3의 "D2가 잰 헤더 기준" 운반이 이것을 읽는다), (b) `register-restore-logout` 플로가 로그아웃 뒤 다른 이메일로 가입해 로그인 상태가 되는 데까지 지난다 — 스펙 7.4가 "헤더는 로그아웃 버튼만, `GET /users/me`는 부르지 않는다"로 정해 누구로 로그인했는지 그리는 화면이 없고, 그런 화면을 만들면 7.4를 어긴다. D2 앱의 요청은 전부 POST라 네이티브 캐시가 저장하지 않고, 읽기는 토큰 없이 보내므로(7.2) 사용자마다 다른 GET도 없다 — 틀리면 스펙 7.4를 고친 뒤 `/users/me`를 그리는 화면 하나와 단언 하나를 더한다.
+28. 결정: 시작 설정의 판단(extra 읽기, 검증 실패 → 문구)을 `lib/config/startup.ts`로 옮기되, 설정 자리를 바꾸는 `setSettingsSource` 호출과 `expo-constants` 호출은 `platform/config.ts`에 남긴다 — 루트 `AGENTS.md`의 계층 표가 `lib/config/`는 "설정 자리의 바인딩"을 소유하지 않는다고 적는다. 시험은 `platform/config.ts`와 같은 두 줄(`setSettingsSource(() => settingsEnvFromExtra(extra))` → `checkStartupSettings(getSettings)`)로 실패 경로 여섯(유효·빈 extra·extra 없음·문자열 아님·상대 URL·재호출)을 잰다. 판정 R32가 예로 든 `startupSettingsFrom(extra)` 하나 대신 `settingsEnvFromExtra`·`checkStartupSettings` 둘로 나눈 것도 같은 이유다 — 검증이 설정 자리(`getSettings()`)를 거쳐야 시작 검증과 요청 시점의 값이 한 계산으로 남는다(D1과 같다) — 틀리면 바인딩까지 lib로 옮기고 표를 고친다.
+29. 결정: 네이티브 HTTP 캐시 운반 중 "E2E는 로그아웃 뒤 다른 사용자로 로그인하면 새 사용자가 보인다를 단언한다"는 그대로 하지 않는다. 대신 (a) 세 백엔드의 `GET /api/v1/users/me`(인증)와 `/api/v1/examples`·`/api/v1/examples/<id>`(공개) 응답 머리글을 재어 D2 실측 기록에 남기고(D3의 "D2가 잰 헤더 기준" 운반이 이것을 읽는다), (b) `register-restore-logout` 플로가 로그아웃 뒤 다른 이메일로 가입해 로그인 상태가 되는 데까지 지난다 — 스펙 7.4가 "헤더는 로그아웃 버튼만, `GET /users/me`는 부르지 않는다"로 정해 누구로 로그인했는지 그리는 화면이 없고, 그런 화면을 만들면 7.4를 어긴다. D2 앱의 요청은 전부 POST라 네이티브 캐시가 저장하지 않고, 읽기는 토큰 없이 보내므로(7.2) 사용자마다 다른 GET도 없다 컨트롤러의 운반 메시지(2026-09-30)도 같은 단언을 요구했다 — 이 결정은 스펙 7.4가 그 단언보다 앞선다고 본 것이다. 틀리면(단언이 필요하면) 먼저 스펙 7.4를 날짜 붙은 정정으로 고치고, `queries/`에 `/users/me` 조회 훅(인증 헤더는 `sessionManager.getAccessToken()`, 401은 `signOut()`), 홈 화면의 사용자 표시(testID), 플로의 단언 한 줄을 더한다 — Task 5·6에 한 단계씩이고 결정 4(인증 오류 처리는 D4)의 일부를 당겨 온다.
 30. 결정: `pnpm-workspace.yaml`의 `minimumReleaseAgeExclude`는 Task 4의 설치(D2의 첫 의존성 변경) 때 릴리스 후 하루가 지난 항목만 스크립트로 뺀다 — D1 운반 기록은 "다섯은 10:59 UTC 이후"라고 적지만 파일에는 여섯이 있고 가장 늦은 `lucide-react-native@1.49.0`은 2026-09-29 22:27 UTC 릴리스다(레지스트리 확인). 결과가 실행 시각에 달려 있어 시각을 레지스트리(`pnpm view … time --json`)에서 읽어 정한다 — 틀리면 `pnpm install --frozen-lockfile`이 `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`으로 알려 준다.
 31. 결정: 클라이언트 타이머 가드(D1 운반의 "선택": 호출자가 이미 끊은 뒤 타이머가 돌면 `timedOut`을 세우지 않는다)는 하지 않는다 — D2의 요청은 어느 것도 호출자 signal을 넘기지 않는다(쓰기 훅·세션 관리자). 끊는 호출자가 없으면 그 창은 열리지 않는다 — 틀리면 조회 화면(D3)이 TanStack Query 취소를 붙일 때 `client.ts` 한 줄·시험 하나·이탈 기록 한 줄을 더한다.
-32. 결정: 루트 레이아웃은 설정 검증이 통과했을 때만 스플래시를 잡고(`preventAutoHideAsync`) 세션 복원을 시작하며, 세션 상태 훅과 `QueryClientProvider`는 `STARTUP.ok` 갈래 안의 자식(`AppRoot`)에 둔다 — D1 운반 기록의 "루트 훅은 `STARTUP.ok` 가지 안의 자식에 둔다". 설정이 틀린 앱은 스플래시를 잡지 않아 치명 오류 화면이 곧바로 보인다 — 틀리면 루트 파일 하나의 모양만 바뀐다.
+32. 결정: 세션 복원(효과)·세션 상태 훅·`QueryClientProvider`는 `STARTUP.ok` 갈래에서만 그리는 자식(`AppRoot`)에 두고, 루트 레이아웃의 모듈 평가 시점에는 설정 검증과, 검증이 통과했을 때의 스플래시 붙잡기(`preventAutoHideAsync` — 컴포넌트 안에서는 늦을 수 있다)만 둔다. 세션 관리자의 `restore()`는 두 번 불려도 저장소를 한 번만 읽는다(개발 모드의 StrictMode는 효과를 두 번 돌린다) — D1 Task 8 리뷰와 운반 기록의 "루트 훅은 `STARTUP.ok` 가지 안의 자식에 둔다". 치명 오류 경로에서는 복원도 스플래시 붙잡기도 돌지 않아 치명 오류 화면이 곧바로 보인다 — 틀리면 루트 파일 하나와 `restore()` 세 줄의 모양만 바뀐다.
+33. 결정: 세 백엔드의 머리글 측정(Task 6 Step 5)에서 신선도 수명을 주는 응답이 하나라도 있으면, 같은 단계에서 `request()`(`lib/jsonapi/client.ts`)가 GET에 `Cache-Control: no-cache` 요청 헤더를 싣는다(시험 둘, 이탈 기록 둘). 없으면 싣지 않는다. 자리를 `platform/api.ts`가 아니라 `request()`의 헤더 조립으로 하는 이유: `RequestOptions`에는 임의의 헤더를 넘기는 길이 없고, HTTP 협상은 `lib/jsonapi/`의 몫이며(계층 표), 한 자리에서 D3의 조회 GET까지 덮는다. GET만인 이유: 네이티브 캐시는 GET만 저장하고, POST의 헤더 맵을 통째로 비교하는 복사 시험(credentials·logout·rotation)을 건드리지 않는다. 측정 단계가 E2E 빌드보다 앞이라 APK를 더 만들지 않는다 — 틀리면(수명이 없는데도 막고 싶으면) D3가 조회를 붙일 때 같은 세 줄을 무조건으로 더한다.
 
 ---
 
@@ -103,7 +104,7 @@
 
 **D1 끝의 저장소**(`main`의 병합 커밋 `1312848`, 2026-09-30 18:47): `scripts/check.sh`는 정적 단계 11개이고 `[5/11]` 인용 단계가 `./scripts/check-citations.sh app components lib platform test`를 부른다. `[10/11]` 번들은 `expo export --clear`이고(D1 판정 R38), 머리말의 전제 조건은 넷이다(넷째: `[10]`이 캐시를 지우니 `expo start`를 끈다). `test/unit/scripts/check-citations.test.ts`의 `GATE_TARGETS`가 [5]의 인자를 맞댄다(정렬 뒤 비교, 주석과 시험 이름에 "다섯"·"`[5/11]`"). 게이트 단계 번호 `[N/11]`은 `check.sh` 말고도 그 시험의 주석, `lib/config/AGENTS.md`(`[8/11]`), 출처 기록의 `note`와 인용 시험 이탈의 `what`(`[5/11]`)에 나온다. 출처 기록은 경로 33개·이탈 10건이고, 이탈이 없는 경로 27개는 모두 원본 커밋의 blob과 같다(작업 트리의 `git hash-object` 대 원본의 `git rev-parse <commit>:<경로>`). 단위 시험 407개, expo-doctor 21/21. `lib/jsonapi/client.ts`는 본문 읽기를 요청 signal과 경주시킨다(`readJson()`, D1 판정 R37) — 공개 표면(`request`·`RequestOptions`·`JsonApiResult`·`withAcceptLanguage`)은 그대로다. D1이 뒤 계획에 넘긴 항목은 `docs/superpowers/notes/2026-09-30-d1-carry-forward.md`에 있다.
 
-**미리 돌려 본 것**: Task 1은 `1312848`과 같은 트리의 사본(node_modules는 실제 설치본을 가리키는 연결)에서 RED(lint 11·출처 17)와 GREEN(lint 41·scripts 89), 저장소 전체 lint 0건, 실제 기록 27/27을 확인했다. Task 2–5의 코드와 Task 6의 가드 스크립트·시험·플로는 `01cdaa2`의 사본에서 tsc 두 프로그램·ESLint·Prettier·vitest(그때 D1의 401개를 포함해 602개)·인용 검사를 통과했다 — 타입드 라우트를 만들기 전과 뒤 모두, 설치하지 않은 두 패키지(`@tanstack/react-query`·`expo-secure-store`)는 타입 모양만 흉내 냈다. 그 전체 트리에 Task 1의 ESLint 설정을 얹어도 위반은 설치하지 않은 두 패키지의 `import/no-unresolved`뿐이었다. Task 2·3은 `1312848` 위에서(Task 1 뒤) 다시 돌려 보았다(인증 시험 148개, 출처 44·17·31). 기기·Docker·Maestro가 필요한 단계는 돌리지 않았다.
+**미리 돌려 본 것**: Task 1은 `1312848`과 같은 트리의 사본(node_modules는 실제 설치본을 가리키는 연결)에서 RED(lint 11·출처 17)와 GREEN(lint 41·scripts 89), 저장소 전체 lint 0건, 실제 기록 27/27을 확인했다. Task 2–5의 코드와 Task 6의 가드 스크립트·시험·플로는 `01cdaa2`의 사본에서 tsc 두 프로그램·ESLint·Prettier·vitest(그때 D1의 401개를 포함해 603개)·인용 검사를 통과했다 — 타입드 라우트를 만들기 전과 뒤 모두, 설치하지 않은 두 패키지(`@tanstack/react-query`·`expo-secure-store`)는 타입 모양만 흉내 냈다. 그 전체 트리에 Task 1의 ESLint 설정을 얹어도 위반은 설치하지 않은 두 패키지의 `import/no-unresolved`뿐이었다. Task 2·3은 `1312848` 위에서(Task 1 뒤) 계획 원문 그대로 다시 돌려 보았다(인증 시험 149개, 전체 593개, 출처 44·17·31). Task 6 Step 5의 "수명이 있으면" 묶음(`client.ts`의 GET 헤더)도 `1312848`의 `client.ts`에 얹어 RED(시험 하나)와 GREEN(`test/unit/jsonapi` 194개)을 확인했다. 측정 스크립트는 문법과 파서만 확인했다. 기기·Docker·Maestro가 필요한 단계는 돌리지 않았다.
 
 **ESLint 규칙 둘**(ESLint 9.39.5·eslint-plugin-import 2.32.0): `no-restricted-imports`의 `group` 패턴 `**/platform/*`는 `@/platform/api`와 `../../platform/api`를 모두 막고 `@/lib/config/app-variant`·`../jsonapi/client`·`firebase/app`은 통과시킨다. `import/no-extraneous-dependencies`는 선언하지 않은 hoisted 패키지(`expo-font`·`expo-modules-core`)를 잡고, 지금 트리에는 위반이 없다. SDK 57의 expo-router는 `@react-navigation/*`에 의존하지 않는다 — 설치본에 없다.
 
@@ -172,7 +173,8 @@
 | `import/no-extraneous-dependencies` 검토 | Task 1 — 켠다(결정 25) |
 | 출처 검사: 원본 blob SHA, 스펙 6.3 다섯째 규칙 | Task 1 |
 | 출처 검사: 드라이브 상대 경로(`C:..\x`) 거절 | Task 1 |
-| 네이티브 HTTP 캐시: 세 백엔드의 인증된 GET 머리글 기록 | Task 6 Step 5(결정 29) |
+| 네이티브 HTTP 캐시: 세 백엔드의 인증된 GET 머리글 기록 | Task 6 Step 5(결정 29) — 목록·상세도 함께 잰다 |
+| 네이티브 HTTP 캐시: 캐시할 수 있는 응답이면 고치는 법을 정한다 | 결정 33 — 수명이 있으면 같은 단계에서 `request()`가 GET에 `Cache-Control: no-cache`를 싣는다 |
 | 네이티브 HTTP 캐시: "다른 사용자로 로그인하면 새 사용자가 보인다" E2E | 결정 29 — 스펙 7.4와 부딪혀 사용자 전환을 지나는 데까지만 한다(Task 6 Step 4) |
 | Gradle 번들 단계의 0xC0000005 | Global Constraints, Task 6 Step 6의 실패 처리 |
 | `minimumReleaseAgeExclude`를 첫 의존성 변경 때 뺀다 | Task 4 Step 1(결정 30) |
@@ -1806,7 +1808,7 @@ git commit -m "feat: Next.js 템플릿의 인증 판단을 복사하고 요청 �
 - Consumes: Task 2의 `JsonApiSend`, `rotateSession`, `endSession`, `type LogoutOutcome`, `type AuthTokensDocument`; `isAccessExpiring`·`ACCESS_EXPIRY_LEEWAY_MS`·`type Session`(`lib/auth/tokens.ts`)
 - Produces:
   - `lib/auth/session-store.ts`: `SESSION_STORAGE_KEY = 'auth.session'`, `interface StoredSession extends Session { refreshExpiresAt: number }`, `interface SessionStorage { read: () => Promise<string | null>; write: (value: string) => Promise<void>; clear: () => Promise<void> }`, `storedSessionFrom(session: Session, refreshExpiresIn: number, now: number): StoredSession`, `serializeSession(session: StoredSession): string`, `restoreSession(raw: string | null, now: number): StoredSession | null`
-  - `lib/auth/session-manager.ts`: `type SessionStatus = 'restoring' | 'signedIn' | 'signedOut'`, `interface SessionManagerDeps { storage: SessionStorage; send: JsonApiSend; now: () => number }`, `createSessionManager(deps): SessionManager`, `interface SessionManager { restore; status; current; subscribe(listener: () => void): () => void; establish(session: Session, refreshExpiresIn: number): Promise<void>; getAccessToken(): Promise<string | null>; signOut(): Promise<void>; logout(clearCaches: () => void): Promise<LogoutOutcome> }` — 멤버는 전부 함수 속성이다
+  - `lib/auth/session-manager.ts`: `type SessionStatus = 'restoring' | 'signedIn' | 'signedOut'`, `interface SessionManagerDeps { storage: SessionStorage; send: JsonApiSend; now: () => number }`, `createSessionManager(deps): SessionManager`, `interface SessionManager { restore(): Promise<StoredSession | null>; status(): SessionStatus; current(): StoredSession | null; subscribe(listener: () => void): () => void; establish(session: Session, refreshExpiresIn: number): Promise<void>; getAccessToken(): Promise<string | null>; signOut(): Promise<void>; logout(clearCaches: () => void): Promise<LogoutOutcome> }` — 멤버는 전부 함수 속성이다. `restore()`는 두 번째 호출부터 첫 호출의 Promise를 돌려준다(저장소를 다시 읽지 않는다 — Task 4의 루트 자식이 효과에서 부르고, 개발 모드의 StrictMode는 효과를 두 번 돌린다)
 
 - [ ] **Step 1: 저장 모양과 복원 판단의 시험을 쓴다**
 
@@ -2182,6 +2184,15 @@ describe('restore - 앱이 켜질 때(스펙 7.1)', () => {
     await expect(h.manager.restore()).resolves.toBeNull()
     expect(h.manager.status()).toBe('signedOut')
   })
+
+  it('다시 불러도 저장소를 한 번만 읽고 첫 결과를 돌려준다 - 개발 모드의 StrictMode 는 효과를 두 번 돌린다', async () => {
+    const h = harness(oldSession(600_000))
+    const read = vi.spyOn(h.storage, 'read')
+    const [first, second] = await Promise.all([h.manager.restore(), h.manager.restore()])
+    expect(second).toBe(first)
+    await expect(h.manager.restore()).resolves.toBe(first)
+    expect(read).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('establish - 로그인·가입이 받은 토큰', () => {
@@ -2467,7 +2478,10 @@ export interface SessionManagerDeps {
  * 그대로 넘기므로 this 에 기대지 않아야 한다.
  */
 export interface SessionManager {
-  /** 앱이 켜질 때 한 번 부른다. 되살릴 수 없는 값은 저장소에서 지운다. 던지지 않는다. */
+  /**
+   * 앱이 켜질 때 부른다. 되살릴 수 없는 값은 저장소에서 지운다. 던지지 않는다. 다시 불러도 저장소를
+   * 다시 읽지 않고 첫 결과를 돌려준다 - 루트의 효과가 개발 모드(StrictMode)에서 두 번 돌아도 안전하다.
+   */
   restore: () => Promise<StoredSession | null>
   status: () => SessionStatus
   current: () => StoredSession | null
@@ -2496,12 +2510,28 @@ export function createSessionManager({ storage, send, now }: SessionManagerDeps)
   // 세션을 세우거나 지울 때마다 늘린다. 회전이 끝났을 때 값이 바뀌어 있으면 그 사이에 로그아웃이나
   // 새 로그인이 있었던 것이다 - 늦게 온 회전 결과로 덮어쓰지 않는다(로그아웃한 세션이 되살아나지 않게).
   let generation = 0
+  // 복원은 한 번만 한다 - 두 번째 호출부터는 첫 호출의 Promise 를 그대로 돌려준다.
+  let restoring: Promise<StoredSession | null> | null = null
   const listeners = new Set<() => void>()
 
   function publish(next: StoredSession | null): void {
     session = next
     status = next === null ? 'signedOut' : 'signedIn'
     for (const listener of listeners) listener()
+  }
+
+  async function readStored(): Promise<StoredSession | null> {
+    let restored: StoredSession | null = null
+    try {
+      const raw = await storage.read()
+      restored = restoreSession(raw, now())
+      if (restored === null && raw !== null) await storage.clear()
+    } catch {
+      // 읽지 못한 세션(기기 키 저장소가 항목을 풀지 못하는 경우 등)은 없는 것과 같다 - 로그아웃
+      // 상태로 시작한다(스펙 7.1).
+    }
+    publish(restored)
+    return restored
   }
 
   async function save(next: StoredSession): Promise<void> {
@@ -2535,18 +2565,9 @@ export function createSessionManager({ storage, send, now }: SessionManagerDeps)
   }
 
   return {
-    restore: async () => {
-      let restored: StoredSession | null = null
-      try {
-        const raw = await storage.read()
-        restored = restoreSession(raw, now())
-        if (restored === null && raw !== null) await storage.clear()
-      } catch {
-        // 읽지 못한 세션(기기 키 저장소가 항목을 풀지 못하는 경우 등)은 없는 것과 같다 - 로그아웃
-        // 상태로 시작한다(스펙 7.1).
-      }
-      publish(restored)
-      return restored
+    restore: () => {
+      restoring ??= readStored()
+      return restoring
     },
     status: () => status,
     current: () => session,
@@ -2585,7 +2606,7 @@ export function createSessionManager({ storage, send, now }: SessionManagerDeps)
 pnpm exec vitest run test/unit/auth/session-manager.test.ts
 ```
 
-Expected: PASS, 19개.
+Expected: PASS, 20개.
 
 - [ ] **Step 5: 계층 문서를 쓴다**
 
@@ -2650,7 +2671,7 @@ git status --short
 git commit -m "feat: 세션 저장 모양과 회전을 한 곳에서 한 번에 하나만 하는 세션 관리자를 세운다"
 ```
 
-Expected: 전부 exit 0, `test/unit/auth` 아래 시험 148개(Task 2의 113 + 16 + 19).
+Expected: 전부 exit 0, `test/unit/auth` 아래 시험 149개(Task 2의 113 + 16 + 20).
 
 ---
 
@@ -2672,7 +2693,7 @@ Expected: 전부 exit 0, `test/unit/auth` 아래 시험 148개(Task 2의 113 + 1
   - `platform/secure-session-storage.ts`: `secureSessionStorage: SessionStorage`
   - `platform/session.ts`: `sessionManager: SessionManager`, `useSessionStatus(): SessionStatus`
   - `platform/query-client.ts`: `queryClient: QueryClient`
-  - 앱 시작: 설정 검증이 통과하면 스플래시를 복원이 끝날 때까지 유지하고, `STARTUP.ok` 갈래의 자식(`AppRoot`)을 `QueryClientProvider`로 감싼다. `app/_layout.tsx`의 `        <Stack />`(여덟 칸 들여쓰기) 한 줄은 Task 5가 고친다.
+  - 앱 시작: 설정 검증이 통과하면 스플래시를 붙잡고, `STARTUP.ok` 갈래에서만 그리는 자식(`AppRoot`)이 세션 복원을 시작하며 `QueryClientProvider`로 감싼다. 복원이 끝나면 스플래시를 내린다. `app/_layout.tsx`의 `        <Stack />`(여덟 칸 들여쓰기) 한 줄은 Task 5가 고친다.
 
 - [ ] **Step 1: 의존성을 설치하고 지난 릴리스 대기 예외를 뺀다**
 
@@ -3197,7 +3218,7 @@ Expected: `false`(가를 수 있다), 그리고 PASS — accept-language 8 · fa
 
 - [ ] **Step 7: 시작 설정의 판단을 `lib/config`로 옮기고 platform 바인딩을 쓴다**
 
-D1의 `platform/config.ts`에서 extra 좁히기와 오류 → 문구 변환은 단위 시험이 없는 유일한 판단이었다(D1 운반, 결정 28). 판단을 `lib/config/startup.ts`로 옮겨 실패 경로를 시험하고, `platform/config.ts`는 `expo-constants`와 설정 자리 바인딩만 남긴다.
+D1의 `platform/config.ts`에서 extra 좁히기와 오류 → 문구 변환은 단위 시험이 없는 유일한 판단이었다(D1 운반, 결정 28). 판단을 `lib/config/startup.ts`로 옮겨 실패 경로를 시험하고, `platform/config.ts`는 `expo-constants`와 설정 자리 바인딩만 남긴다. 치명 오류 화면(`FatalConfig`)을 기기에서 보려고 APK를 따로 만들지 않는다 — 기기 빌드는 Task 6의 E2E 하나로 줄인다(컨트롤러 판단). 치명 경로는 이 단위 시험과 루트 레이아웃의 모양(Step 8)이 지킨다.
 
 `test/unit/config/startup.test.ts`:
 
@@ -3526,14 +3547,10 @@ export { ErrorBoundary } from 'expo-router'
 // 모듈 평가 시점에 한 번 - 어떤 요청보다 먼저 설정 자리를 extra 로 돌린다.
 const STARTUP = loadStartupSettings()
 
-// 설정이 맞을 때만 저장된 세션을 읽기 시작하고, 읽는 동안 스플래시를 유지한다(스펙 7.1). 컴포넌트
-// 안에서 부르면 스플래시가 이미 내려간 뒤일 수 있어(expo-splash-screen 의 안내) 모듈 평가 시점에
-// 부른다. 설정이 틀리면 스플래시를 잡지 않는다 - 치명 오류 화면이 곧바로 보인다. 복원은 던지지
-// 않는다(lib/auth/session-manager.ts).
-if (STARTUP.ok) {
-  void SplashScreen.preventAutoHideAsync()
-  void sessionManager.restore()
-}
+// 설정이 맞을 때만 세션을 되살리는 동안 스플래시를 붙잡는다(스펙 7.1). 컴포넌트 안에서 부르면
+// 스플래시가 이미 내려간 뒤일 수 있어(expo-splash-screen 의 안내) 모듈 평가 시점에 부른다. 설정이
+// 틀리면 붙잡지 않는다 - 치명 오류 화면이 곧바로 보인다.
+if (STARTUP.ok) void SplashScreen.preventAutoHideAsync()
 
 export default function RootLayout() {
   const { theme } = useUniwind()
@@ -3551,11 +3568,18 @@ export default function RootLayout() {
 }
 
 /**
- * 설정이 맞을 때만 그리는 자식. 세션·Query 처럼 요청으로 이어지는 훅은 여기 둔다 - 루트에 두면
- * 설정 오류(request() 가 던진다)가 ErrorBoundary 로 가서 치명 오류 화면을 가린다(platform/AGENTS.md).
+ * 설정이 맞을 때만 그리는 자식. 세션 복원·Query 처럼 요청으로 이어질 수 있는 일은 여기 둔다 -
+ * 루트에 두면 치명 오류 경로에서도 돌고, 설정 오류(request() 가 던진다)가 ErrorBoundary 로 가서
+ * 치명 오류 화면을 가린다(platform/AGENTS.md).
  */
 function AppRoot({ scheme }: { scheme: 'light' | 'dark' }) {
   const ready = useSessionStatus() !== 'restoring'
+
+  // 저장된 세션을 되살린다(스펙 7.1). 던지지 않고, 두 번 불려도(개발 모드의 StrictMode) 저장소는
+  // 한 번만 읽는다(lib/auth/session-manager.ts).
+  useEffect(() => {
+    void sessionManager.restore()
+  }, [])
 
   useEffect(() => {
     if (ready) SplashScreen.hide()
@@ -3608,8 +3632,9 @@ Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 
   `BACKEND_URL`이 없다.
 - 요청으로 이어질 수 있는 훅(세션·Query, 앞으로의 AppState·NetInfo)은 루트 레이아웃의 `STARTUP.ok`
   갈래 안의 자식(`AppRoot`)에 둔다. 루트에 두면 설정이 틀린 앱에서 `request()`가 던지는 설정 오류가
-  ErrorBoundary로 가서 치명 오류 화면을 가린다. 세션 복원과 스플래시 붙잡기도 `STARTUP.ok`일 때만
-  시작한다.
+  ErrorBoundary로 가서 치명 오류 화면을 가린다. 세션 복원(`sessionManager.restore()`)도 그 자식의
+  효과가 시작한다. 모듈 평가 시점에 두는 것은 설정 검증과, `STARTUP.ok`일 때의 스플래시 붙잡기
+  (`preventAutoHideAsync` — 컴포넌트 안에서는 늦을 수 있다)뿐이다.
 ````
 
 `lib/jsonapi/AGENTS.md`의 "이 저장소가 더한 것" 표에 두 줄을 더한다:
@@ -3626,9 +3651,9 @@ Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 
 > 정정(2026-09-30, D2): 루트 `_layout.tsx` 의 "세션 Provider" 는 Context Provider 가 아니다. 회전이 한
 > 곳에서 일어나야 해서(7.2) 세션 관리자는 `platform/session.ts` 에 하나뿐이고, Context 로 내려보낼 값이
 > 없다. 화면은 `useSessionStatus()`(`useSyncExternalStore`)로 상태를 읽는다. 루트 레이아웃은 설정 검증이
-> 통과했을 때만 모듈 평가 시점에 `sessionManager.restore()` 를 부르고 복원이 끝날 때까지 스플래시를
-> 유지하며, 그 갈래의 자식을 `QueryClientProvider` 로 감싼다. 시작 설정의 판단은 `lib/config/startup.ts`
-> 에 있다(`platform/config.ts` 는 `expo-constants` 와 설정 자리 바인딩만 한다).
+> 통과했을 때만 스플래시를 붙잡고, 그 갈래에서만 그리는 자식이 `sessionManager.restore()` 를 부르며
+> `QueryClientProvider` 로 감싼다. 복원이 끝나면 스플래시를 내린다. 시작 설정의 판단은
+> `lib/config/startup.ts` 에 있다(`platform/config.ts` 는 `expo-constants` 와 설정 자리 바인딩만 한다).
 ```
 
 `lib/config/AGENTS.md` — Edit, 찾을 것:
@@ -4438,7 +4463,7 @@ git commit -m "feat: 가입·로그인·로그아웃 화면과 보호 경로 가
 
 **Files:**
 - Create: `test/e2e/guard-log.sh`(100755), `test/unit/e2e/guard-log.test.ts`, `test/e2e/run-android.sh`(100755), `test/e2e/subflows/start-signed-out.yaml`, `test/e2e/subflows/submit-credentials.yaml`, `test/e2e/subflows/register.yaml`, `test/e2e/subflows/logout.yaml`, `test/e2e/flows/register-restore-logout.yaml`, `test/e2e/flows/guard-return.yaml`, `test/e2e/flows/register-conflict.yaml`, `test/e2e/flows/register-invalid.yaml`, `test/e2e/flows/login-error-ko.yaml`, `test/e2e/flows/login-error-en.yaml`, `test/e2e/AGENTS.md`, `docs/superpowers/notes/2026-09-30-d2-measurements.md`
-- Modify: `test/e2e/android.sh`, `scripts/check.sh`, `test/unit/scripts/check-citations.test.ts`, `lib/config/AGENTS.md`, `docs/provenance/copied-core.json`, `AGENTS.md`, `lib/jsonapi/AGENTS.md`·`lib/jsonapi/client.ts`·`test/unit/jsonapi/client.test.ts`(주석 한 자리씩 — "미측정 - D2 가 잰다"를 실측 기록으로), `docs/superpowers/specs/2026-09-30-expo-jsonapi-template-design.md`(6.2·12장·16장 정정)
+- Modify: `test/e2e/android.sh`, `scripts/check.sh`, `test/unit/scripts/check-citations.test.ts`, `lib/config/AGENTS.md`, `docs/provenance/copied-core.json`, `AGENTS.md`, `lib/jsonapi/AGENTS.md`·`lib/jsonapi/client.ts`·`test/unit/jsonapi/client.test.ts`(주석 한 자리씩 — "미측정 - D2 가 잰다"를 실측 기록으로. 측정에서 수명이 나오면 `client.ts`의 GET 헤더 한 줄과 시험 둘, 결정 33), `docs/superpowers/specs/2026-09-30-expo-jsonapi-template-design.md`(6.2·12장·16장 정정)
 
 **Interfaces:**
 - Consumes: Task 4의 `httpFailureLine`(형식 `[e2e-http] <상태> …`), `logsHttpFailures`(e2e); Task 5의 testID와 딥링크 경로; `test/e2e/probe-email.ts`의 `probeEmail`; D1의 `docker-compose.e2e.yml`(프로젝트 `template-typescript-expo-e2e`, 프로파일 `fastapi`·`nestjs`·`rails`, 셋 다 호스트 `127.0.0.1:${E2E_API_PORT:-4100}`)
@@ -5428,9 +5453,85 @@ D2 앱의 요청은 전부 POST 라 네이티브 캐시가 저장하지 않는�
 판정 문장(출력에 맞는 것 하나를 위 "판정" 자리에 그대로 쓴다):
 
 - 모든 응답에 신선도 수명이 없을 때: `**판정.** 세 백엔드 모두 이 세 응답에 신선도 수명을 주지 않는다 - 네이티브 캐시가 저장하더라도 다음 요청은 서버에 가서 검증받는다(`ETag`가 있으면 표현이 다를 때 새 본문이 온다). 로그아웃 뒤 다른 사용자로 로그인한 앱이 앞 사용자의 응답을 받을 길이 없다.`
-- 하나라도 수명이 있을 때: `**판정.** <프로파일>의 <경로>는 신선도 수명을 준다(<머리글>). 그 요청을 부르는 계획은 요청에 `Cache-Control: no-cache`를 싣거나 그 백엔드의 머리글을 고친다 - 그러기 전에는 수명 동안 앱이 서버에 묻지 않고 저장된 응답을 쓴다.` — 이 갈래면 컨트롤러에 알린다(D3의 목록·상세, 인증된 GET을 더하는 계획의 운반이다).
+- 하나라도 수명이 있을 때: `**판정.** <프로파일>의 <경로>는 신선도 수명을 준다(<머리글>). 그대로 두면 수명 동안 앱이 서버에 묻지 않고 저장된 응답을 쓴다 - 로그아웃 뒤 다른 사용자로 로그인한 앱이 앞 사용자의 응답을 받을 수 있다. D2 가 request() 의 GET 에 Cache-Control: no-cache 를 실어 막았다(D2 계획의 결정 33).` — 이 갈래면 아래 "수명이 있으면" 묶음을 이 단계에서 한다.
 
 붙인 출력 블록의 안내 줄(괄호 줄)과 판정 자리의 괄호 줄은 지우고 실제 출력과 판정 문장으로 바꾼다.
+
+**수명이 있으면(판정의 둘째 갈래) — 곧바로 막는다(결정 33).** 첫째 갈래면 이 묶음을 건너뛴다. 이 단계가 E2E 빌드(Step 6)보다 앞이라 APK를 한 번 더 만들지 않는다.
+
+`test/unit/jsonapi/client.test.ts` 끝에 더한다:
+
+```ts
+
+describe('request — 네이티브 HTTP 캐시가 저장된 응답을 서버에 묻지 않고 쓰지 않는다', () => {
+  // 백엔드가 응답에 신선도 수명을 준다(D2 실측 기록 H1). expo/fetch 는 cache 옵션을 읽지 않으므로
+  // 요청 헤더로 막는다.
+  it('GET 에 cache-control: no-cache 를 싣는다', async () => {
+    fetchMock.mockResolvedValue(jsonApiResponse(COLLECTION_EMPTY))
+    await request('/api/v1/examples')
+    expect(headerOf(lastCall()[1], 'cache-control')).toBe('no-cache')
+  })
+
+  it('GET 이 아닌 요청에는 싣지 않는다 - 네이티브 캐시는 GET 만 저장한다', async () => {
+    fetchMock.mockResolvedValue(jsonApiResponse(COLLECTION_EMPTY))
+    await request('/api/v1/examples', { method: 'POST', body: { data: { type: 'probe' } } })
+    expect(headerOf(lastCall()[1], 'cache-control')).toBeNull()
+  })
+})
+```
+
+```bash
+pnpm exec vitest run test/unit/jsonapi/client.test.ts 2>&1 | grep -E "×|Tests "
+```
+
+Expected: FAIL 1 — `GET 에 cache-control: no-cache 를 싣는다`.
+
+`lib/jsonapi/client.ts` — Edit, 찾을 것:
+
+```ts
+    init = {
+      method: options.method ?? 'GET',
+      headers,
+    }
+```
+
+바꿀 것:
+
+```ts
+    init = {
+      method: options.method ?? 'GET',
+      headers,
+    }
+    // GET 에는 cache-control: no-cache 를 싣는다 - 네이티브 HTTP 캐시(Android OkHttp·iOS URLCache)가
+    // 저장해 둔 응답을 서버에 묻지 않고 쓰지 않게 한다. 백엔드가 응답에 신선도 수명을 준다(D2 실측
+    // 기록 H1). 캐시 정책은 TanStack Query 가 소유한다(template-typescript-expo 스펙 8.5).
+    if (init.method === 'GET') headers.set('cache-control', 'no-cache')
+```
+
+```bash
+pnpm exec vitest run test/unit/jsonapi test/unit/auth 2>&1 | grep -E "×|Tests "
+node - <<'EOF'
+const fs = require('node:fs')
+const file = 'docs/provenance/copied-core.json'
+const record = JSON.parse(fs.readFileSync(file, 'utf8'))
+record.divergences.push(
+  {
+    path: 'lib/jsonapi/client.ts',
+    what: 'GET 요청에 cache-control: no-cache 헤더를 싣는다(init 을 만든 바로 뒤).',
+    why: '앱의 fetch(expo/fetch)는 cache 옵션을 읽지 않고 네이티브 HTTP 캐시(OkHttp·URLCache)를 거친다. 세 백엔드 중 신선도 수명을 주는 응답이 있어(docs/superpowers/notes/2026-09-30-d2-measurements.md 의 H1), 그대로 두면 수명 동안 저장된 응답을 서버에 묻지 않고 쓴다. 캐시는 TanStack Query 가 소유한다(스펙 8.5).',
+  },
+  {
+    path: 'test/unit/jsonapi/client.test.ts',
+    what: "'request — 네이티브 HTTP 캐시가 저장된 응답을 서버에 묻지 않고 쓰지 않는다' describe(2개)를 더했다.",
+    why: '위 client.ts 이탈을 따라간다.',
+  },
+)
+fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`)
+EOF
+node scripts/check-provenance.mjs
+```
+
+Expected: 시험 통과 — GET이 아닌 요청의 헤더 맵을 통째로 비교하는 복사 시험(credentials·logout·rotation)은 그대로다. 출처 기록은 이탈이 두 건 더 는다(이 묶음을 하면 아래 "미측정" 자리를 고친 뒤 `이탈 21건`).
 
 D1이 "(미측정 - D2가 잰다)"로 남긴 다섯 자리가 위 기록을 가리키게 한다 — 네이티브 캐시의 기기 동작은 여전히 재지 않았으므로 "미측정"은 남긴다. `client.ts`의 주석도 빌드 입력이라, E2E(Step 6)가 APK를 만들기 전에 고쳐 두면 마지막 게이트가 다시 빌드하지 않는다.
 
@@ -5505,7 +5606,7 @@ git grep -n "D2 가 잰다\|D2가 잰다" -- lib test docs/provenance
 node scripts/check-provenance.mjs
 ```
 
-Expected: `git grep`이 아무것도 내지 않는다. `복사 출처 기록 통과: 경로 44개, 이탈 19건, 원본 그대로 31개`(Task 5 끝의 44·17·31에 이탈 둘).
+Expected: `git grep`이 아무것도 내지 않는다. `복사 출처 기록 통과: 경로 44개, 이탈 19건, 원본 그대로 31개`(Task 5 끝의 44·17·31에 이탈 둘 — 위 "수명이 있으면" 묶음을 했으면 `이탈 21건`).
 
 스펙 6.2 끝(`### 6.3 출처 기록과 검사` 바로 앞 — D1의 `lib/jsonapi/client.ts` 행 정정 다음)에 더한다:
 
@@ -5749,7 +5850,7 @@ Expected: `scripts/check.sh`·`scripts/check-citations.sh`·`test/e2e/android.sh
 ## 이 계획이 끝났을 때의 상태
 
 - 게이트가 D1보다 더 잰다 — `lib/`는 위 계층과 `@react-navigation/*`를 import하지 못하고, 저장소 어디서든 선언하지 않은 패키지를 import하지 못한다. 출처 검사는 원본 그대로인 사본 31개의 내용을 원본 blob과 맞대고, 드라이브 문자 경로를 거절한다.
-- 시작 설정의 판단은 `lib/config/startup.ts`에 있고 실패 경로가 단위 시험으로 고정돼 있다. 루트 레이아웃은 설정이 맞을 때만 스플래시를 잡고 세션을 되살리며, 요청으로 이어지는 훅은 `STARTUP.ok` 갈래의 자식에 있다.
+- 시작 설정의 판단은 `lib/config/startup.ts`에 있고 실패 경로가 단위 시험으로 고정돼 있다. 루트 레이아웃은 설정이 맞을 때만 스플래시를 붙잡고, 세션 복원과 요청으로 이어질 수 있는 훅은 `STARTUP.ok` 갈래에서만 그리는 자식에 있다.
 - 세션은 SecureStore 항목 하나(JSON)에 산다. 앱은 켜질 때 스플래시 아래에서 그것을 되살리고, 형식이 깨졌거나 refresh가 만료됐으면 지우고 로그아웃 상태로 시작한다.
 - 회전은 `lib/auth/session-manager.ts` 한 곳에서, 한 번에 하나만 돈다. 동시 호출·저장 순서·거절·닿지 못함·회전 중 로그아웃이 단위 시험으로 고정돼 있다.
 - 모든 백엔드 요청은 `platform/api.ts`의 `apiRequest`를 지나고, Accept-Language는 거기서만 실린다. e2e 변형은 2xx가 아닌 결과를 기기 로그에 표식으로 남긴다.
