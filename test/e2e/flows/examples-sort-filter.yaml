@@ -1,0 +1,86 @@
+# 정렬 메뉴와 필터 시트가 조건을 바꾸고, 뒤로 가기가 이전 조건을 되살린다(스펙 8.1·8.2).
+# 씨앗 여섯 건의 순서(test/e2e/seed/examples.sql 머리말의 표):
+#   -createdAt(기본) alpha charlie echo foxtrot bravo delta
+#   -score           foxtrot bravo delta echo alpha charlie
+# 두 순서가 갈리는 쌍으로만 단언한다 - 둘 다에서 참인 쌍은 아무것도 재지 않는다. 여섯째 행은 폰
+# 화면 끝에 걸릴 수 있어 다섯째 행까지만 쓴다.
+appId: com.example.templateexpo.e2e
+---
+- runFlow: ../subflows/start-signed-out.yaml
+- openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=probe-seed
+- extendedWaitUntil:
+    visible:
+      id: resource-row-title
+      text: probe-seed alpha
+    timeout: 20000
+- assertVisible:
+    text: probe-seed foxtrot
+    below:
+      text: probe-seed alpha
+# 점수를 처음 누르면 높은 것부터다.
+- tapOn:
+    id: sort-button
+- tapOn:
+    id: sort-option-score
+- extendedWaitUntil:
+    visible:
+      text: probe-seed alpha
+      below:
+        text: probe-seed foxtrot
+    timeout: 20000
+- assertVisible:
+    text: probe-seed echo
+    below:
+      text: probe-seed delta
+# 뒤로 가기 - 기본 정렬의 목록으로 돌아간다.
+- back
+- extendedWaitUntil:
+    visible:
+      text: probe-seed foxtrot
+      below:
+        text: probe-seed alpha
+    timeout: 10000
+- assertVisible:
+    text: probe-seed bravo
+    below:
+      text: probe-seed echo
+# 필터 시트: 상태 활성 + 점수 70 이상 - bravo(활성·77)만 남는다. delta 는 활성이지만 63,
+# foxtrot 은 94 지만 보관이다. 제목 접두사는 시트가 URL 에서 이어받는다.
+- tapOn:
+    id: filter-button
+- extendedWaitUntil:
+    visible:
+      id: filter-sheet
+    timeout: 10000
+- tapOn:
+    id: filter-option-status-in-active
+- tapOn:
+    id: filter-input-score-gte
+- inputText: '70'
+# "적용" 은 시트 머리 줄에 있다 - 키보드를 내리지 않는다(Maestro 의 hideKeyboard 는 Android 에서
+# 뒤로 가기라, 키보드가 없으면 시트를 닫는다).
+- tapOn:
+    id: filter-apply
+# 옛 목록 화면이 사라진 뒤에 새 화면의 행을 본다 - bravo 는 옛 화면에도 있어 먼저 보면 옛 화면에서
+# 통과할 수 있다. foxtrot 은 옛 화면(기본 정렬)의 넷째 행이라 화면 안에 있었다.
+- extendedWaitUntil:
+    notVisible:
+      id: resource-row-title
+      text: probe-seed foxtrot
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: resource-row-title
+      text: probe-seed bravo
+    timeout: 20000
+- assertNotVisible:
+    id: resource-row-title
+    text: probe-seed delta
+# 뒤로 가기 - 필터 없는(제목 접두사만 있는) 목록으로 돌아간다. charlie 는 보관·0점이라 위 필터에
+# 걸리지 않던 행이다.
+- back
+- extendedWaitUntil:
+    visible:
+      id: resource-row-title
+      text: probe-seed charlie
+    timeout: 10000

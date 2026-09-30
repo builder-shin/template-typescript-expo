@@ -190,6 +190,12 @@ docs/superpowers/specs/ · plans/ · notes/
 > `QueryClientProvider` 로 감싼다. 복원이 끝나면 스플래시를 내린다. 시작 설정의 판단은
 > `lib/config/startup.ts` 에 있다(`platform/config.ts` 는 `expo-constants` 와 설정 자리 바인딩만 한다).
 
+> 정정(2026-09-30, D3): 트리에 둘을 더한다. `lib/navigation/` 은 밖에서 들어온 딥링크를 앱 안 주소로 바꾸는
+> 판단(`deep-link.ts`)을 둔다 - 자원에 매이지 않는다(로그인의 `next` 처럼 인코딩한 값을 싣는 인증 딥링크도 같은 길을
+> 지난다). `app/+native-intent.tsx` 는 Expo Router 의 특별 파일(라우트가 아니다)로, 들어온 링크가 라우터에 닿기
+> 전에 그 판단을 잇기만 한다 - 이 빌드의 scheme 은 `platform/config.ts` 가 `expo-constants` 에서 읽는다. 까닭은
+> 8.2 의 둘째 D3 정정, 소유 규칙은 루트 `AGENTS.md` 의 표다.
+
 ## 5. 계층 소유권
 
 | 위치 | 소유하는 것 | 소유하지 않는 것 |
@@ -466,6 +472,18 @@ templateexpo://examples?filter[status]=active&sort=-createdAt
 > 이동은 `router.push` 다 - 새 목록 화면이 쌓여 뒤로 가기가 이전 조건을 되살린다(`router.setParams` 는 기록을
 > 남기지 않는다). 규칙·왕복 시험·근거는 `lib/resources/view.ts` 의 `filterHref`,
 > `test/unit/resources/view-expo.test.ts`, `docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L1.
+
+> 정정(2026-09-30, D3): 밖에서 들어온 딥링크는 앱 안의 이동과 다르게 풀렸다. Expo Router 57.0.24 의
+> `build/fork/extractPathFromURL.js` 에서 `fromDeepLink`(60행)가 쿼리를 다시 짤 때(97–102행) `searchParams` 로 한 번
+> 디코딩한 값에 `safeDecodeURIComponent` 를 한 번 더 걸고, 다시 인코딩하지 않은 채 `이름=값` 을 `&` 로 잇는다. 라우터가
+> 그 문자열을 다시 풀어 값의 `+` 는 공백, `&` 는 다음 파라미터의 시작, `#` 은 조각의 시작이 됐다 - 기기에서
+> `…contains%5D=probe-d3-repro%20%EA%B0%80%2B%EB%82%98%26…` 딥링크가 `…contains%5D=probe-d3-repro+%EA%B0%80+%EB%82%98`
+> (`probe-d3-repro 가 나`) 요청이 됐다(D3 실측 L1). 그래서 `app/+native-intent.tsx` 의 `redirectSystemPath` 가 이 빌드의
+> scheme 으로 들어온 링크를 쿼리의 인코딩을 그대로 둔 앱 안 주소(`/examples?…`)로 바꿔 넘긴다
+> (`lib/navigation/deep-link.ts` 의 `appPathFromDeepLink`). `fromDeepLink` 는 `/` 로 시작하는 주소를 그대로
+> 돌려주므로(74–75행) 딥링크가 `router.push(주소)` 와 같은 해석을 지난다 - 위 정정의 "앱 안의 이동도 같은 해석을
+> 지난다" 는 딥링크에도 이 정규화 뒤에 참이다. `test/unit/navigation/deep-link.test.ts` 가 설치본의
+> `extractExpoPathFromURL` 을 지나는 왕복을 재고, E2E `examples-browse` 가 기기에서 잰다.
 
 ### 8.3 페이지네이션 배정 — Next.js와 반대
 
@@ -766,6 +784,16 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > (`test/e2e/run-android.sh`)는 앱별 언어를 정한 플로 동안 키보드 자판이 없는 입력기(에뮬레이터의 음성 입력)를
 > 기본 입력기로 두고 끝나면 입력기 설정 셋을 되돌린다 - 순서는 `pm clear` → `set-app-locales` → 입력기 바꾸기
 > → 플로 → 입력기 되돌리기다. 그런 입력기가 없는 기기에서는 로캘 플로가 그 사실을 알리고 실패한다.
+
+> 정정(2026-09-30, D3): 목록·상세 E2E 가 씨앗(`probe-seed`) 말고 필요한 행 - 무한 스크롤의 25건, 새로고침·앱
+> 복귀·상세 재진입이 볼 새 행과 바뀐 제목 - 은 플로가 Maestro 의 `runScript`(호스트의 GraalJS `http`)로 백엔드에
+> 직접 만든다(`test/e2e/scripts/examples-api.js`). 앱에는 쓰기 화면이 아직 없다(D4). 하네스가 호스트의 백엔드
+> 주소를 `API_URL` 로 넘긴다. 제목은 실행·플로마다 다른 접두사(`probe-d3-<이메일 끝 12자>`)로 시작해 목록 단언을
+> 좁힌다. 같은 플로가 네이티브 HTTP 캐시 아래의 신선도(당겨서 새로고침·앱 복귀·상세 재진입이 백엔드의 새 값을
+> 받는다)를 기기에서 잰다 - 결과는 `docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L5. 딥링크의
+> 대괄호는 퍼센트 인코딩한다(8.2 의 첫째 D3 정정). 값의 `+`·`&`·`=`·`#`·한글도 인코딩한 딥링크가 같은 조건을
+> 재현하는지 `test/e2e/flows/examples-browse.yaml` 이 기기에서 잰다 - 들어온 딥링크를 앱 안 주소로 바꾸는 정규화
+> (8.2 의 둘째 D3 정정)가 그 전제다(같은 기록의 L1·L6).
 
 ### 11.4 E2E 스택
 

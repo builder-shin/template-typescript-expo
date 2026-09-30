@@ -1,0 +1,91 @@
+# 무한 스크롤(스펙 8.3), 당겨서 새로고침, 앱 복귀의 재조회(스펙 8.5), 다시 들어온 상세의 재조회 -
+# 셋 다 목록을 연 뒤 백엔드에서 바뀐 것이 화면에 와야 한다. 네이티브 HTTP 캐시(OkHttp)가 옛
+# 응답을 주면 여기서 실패한다(docs/superpowers/notes/2026-09-30-d3-measurements.md).
+# 행은 이 플로가 백엔드에 직접 만든다(test/e2e/scripts/examples-api.js) - 제목이 이 실행만의
+# 접두사로 시작해 다른 플로의 행을 보지 않는다.
+appId: com.example.templateexpo.e2e
+---
+- runFlow: ../subflows/start-signed-out.yaml
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: seed
+      COUNT: '25'
+- openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=${output.prefix}&sort=title
+- extendedWaitUntil:
+    visible:
+      id: resource-row-title
+      text: ${output.prefix} 01
+    timeout: 20000
+# 첫 쪽은 20건이다 - 25번째 행은 끝에 닿아 다음 쪽을 읽어야 나타난다.
+- scrollUntilVisible:
+    element:
+      id: resource-row-title
+      text: ${output.prefix} 25
+    direction: DOWN
+    timeout: 30000
+- assertNotVisible:
+    id: list-footer-spinner
+# 당겨서 새로고침 - 목록을 연 뒤 만든 행(제목 순서의 맨 앞)이 나타난다.
+- scrollUntilVisible:
+    element:
+      id: resource-row-title
+      text: ${output.prefix} 01
+    direction: UP
+    timeout: 30000
+# 맨 위에 닿은 마지막 스와이프가 목록을 당겨 새로고침을 한 번 일으킬 수 있다(게이트 실행의 api.log 에서 봤다).
+# 그 새로고침의 스피너가 멎은 뒤에 행을 만든다 - 도는 동안에는 다시 당겨도 새로고침이 일어나지 않아(당김을 받지
+# 않는다), 새 행을 만들기 전에 떠난 요청의 목록만 받을 수 있다.
+- waitForAnimationToEnd:
+    timeout: 10000
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: create
+      TITLE: ${output.prefix} 00
+- swipe:
+    start: 50%, 35%
+    end: 50%, 85%
+    duration: 1000
+- extendedWaitUntil:
+    visible:
+      id: resource-row-title
+      text: ${output.prefix} 00
+    timeout: 20000
+# 앱 복귀 - 뒤로 보냈다 앞으로 불러오면 당기지 않아도 다시 부른다(AppState → focusManager).
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: create
+      TITLE: ${output.prefix} 000
+- pressKey: Home
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: resource-row-title
+      text: ${output.prefix} 000
+    timeout: 20000
+# 상세 - 다시 들어오면 캐시를 그린 뒤 다시 부른다(staleTime 0). 백엔드에서 바꾼 제목이 나타난다.
+- tapOn:
+    id: resource-row-title
+    text: ${output.prefix} 01
+- extendedWaitUntil:
+    visible:
+      id: detail-heading
+      text: ${output.prefix} 01
+    timeout: 20000
+- back
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: rename
+      TITLE: ${output.prefix} 01 renamed
+- tapOn:
+    id: resource-row-title
+    text: ${output.prefix} 01
+- extendedWaitUntil:
+    visible:
+      id: detail-heading
+      text: ${output.prefix} 01 renamed
+    timeout: 20000

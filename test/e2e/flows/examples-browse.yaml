@@ -1,0 +1,160 @@
+# 홈에서 목록으로, 딥링크의 필터·정렬로 좁힌 목록의 행·관계 배지·UTC 시각, 행을 눌러 상세의 여러 줄
+# 설명·두 시각·배지, 뒤로 가기(스펙 8.1·8.2·11.3). 행은 씨앗(test/e2e/seed/examples.sql)의
+# probe-seed 여섯 건이다 - 제목 접두사로 좁혀 다른 플로의 행을 보지 않는다.
+# 끝으로 값에 +·&·=·#·한글이 든 딥링크가 같은 조건을 재현하는지 본다(D3 실측 L1 이 기기에 넘긴 것).
+appId: com.example.templateexpo.e2e
+---
+- runFlow: ../subflows/start-signed-out.yaml
+- tapOn:
+    id: home-examples-link
+- extendedWaitUntil:
+    visible:
+      id: resource-list
+    timeout: 20000
+- back
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 10000
+# 딥링크가 조건을 그대로 재현한다 - 제목 순서(sort=title)의 씨앗 여섯 건.
+- openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=probe-seed&sort=title
+- extendedWaitUntil:
+    visible:
+      id: resource-row-title
+      text: probe-seed alpha
+    timeout: 20000
+- assertVisible:
+    text: probe-seed bravo
+    below:
+      text: probe-seed alpha
+- assertVisible:
+    text: probe-seed charlie
+    below:
+      text: probe-seed bravo
+# 관계 배지(분류·태그)와 UTC 시각 - alpha 는 2026-04-06T05:06:07+00:00 에 만들어졌다.
+- assertVisible: 프로브 분류 하나
+- assertVisible: 프로브 라벨 둘
+- assertVisible: 2026-04-06 05:06
+# 상세 - 목록에 없는 설명(여러 줄)과 수정 시각까지 그린다.
+- tapOn:
+    id: resource-row-title
+    text: probe-seed bravo
+- extendedWaitUntil:
+    visible:
+      id: detail-heading
+      text: probe-seed bravo
+    timeout: 20000
+- assertVisible:
+    id: detail-value-description
+    text: '프로브 설명 첫 줄\n프로브 설명 둘째 줄'
+- assertVisible:
+    id: detail-value-status
+    text: 활성
+- assertVisible:
+    id: detail-value-createdAt
+    text: 2026-04-02 05:06
+- assertVisible:
+    id: detail-value-updatedAt
+    text: 2026-04-15 01:02
+- assertVisible: 프로브 분류 하나
+- assertVisible: 프로브 라벨 하나
+- back
+- extendedWaitUntil:
+    visible:
+      id: resource-row-title
+      text: probe-seed alpha
+    timeout: 10000
+# 값에 +·&·=·#·한글이 든 딥링크. 값은 퍼센트 인코딩한다 - 인코딩하지 않은 + 는 공백으로, & 는 다음
+# 파라미터로, # 는 조각(fragment)으로 읽힌다. 행은 이 플로가 백엔드에 직접 만든다(scripts/examples-api.js):
+# 과녁 `<접두사> 가+나&다=라#마` 와 미끼 셋. 미끼는 값이 & 에서 잘리면(`가+나`), + 가 공백이 되면
+# (`가 나&다=라#마`), # 에서 잘리면(`가+나&다=라`) 필터에 걸린다 - 값이 그대로 백엔드에 닿아야 과녁만 남는다.
+# 단언의 text 는 정규식이라 + 를 \+ 로 적는다.
+- back
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 10000
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: seed
+      COUNT: '0'
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: create
+      TITLE: '${output.prefix} 가+나&다=라#마'
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: create
+      TITLE: '${output.prefix} 가+나'
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: create
+      TITLE: '${output.prefix} 가 나&다=라#마'
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: create
+      TITLE: '${output.prefix} 가+나&다=라'
+# 값: `<접두사> 가+나&다=라#마` - 공백 %20, 가 %EA%B0%80, + %2B, 나 %EB%82%98, & %26, 다 %EB%8B%A4,
+# = %3D, 라 %EB%9D%BC, # %23, 마 %EB%A7%88.
+- openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=${output.prefix}%20%EA%B0%80%2B%EB%82%98%26%EB%8B%A4%3D%EB%9D%BC%23%EB%A7%88
+- extendedWaitUntil:
+    visible:
+      id: resource-row-title
+      text: '${output.prefix} 가\+나&다=라#마'
+    timeout: 20000
+- assertNotVisible:
+    id: resource-row-title
+    text: '${output.prefix} 가\+나'
+- assertNotVisible:
+    id: resource-row-title
+    text: '${output.prefix} 가 나&다=라#마'
+- assertNotVisible:
+    id: resource-row-title
+    text: '${output.prefix} 가\+나&다=라'
+# 목록 화면이 그 값을 필터로 들고 있다 - 필터 시트의 제목 칸이 URL 의 값에서 시작한다.
+- tapOn:
+    id: filter-button
+- extendedWaitUntil:
+    visible:
+      id: filter-sheet
+    timeout: 10000
+- assertVisible:
+    id: filter-input-title-contains
+    text: '${output.prefix} 가\+나&다=라#마'
+# 뒤로 가기는 시트만 닫는다(키보드가 없다 - 칸을 누르지 않았다).
+- back
+- extendedWaitUntil:
+    notVisible:
+      id: filter-sheet
+    timeout: 10000
+# 앱이 만든 주소도 같은 값을 싣는다 - 정렬 메뉴의 항목은 지금의 필터를 이어받은 주소다(URLSearchParams 의
+# 직렬화 - 공백은 +, + 는 %2B). 새 목록 화면에도 과녁만 남는다. 새 화면이 뜬 것은 정렬 버튼의 라벨로
+# 가른다 - 옛 화면(기본 정렬 "생성")에도 과녁이 있어 행만 보면 옛 화면에서 통과할 수 있다.
+- tapOn:
+    id: sort-button
+- tapOn:
+    id: sort-option-score
+- extendedWaitUntil:
+    visible:
+      id: sort-button
+      text: '정렬, 점수 내림차순'
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: resource-row-title
+      text: '${output.prefix} 가\+나&다=라#마'
+    timeout: 20000
+- assertNotVisible:
+    id: resource-row-title
+    text: '${output.prefix} 가\+나'
+- assertNotVisible:
+    id: resource-row-title
+    text: '${output.prefix} 가 나&다=라#마'
+- assertNotVisible:
+    id: resource-row-title
+    text: '${output.prefix} 가\+나&다=라'

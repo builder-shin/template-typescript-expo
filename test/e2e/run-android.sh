@@ -27,8 +27,10 @@
 #                             없는 입력기(IME)로 바꾼 뒤 돈다(아래 "입력기" 절)
 #
 # 플로에는 EMAIL·OTHER_EMAIL(플로마다 새로 만든다 - test/e2e/probe-email.ts)과 PASSWORD 가 env 로
-# 들어간다. OTHER_EMAIL 은 한 플로 안에서 두 번째 사용자가 필요할 때 쓴다.
-# 결과(Maestro 출력·디버그 기록·기기 로그)는 플로마다 .maestro-output/e2e/<플로>/ 에 남는다.
+# 들어간다. OTHER_EMAIL 은 한 플로 안에서 두 번째 사용자가 필요할 때 쓴다. API_URL 은 호스트에서
+# 백엔드에 닿는 주소다 - 플로의 runScript(test/e2e/scripts/)가 앱을 거치지 않고 행을 만들 때 쓴다.
+# 결과(Maestro 출력·디버그 기록·기기 로그·그 플로 동안의 백엔드 접근 로그 api.log)는 플로마다
+# .maestro-output/e2e/<플로>/ 에 남는다.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -151,11 +153,15 @@ existing_files() {
 }
 
 # 빌드에 들어가는 파일의 지문 - 시험·문서·스크립트·마크다운을 뺀 추적·미추적(무시 제외) 파일의
-# 이름과 내용, 그리고 앱이 볼 백엔드 주소. 플로만 고친 실행은 APK 를 다시 만들지 않는다.
+# 이름과 내용, 빌드 레시피, 그리고 앱이 볼 백엔드 주소. 플로만 고친 실행은 APK 를 다시 만들지 않는다.
+# 빌드 레시피(test/e2e/android.sh - prebuild 인자와 APP_VARIANT)는 test/ 안에 있어 위 목록의 제외에
+# 걸린다(git 의 제외 pathspec 은 포함 pathspec 보다 앞선다) - 따로 더한다. 빠지면 레시피를 고쳐도 낡은
+# APK 가 조용히 다시 쓰인다.
 build_fingerprint() {
   {
     git ls-files -z -co --exclude-standard -- . ':!test' ':!docs' ':!scripts' ':!*.md' |
       existing_files | xargs -0 sha1sum
+    sha1sum test/e2e/android.sh
     printf 'BACKEND_URL=%s\n' "$APP_BACKEND_URL"
   } | sha1sum | cut -d ' ' -f 1
 }
@@ -202,7 +208,7 @@ probe_email() {
 }
 
 run_flow() {
-  local flow=$1 name locale allowed email other_email out rc=0 logcat_rc=0
+  local flow=$1 name locale allowed email other_email out since rc=0 logcat_rc=0
   local device_args=()
   name=$(basename "$flow" .yaml)
   locale=$(header "$flow" e2e-app-locale)
@@ -221,8 +227,11 @@ run_flow() {
   if [ -n "$locale" ]; then
     # 로캘 플로는 clearState 를 쓰지 않는다 - 상태 지우기가 앱별 언어까지 지운다(D1 실측 M3).
     # 그래서 여기서 먼저 지우고 언어를 정한다. 입력기는 자판이 없는 것으로 바꾼다(위 "입력기" 절).
-    "$ADB" shell pm clear "$APP_ID" >/dev/null
-    "$ADB" shell cmd locale set-app-locales "$APP_ID" --locales "$locale"
+    if ! "$ADB" shell pm clear "$APP_ID" >/dev/null ||
+      ! "$ADB" shell cmd locale set-app-locales "$APP_ID" --locales "$locale"; then
+      echo "E2E: $name 앞에서 앱 상태를 지우거나 앱별 언어를 정하지 못했다(pm clear·set-app-locales)" >&2
+      return 1
+    fi
     if ! use_keyless_ime; then
       ime_restore || true
       return 1
@@ -230,10 +239,15 @@ run_flow() {
   fi
 
   echo "--- $name${locale:+ ($locale)}"
+  # 백엔드 접근 로그를 이 플로의 몫만 남긴다 - 5초 앞에서 자른다(호스트와 Docker 의 시계 차이).
+  since=$(date -u -d '5 seconds ago' +%Y-%m-%dT%H:%M:%SZ)
   "$MAESTRO" test --no-ansi ${device_args[@]+"${device_args[@]}"} --debug-output "$out/debug" \
-    -e "EMAIL=$email" -e "OTHER_EMAIL=$other_email" -e "PASSWORD=$E2E_PASSWORD" "$flow" >"$out/maestro.log" 2>&1 || rc=$?
+    -e "EMAIL=$email" -e "OTHER_EMAIL=$other_email" -e "PASSWORD=$E2E_PASSWORD" \
+    -e "API_URL=http://127.0.0.1:$API_PORT" "$flow" >"$out/maestro.log" 2>&1 || rc=$?
   # adb 의 오류도 그 파일에 남긴다(2>&1) - 모으지 못한 까닭을 거기서 본다.
   "$ADB" logcat -d -v brief -s ReactNativeJS:V AndroidRuntime:E >"$out/logcat.txt" 2>&1 || logcat_rc=$?
+  # 백엔드 접근 로그는 원인을 가르는 기록일 뿐 가드가 아니다 - 모으지 못해도 플로를 실패로 치지 않는다.
+  compose --profile fastapi logs --no-color --since "$since" api-fastapi >"$out/api.log" 2>&1 || true
   if ! ime_restore; then
     echo "E2E: $name 뒤에 입력기 설정을 되돌리지 못했다 - adb shell settings get secure default_input_method 로 확인한다(되돌리는 법은 test/e2e/AGENTS.md)" >&2
     return 1

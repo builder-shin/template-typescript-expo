@@ -4,7 +4,8 @@
 #   test/e2e/android.sh boot        켜진 기기가 없으면 E2E_AVD 를 부팅하고 부팅 완료까지 기다린다.
 #                                   BOOT_TIMEOUT_SECONDS(기본 300) 안에 끝나지 않거나 에뮬레이터가
 #                                   죽으면 에뮬레이터 로그의 꼬리를 내고 실패한다. 기기가 여럿인데
-#                                   ANDROID_SERIAL 이 없으면 곧바로 실패한다
+#                                   ANDROID_SERIAL 이 없으면 곧바로 실패한다. 끝으로 기기 로그의 링
+#                                   버퍼를 16MiB 로 넓힌다(이미 켜진 기기도)
 #   test/e2e/android.sh check-path  이 위치에서 Android 네이티브 빌드가 되는가 - Windows 에서 저장소
 #                                   경로가 47자를 넘으면 실패한다
 #   test/e2e/android.sh build       e2e 변형 Release APK 를 만든다 (BACKEND_URL 필요).
@@ -80,6 +81,11 @@ boot() {
   # 자동 완성 서비스를 끈다 - 비밀번호 칸이 있는 폼을 제출하면 "비밀번호를 저장할까요" 대화상자가
   # 떠서 플로의 다음 단계를 가릴 수 있다. 앱의 입력은 자동 완성을 막지 않는다.
   "$ADB" shell settings put secure autofill_service null
+  # 기기 로그의 링 버퍼를 넓힌다. 하네스는 플로마다 로그를 비우고 끝에 모으는데, 기본 크기는 긴 플로
+  # (목록의 무한 스크롤 등) 하나를 다 담지 못할 수 있다 - 앞쪽 줄이 밀려나면 W·E 줄을 놓쳐 가드가 가짜로
+  # 통과하고, 선언한 [e2e-http] 줄을 놓쳐 가짜로 실패한다. 재부팅하면 기본 크기로 돌아가므로 부팅할
+  # 때마다(이미 켜진 기기여도) 정한다.
+  "$ADB" logcat -G 16M
 }
 
 check_path() {
