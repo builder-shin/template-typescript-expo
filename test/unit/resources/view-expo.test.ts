@@ -346,8 +346,7 @@ describe('라우트 파라미터 왕복 - 이 앱의 주소 인코딩 규칙 (�
  * `build/global-state/getNavigationAction.js` 가 `withAnchor` 가 있으면 중첩된 모든 params 에
  * `initial = !withAnchor` 를 쓰고, `useLocalSearchParams` 는 값마다 `decodeURIComponent` 를
  * 지나므로 화면이 받는 것은 `initial: 'false'` 다. 내비게이션의 값이지 목록의 조건이 아니다 -
- * 백엔드 쿼리에 섞이면 안 되고, 조건으로 읽히면 빈 결과의 문구도 틀어진다. 화면은 쿼리를
- * 조립하지 않고 파라미터를 lib 에 넘기므로(스펙 8.4) 거르는 자리는 여기 lib 다.
+ * 백엔드 쿼리에 섞이면 안 되고, 조건으로 읽히면 빈 결과의 문구도 틀어진다.
  *
  * 기준은 "`initial` 을 뺀 같은 조건" 이다 - 섞여 들었을 때 무엇이 어떻게 달라지는지가 아니라
  * 아무것도 달라지지 않는지를 잰다.

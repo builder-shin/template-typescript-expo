@@ -19,13 +19,6 @@ Accept-Language 를 싣지 않는다 - 싣는 자리는 `platform/api.ts` 하나
 되살린다. 새 인코딩 코드를 만들지 않는다 - 규칙과 한계는 `docs/superpowers/notes/2026-09-30-d3-measurements.md`
 의 L1.
 
-라우트 파라미터에는 조건이 아닌 값도 섞여 든다. 로그인·가입 뒤 복귀처럼 `withAnchor` 로 이동하면 도착한
-화면의 파라미터에 `initial: 'false'` 가 실린다(expo-router 57.0.24 의 `build/global-state/getNavigationAction.js`).
-`listQuery` 는 JSON:API 문법에 맞는 이름(`filter[...]`·`sort`·`page[...]`·`include`)만 고르므로 그 값은 백엔드에
-닿지 않고 `filtered` 도 바꾸지 않는다. 주소를 만드는 함수(`filterHref`·`sortOptions`·`clearFiltersHref`)는 남의
-파라미터를 그대로 옮긴다(스펙 8.1) - `initial` 도 다음 주소로 옮겨 가지만 그 주소에서 다시 `listQuery` 를 지난다.
-시험은 `view-expo.test.ts` 의 "라우트 파라미터의 initial".
-
 ## 선언은 데이터다
 
 `filters`·`sorts`는 백엔드 조회 정책을 **손으로 베낀 거울**이다. 손으로 유지되는 거울은

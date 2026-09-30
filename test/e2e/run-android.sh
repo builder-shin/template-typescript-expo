@@ -235,7 +235,7 @@ run_flow() {
   # adb 의 오류도 그 파일에 남긴다(2>&1) - 모으지 못한 까닭을 거기서 본다.
   "$ADB" logcat -d -v brief -s ReactNativeJS:V AndroidRuntime:E >"$out/logcat.txt" 2>&1 || logcat_rc=$?
   if ! ime_restore; then
-    echo "E2E: $name 뒤에 입력기 설정을 되돌리지 못했다 - adb shell ime list -s 로 확인한다" >&2
+    echo "E2E: $name 뒤에 입력기 설정을 되돌리지 못했다 - adb shell settings get secure default_input_method 로 확인한다(되돌리는 법은 test/e2e/AGENTS.md)" >&2
     return 1
   fi
 
@@ -266,7 +266,7 @@ build_and_install
 
 # 끝날 때(실패해도) 입력기 설정을 되돌리고 스택을 내린다.
 cleanup() {
-  ime_restore || echo "E2E: 입력기 설정을 되돌리지 못했다 - adb shell ime list -s 로 확인한다" >&2
+  ime_restore || echo "E2E: 입력기 설정을 되돌리지 못했다 - adb shell settings get secure default_input_method 로 확인한다(되돌리는 법은 test/e2e/AGENTS.md)" >&2
   compose_down
 }
 trap cleanup EXIT
