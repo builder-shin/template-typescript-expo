@@ -19,6 +19,13 @@ Accept-Language 를 싣지 않는다 - 싣는 자리는 `platform/api.ts` 하나
 되살린다. 새 인코딩 코드를 만들지 않는다 - 규칙과 한계는 `docs/superpowers/notes/2026-09-30-d3-measurements.md`
 의 L1.
 
+## 라우트 파라미터
+
+목록 화면은 라우트 파라미터를 `route-params.ts` 의 `listRouteParams` 로 거른 뒤 판단 함수에 넘긴다 - Expo
+Router 는 이동이 싣는 값(로그인·가입 뒤 복귀의 `withAnchor` 가 싣는 `initial`)도 라우트 파라미터에 섞고,
+정렬·필터 주소는 남의 파라미터를 그대로 옮긴다(`view.ts` 의 `carriedParams`). 이름이 정해진 파라미터(상세의
+`id`)는 이름으로 꺼낸다. 어느 화면도 라우트 파라미터 전체를 펼치거나 돌지 않는다.
+
 ## 선언은 데이터다
 
 `filters`·`sorts`는 백엔드 조회 정책을 **손으로 베낀 거울**이다. 손으로 유지되는 거울은
