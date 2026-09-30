@@ -82,4 +82,10 @@ describe('빌드 변형 - 스펙 10.2', () => {
   ])('%s 이면 기본값 development 다', (_label, extra) => {
     expect(variantFromExtra(extra)).toBe('development')
   })
+
+  it('목록 밖의 값이면 목록과 함께 던진다 - app.config.ts 가 빌드 시점에 거절한 값이라 앱에 올 수 없다', () => {
+    expect(() => variantFromExtra({ appVariant: 'staging' })).toThrowError(
+      'APP_VARIANT must be one of development, preview, production, e2e (got "staging")',
+    )
+  })
 })

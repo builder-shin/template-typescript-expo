@@ -45,6 +45,11 @@
 - `lib/jsonapi/`에 이 저장소의 실제 자원 이름 문자열이 코드로 나타나면 위반이다.
 - `lib/resources/*.ts`에 JSX가 있으면 위반이다.
 - `app/`에서 `fetch`나 `request()`를 직접 부르면 위반이다. 화면은 `queries/`의 훅만 쓴다.
+- `request()`(`lib/jsonapi/client.ts`)를 값으로 import하는 곳은 `platform/api.ts`와 `lib/`뿐이다 -
+  `app/`·`components/`·`queries/`와 `platform/`의 다른 파일은 `apiRequest`를 지난다. Accept-Language 를
+  싣는 자리가 그 한 곳이라 직접 부르면 언어가 빠진다(스펙 9.4). 타입 import는 어디서나 된다. ESLint가
+  막고(정적 import·`export … from`만 잰다 - `import x = require()`와 동적 `import()`·`require()` 호출은
+  재지 않는다) `test/unit/lint/request-boundary.test.ts`가 그 규칙을 잰다.
 - `queries/`에 JSX가 있거나 쿼리 문자열을 조립하면 위반이다. 요청 조립은 `lib/resources`의
   `listRequest()`·`detailRequest()`·`referenceRequest()`가 한다(`view.ts`를 복사할 때 들어온다).
 - `components/resource/*`에 자원 이름으로 분기하는 코드가 있으면 위반이다.

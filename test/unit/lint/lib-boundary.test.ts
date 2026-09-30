@@ -169,7 +169,22 @@ describe('lib/ 경계 - 스펙 5장', { timeout: 60_000 }, () => {
     expect(messages).toEqual([])
   })
 
-  it('lib/ 밖(platform/)에는 걸리지 않는다', async () => {
-    expect(severityOf(await restrictionFor('platform/boundary-probe.ts'))).toBe(0)
+  // lib/ 의 규칙은 lib/ 에만 걸린다. 다른 계층은 자기 규칙을 받는다 - request() 를 막는 규칙이 앱
+  // 계층에 걸려 있다(request-boundary.test.ts). 그래서 규칙이 없어야 하는 곳과, 있더라도 lib/ 의
+  // 것이 아니어야 하는 곳을 나눠 잰다.
+  it.each(['platform/api.ts', 'test/boundary-probe.ts', 'scripts/boundary-probe.mjs'])(
+    'lib/ 밖(%s)에는 걸리지 않는다',
+    async (filePath) => {
+      expect(severityOf(await restrictionFor(filePath))).toBe(0)
+    },
+  )
+
+  it.each([
+    'app/boundary-probe.tsx',
+    'components/boundary-probe.tsx',
+    'queries/boundary-probe.ts',
+    'platform/boundary-probe.ts',
+  ])('lib/ 밖(%s)에는 lib/ 의 규칙이 걸리지 않는다', async (filePath) => {
+    expect(await restrictionFor(filePath)).not.toEqual(await libRule())
   })
 })

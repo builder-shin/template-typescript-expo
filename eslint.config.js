@@ -71,6 +71,14 @@ const UPPER_LAYER_PATTERNS = [
   '**/../app',
 ]
 
+/**
+ * request()(lib/jsonapi/client.ts)의 모듈 경로. 앱 코드가 이 값을 import 하면 Accept-Language 를 싣는
+ * 자리(platform/api.ts 의 apiRequest)를 건너뛴다(스펙 9.4). 앞의 ** 가 별칭(@/lib/jsonapi/client)과
+ * 상대 경로(../lib/jsonapi/client)를 함께 잡고, 둘째 항목은 `.ts` 확장자를 붙인 import 를 잡는다.
+ * test/unit/lint/request-boundary.test.ts 가 잰다.
+ */
+const REQUEST_MODULE_PATTERNS = ['**/lib/jsonapi/client', '**/lib/jsonapi/client.ts']
+
 module.exports = defineConfig([
   {
     ignores: [
@@ -115,6 +123,36 @@ module.exports = defineConfig([
               group: UPPER_LAYER_PATTERNS,
               message:
                 'lib/ 는 위 계층(platform·queries·components·app)을 import 하지 않는다(스펙 5장). 위 계층이 lib/ 를 부른다.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // request() 를 값으로 import 하는 곳은 platform/api.ts 와 lib/ 뿐이다 - 그 밖의 앱 코드는 apiRequest 를
+    // 지난다(스펙 9.4). 타입 import 는 어디서나 된다. lib/ 는 위 블록의 규칙을 받고 그 규칙은 request 를
+    // 막지 않는다. 같은 규칙 이름의 옵션은 블록끼리 합쳐지지 않으므로 두 블록의 files 는 겹치면 안 된다.
+    // 정적 import 와 `export … from` 만 잰다 - `import x = require()`(importNames 가 있으면 이름 없이
+    // 지나간다)와 동적 import()·require() 호출은 재지 않는다.
+    files: [
+      'app/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+      'components/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+      'queries/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+      'platform/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+    ],
+    ignores: ['platform/api.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: REQUEST_MODULE_PATTERNS,
+              importNames: ['request'],
+              allowTypeImports: true,
+              message:
+                'request() 는 platform/api.ts 의 apiRequest 만 부른다(스펙 9.4) - Accept-Language 를 싣는 자리가 그 한 곳이다. 앱 코드는 apiRequest 를 쓴다. 타입 import 는 된다.',
             },
           ],
         },

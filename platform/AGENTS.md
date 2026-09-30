@@ -13,7 +13,8 @@ Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 
 | `theme.ts`                  | 내비게이션 테마                                                                                                       |
 
 - 백엔드 요청은 전부 `apiRequest`를 지난다. `lib/jsonapi/client.ts`의 `request()`를 다른 곳에서
-  직접 부르지 않는다.
+  직접 부르지 않는다 - ESLint가 `app/`·`components/`·`queries/`와 이 디렉터리의 `api.ts`가 아닌
+  파일에서 `request`를 값으로 import하는 것을 막는다(타입 import는 된다).
 - 세션 관리자는 `sessionManager` 하나다. 회전은 그 안에서만 일어난다(`lib/auth/AGENTS.md`).
 
 ## 부팅 순서
@@ -27,3 +28,9 @@ Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 
   ErrorBoundary로 가서 치명 오류 화면을 가린다. 세션 복원(`sessionManager.restore()`)도 그 자식의
   효과가 시작한다. 모듈 평가 시점에 두는 것은 설정 검증과, `STARTUP.ok`일 때의 스플래시 붙잡기
   (`preventAutoHideAsync` — 컴포넌트 안에서는 늦을 수 있다)뿐이다.
+
+## 검증
+
+`api.ts`의 배선 - 요청마다 기기 언어로 Accept-Language 를 싣는 것, e2e 변형에서만 실패 표식을 남기는
+것 - 은 `test/unit/platform/api.test.ts`가 `vi.mock`으로 잰다(기기 모듈·설정 자리·`request`를 가짜로
+바꾼다). 언어 조립·실패 한 줄·변형 표의 판단은 `lib/`의 시험이 잰다.
