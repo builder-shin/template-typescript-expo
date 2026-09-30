@@ -1,3 +1,6 @@
+# engines.node 를 강제한다 — pnpm 11 은 .npmrc 의 engine-strict 를 읽지 않는다.
+engineStrict: true
+
 # pnpm 11 은 릴리스 후 1일(minimumReleaseAge, 기본 1440분)이 지나지 않은 버전이 락파일에
 # 있으면 설치를 막는다(ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION). 아래는 2026-09-29 에
 # 릴리스된 Expo SDK 57 패키지를 2026-09-30 에 설치하며 pnpm 이 스스로 적은 예외다.

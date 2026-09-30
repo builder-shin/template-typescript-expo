@@ -10,7 +10,7 @@
 | M2 | Expo Router가 대괄호 키를 딥링크·`router.setParams`에서 보존하는가 | | |
 | M3 | Maestro로 Android 기기 로캘을 바꿀 수 있는가 | | |
 | M4 | `e2e` 변형 Release APK가 평문 HTTP로 `10.0.2.2:4100`에 닿는가 | | |
-| M5 | pnpm 기본(isolated) 링커에서 Metro 번들과 expo-doctor가 도는가 | 돈다 — `expo export`(android·ios) exit 0, expo-doctor 21/21 통과 exit 0 | isolated 유지(기본값). 폴백이 필요하면 `.npmrc`가 아니라 `pnpm-workspace.yaml`의 `nodeLinker: hoisted` |
+| M5 | pnpm 기본(isolated) 링커에서 Metro 번들과 expo-doctor가 도는가 | 돈다 — `expo export`(android·ios) exit 0, expo-doctor 21/21 통과 exit 0 | isolated 유지(기본값). 폴백이 필요하면 `pnpm-workspace.yaml`의 `nodeLinker: hoisted`(pnpm 11은 `.npmrc`의 `node-linker`를 읽지 않는다) |
 | M6 | RN fetch에서 `AbortController` 타임아웃이 요청을 실제로 끊는가 | | |
 | M7 | `app.config.ts`가 `./lib/config/*.ts`를 확장자 포함 import로 쓸 수 있는가 | | |
 | M8 | Maestro CLI가 Windows Git Bash에서 도는가 | | |
@@ -19,10 +19,10 @@ iOS 쪽(M1·M2·M3의 iOS 절반)은 개발 머신이 Windows라 여기서 잴 �
 
 ## M5 — pnpm 링커
 
-환경은 Node 24.19.0 · pnpm 11.22.0 · Windows 11(Git Bash)이다. `.npmrc`에는 `engine-strict=true`만
-두었고 링커를 따로 정하지 않았다. 설치 뒤 `node_modules/.modules.yaml`에 `"nodeLinker": "isolated"`가
-기록됐다. 설치된 버전은 `expo` 57.0.26 · `expo-router` 57.0.24 · `react-native` 0.86.3 ·
-`react` 19.2.3 · `typescript` 6.0.3이다.
+환경은 Node 24.19.0 · pnpm 11.22.0 · Windows 11(Git Bash)이다. 측정할 때 `.npmrc`에는
+`engine-strict=true`만 있었고(관찰 1에 따라 나중에 지웠다) 링커는 따로 정하지 않았다. 설치 뒤
+`node_modules/.modules.yaml`에 `"nodeLinker": "isolated"`가 기록됐다. 설치된 버전은 `expo` 57.0.26 ·
+`expo-router` 57.0.24 · `react-native` 0.86.3 · `react` 19.2.3 · `typescript` 6.0.3이다.
 
 ### 번들 — `expo export`
 
@@ -130,7 +130,12 @@ doctor exit=0
    않는 `node_modules` 최상위 항목이 12개(isolated)에서 332개로 늘어난다. `engine-strict`도 같다.
    `engines.node`를 `>=99`로 둔 최소 프로젝트에서 `.npmrc`에 `engine-strict=true`를 두면
    `[WARN] Unsupported engine`만 내고 exit 0이고, `pnpm-workspace.yaml`에 `engineStrict: true`를 두면
-   exit 1로 설치가 막힌다. 그래서 이 저장소의 `.npmrc` 한 줄은 pnpm 11.22.0에서 효력이 없다.
+   exit 1로 설치가 막힌다. 그래서 이 저장소의 `.npmrc` 한 줄은 pnpm 11.22.0에서 효력이 없었다. 그 상태에서
+   `pnpm config get engine-strict`와 `pnpm config get engineStrict`는 둘 다 `undefined`였다.
+   정한 것: `.npmrc`를 지우고 `pnpm-workspace.yaml`에 `engineStrict: true`를 두었다. 그 뒤 두 키가 모두
+   `true`를 돌려주고, `node_modules`를 지운 `pnpm install --frozen-lockfile`이 exit 0이며(설치되는 의존성의
+   `engines`가 모두 Node 24.19.0을 허용한다), 이 저장소의 `package.json`·`pnpm-lock.yaml`·`pnpm-workspace.yaml`을
+   복사해 `engines.node`만 `>=99`로 바꾼 사본은 exit 1로 막힌다.
 2. **릴리스 경과일 검사.** 의존성을 설치하자 pnpm이 `pnpm-workspace.yaml`에
    `minimumReleaseAgeExclude`를 스스로 적었다(최종 5개: `expo@57.0.26` · `expo-constants@57.0.20` ·
    `expo-modules-core@57.0.20` · `expo-router@57.0.24` · `@expo/ui@57.0.21`). 다섯 모두
