@@ -349,8 +349,8 @@ describe('revokeSession / endSession - 실제 fetch 호출', () => {
      * ## 스파이가 비동기인 것이 핵심이다
      *
      * 라운드 1 의 스파이는 호출된 **순간** 전부를 동기적으로 기록했다. 그래서
-     * 고정하는 것이 "지우라고 **말했다**"까지였고, `await clearCookies()` 의
-     * `await` 를 지워 `void clearCookies()` 로 바꿔도 313개 전부 초록이었다
+     * 고정하는 것이 "지우라고 **말했다**"까지였고, `await clearLocal()` 의
+     * `await` 를 지워 `void clearLocal()` 로 바꿔도 313개 전부 초록이었다
      * (라운드 1 리뷰 RM-7). 이 태스크의 계약은 "지우라고 말했다"가 아니라
      * **"지워졌다"**이므로 그 절반은 없는 것과 같다.
      *
@@ -404,6 +404,10 @@ describe('revokeSession / endSession - 실제 fetch 호출', () => {
 
       expectClearedBeforeBackendCall(spy)
       expect(fetchMock).toHaveBeenCalledTimes(1)
+      // (template-typescript-expo) endSession 이 받은 전송을 revokeSession 까지 넘기는지 - 다른
+      // 단언은 revokeSession(session, request) 로 바꿔도 전부 통과한다. 주입한 전송(probeSend)만
+      // 싣는 accept-language 헤더가 실제로 나갔는지로 잰다.
+      expect(sentRequest().headers['accept-language']).toBe(PROBE_ACCEPT_LANGUAGE)
       expect(outcome).toEqual({ kind: 'revoked' })
     })
 

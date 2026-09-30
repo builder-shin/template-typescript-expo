@@ -200,7 +200,7 @@ export async function revokeSession(
  * 않을 경로가 아예 없다"를 보장한다.
  *
  * **마지막 갈래(예외)는 실측했다**(2026-09-06, 라운드 1 리뷰의 지적). 그
- * 단정은 두 부분으로 나뉜다 - (1) `clearCookies` 가 **끝난 뒤에** 예외가
+ * 단정은 두 부분으로 나뉜다 - (1) `clearLocal` 이 **끝난 뒤에** 예외가
  * 나가는가, (2) 그렇게 만든 쿠키 삭제를 Next 가 예외 응답에도 싣는가.
  * (1)은 logout.test.ts 가 고정한다(스파이의 `completed()`). (2)는
  * `BACKEND_URL` 없이 `next start` 를 띄우고 로그아웃 폼을 제출해 쟀다:

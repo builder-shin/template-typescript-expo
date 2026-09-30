@@ -1,11 +1,13 @@
 /**
- * 회전 결정과 회전 결과 해석 - proxy.ts 가 쓰는 순수 함수들(스펙 7.2, Task 3).
+ * 회전 결과 해석 - proxy.ts 가 쓰던 순수 함수(스펙 7.2, Task 3).
+ * (template-typescript-expo) 이 저장소에서는 lib/auth/session-manager.ts 가 쓴다.
  *
  * proxy.ts 본체는 next/server 의 NextRequest/NextResponse 에 묶여 있고,
- * 실제 회전은 백엔드 fetch 를 낀다. 이 파일은 그중 **판단**만 뽑는다 - "이
- * 요청에서 회전할지"(decideRotation)와 "회전 응답을 어떻게 해석할지"
- * (interpretRotationOutcome). 둘 다 순수 함수라 next/server 나 fetch 를
- * 스텁하지 않고도 전수 테스트할 수 있다.
+ * 실제 회전은 백엔드 fetch 를 낀다. 이 파일은 그중 **판단**만 뽑는다 - "회전
+ * 응답을 어떻게 해석할지"(interpretRotationOutcome). 순수 함수라 next/server 나
+ * fetch 를 스텁하지 않고도 전수 테스트할 수 있다.
+ * (template-typescript-expo) 원본에는 "이 요청에서 회전할지"를 정하는 판단도 있었다 -
+ * 이 저장소는 뺐다(아래 첫 블록 주석).
  *
  * 이 분리가 중요한 이유(실측, docs/superpowers/plans/2026-09-06-auth-and-session.md
  * "가장 중요한 사실" 절): 백엔드는 refresh 회전 시 구 refresh token 을 즉시
@@ -112,8 +114,8 @@ export function interpretRotationOutcome(
 }
 
 /**
- * 실제로 백엔드에 회전을 요청하는 유일한 자리 - proxy.ts 가 이 함수 하나만
- * 부른다.
+ * 실제로 백엔드에 회전을 요청하는 유일한 자리 - lib/auth/session-manager.ts 가
+ * 이 함수 하나만 부른다.
  *
  * 요청 본문 모양(`{ data: { type: 'refreshTokens', attributes: {
  * refreshToken } } }`)은 **실측하지 못했다** - Docker 가 내려가 있어 이
