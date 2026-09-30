@@ -773,6 +773,12 @@ export type FilterField =
       readonly label: string
       /** 입력의 `type`. 값을 어떻게 쓰고 되읽는지도 이것이 정한다. */
       readonly shape: 'number' | 'date' | 'text'
+      /**
+       * (template-typescript-expo) 음수를 칠 수 있는가 - 숫자 범위의 자판을 가르는 값이다(모바일의 숫자 자판은
+       * 빼기 기호를 치지 못한다). 선언의 `min` 이 없거나 0 미만이면 참이고, 숫자가 아닌 입력(`shape` 가 `number`
+       * 가 아닌 것)은 거짓이다.
+       */
+      readonly signed: boolean
       /** 백엔드가 허용한 쪽만 있다. 둘 다 없으면 애초에 이 컨트롤이 없다. */
       readonly lower: FilterBound | null
       readonly upper: FilterBound | null
@@ -991,6 +997,23 @@ function shapeOf(kind: AttributeDefinition['kind']): 'number' | 'date' | 'text' 
 }
 
 /**
+ * (template-typescript-expo) 이 속성의 값이 음수일 수 있는가 - 선언의 `min` 이 없거나 0 미만일 때만 참이다.
+ * 범위 입력의 자판이 이것으로 갈린다. 종류를 모두 나열한다: 숫자 종류(소수 등)가 선언에 생기면 여기서 컴파일이
+ * 멈춰, 그 종류가 음수를 받는지와 소수점이 필요한지를 정하게 한다.
+ */
+function acceptsNegative(attribute: AttributeDefinition): boolean {
+  switch (attribute.kind) {
+    case 'int':
+      return attribute.min === undefined || attribute.min < 0
+    case 'string':
+    case 'text':
+    case 'enum':
+    case 'datetime':
+      return false
+  }
+}
+
+/**
  * 필터 키 하나의 **값 컨트롤**. 없으면 `null`.
  *
  * 사다리를 위에서부터 하나만 고른다:
@@ -1057,7 +1080,8 @@ function valueField(
   const lower = boundOf(key, pickOperator(operators, ['gte', 'gt']), shape, searchParams)
   const upper = boundOf(key, pickOperator(operators, ['lte', 'lt']), shape, searchParams)
   if (lower !== null || upper !== null) {
-    return { kind: 'range', id: `${key}:range`, key, label, shape, lower, upper }
+    const signed = acceptsNegative(attribute)
+    return { kind: 'range', id: `${key}:range`, key, label, shape, signed, lower, upper }
   }
 
   if (operators.includes('contains')) return textField(key, label, 'contains', searchParams)

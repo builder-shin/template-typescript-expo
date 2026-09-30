@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pressable, ScrollView, View } from 'react-native'
+import { Platform, Pressable, ScrollView, View, type KeyboardTypeOptions } from 'react-native'
 
 import { Sheet } from '@/components/app/sheet'
 import { Button } from '@/components/ui/button'
@@ -57,6 +57,24 @@ export function FilterSheet({
 }
 
 type SetValues = (parameter: string, values: readonly string[]) => void
+
+type RangeField = Extract<FilterField, { kind: 'range' }>
+
+/**
+ * 음수를 받는 숫자 범위의 자판 - `number-pad` 는 숫자만 쳐서 빼기 기호가 없다. iOS 는 `numbers-and-punctuation` 이
+ * 빼기 기호와 소수점을 주고, Android 는 그 이름을 몰라 기본 글자판으로 떨어지므로(React Native 의 keyboardType
+ * 매핑) 부호와 소수점을 주는 `numeric` 을 쓴다.
+ */
+const SIGNED_NUMBER_KEYBOARD = Platform.select<KeyboardTypeOptions>({
+  ios: 'numbers-and-punctuation',
+  default: 'numeric',
+})
+
+/** 범위 입력의 자판. 음수를 받는 필드(선언의 `min`, `signed`)만 빼기 기호를 친다 - 날짜와 글자는 기본 자판이다. */
+function rangeKeyboard(field: RangeField): KeyboardTypeOptions {
+  if (field.shape !== 'number') return 'default'
+  return field.signed ? SIGNED_NUMBER_KEYBOARD : 'number-pad'
+}
 
 function FilterForm({
   fields,
@@ -164,15 +182,21 @@ function FieldControl({
     <View className="gap-2">
       <Text className="text-sm font-medium">{field.label}</Text>
       <View className="flex-row items-center gap-2">
-        {[field.lower, field.upper].map((bound, index) =>
+        {(
+          [
+            ['최소', field.lower],
+            ['최대', field.upper],
+          ] as const
+        ).map(([edge, bound]) =>
           bound === null ? null : (
             <Input
               key={bound.parameter}
               testID={`filter-input-${field.key}-${bound.operator}`}
-              accessibilityLabel={`${field.label} ${index === 0 ? '최소' : '최대'}`}
-              // 날짜는 날짜 입력이 그리는 모양 그대로 쓴다 - 경계 순간으로 바꾸는 것은 filterQuery 다.
-              placeholder={field.shape === 'date' ? 'YYYY-MM-DD' : ''}
-              keyboardType={field.shape === 'number' ? 'number-pad' : 'default'}
+              accessibilityLabel={`${field.label} ${edge}`}
+              // 두 칸 가운데 어느 쪽인지 자리표시자가 말한다. 날짜는 모양도 함께 - 경계 순간으로 바꾸는 것은
+              // filterQuery 다.
+              placeholder={field.shape === 'date' ? `${edge} YYYY-MM-DD` : edge}
+              keyboardType={rangeKeyboard(field)}
               value={values[bound.parameter]?.[0] ?? ''}
               onChangeText={(text) => {
                 onChange(bound.parameter, [text])

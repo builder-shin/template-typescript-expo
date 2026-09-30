@@ -11,6 +11,15 @@ import { Text } from '@/components/ui/text'
 import type { SortOption } from '@/lib/resources/view'
 import { cn } from '@/lib/utils'
 
+const DIRECTION_TEXT = { asc: '오름차순', desc: '내림차순' } as const
+
+/** 정렬 항목을 말로 옮긴다 - 걸린 항목은 방향까지. 방향은 화살표 아이콘으로만 보이므로 스크린 리더에는 이 말이 전부다. */
+function spoken(option: SortOption): string {
+  return option.direction === null
+    ? option.label
+    : `${option.label} ${DIRECTION_TEXT[option.direction]}`
+}
+
 /**
  * 목록 위의 도구 줄과 정렬 메뉴 - 스펙 8.1. 항목과 누르면 갈 주소는 `sortOptions`
  * (lib/resources/view.ts)가 선언에서 정해 왔다. 지금 걸린 항목(`direction` 이 있는 것)은 방향
@@ -18,6 +27,9 @@ import { cn } from '@/lib/utils'
  *
  * 정렬 메뉴와 필터 시트는 오류 상태에서도 연다 - 잘못된 조건의 URL 에서 빠져나갈 수단이다.
  * testID 는 E2E 플로(test/e2e/)가 찾는 이름이다 - 항목은 `sort-option-<정렬 키>`.
+ *
+ * 정렬 버튼은 글자로 지금의 필드만 보이고 방향은 메뉴에서만 보인다 - 접근성 라벨이 "정렬" 조작임과
+ * 지금의 필드·방향을 함께 말한다.
  */
 export function ListToolbar({
   sortOptions,
@@ -36,7 +48,13 @@ export function ListToolbar({
         <Icon as={SlidersHorizontal} className="size-4" />
         <Text>필터</Text>
       </Button>
-      <Button testID="sort-button" variant="outline" size="sm" onPress={onSort}>
+      <Button
+        testID="sort-button"
+        variant="outline"
+        size="sm"
+        accessibilityLabel={current === undefined ? '정렬' : `정렬, ${spoken(current)}`}
+        onPress={onSort}
+      >
         <Icon as={ArrowUpDown} className="size-4" />
         <Text>{current === undefined ? '정렬' : current.label}</Text>
       </Button>
@@ -63,6 +81,7 @@ export function SortSheet({
           key={option.key}
           testID={`sort-option-${option.key}`}
           accessibilityRole="button"
+          accessibilityLabel={spoken(option)}
           accessibilityState={{ selected: option.direction !== null }}
           onPress={() => {
             onPick(option.href)

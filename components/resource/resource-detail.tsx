@@ -1,4 +1,5 @@
 import { ScrollView, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { RequestFailed } from '@/components/app/request-failed'
 import { NotFoundView } from '@/components/app/not-found-view'
@@ -10,6 +11,9 @@ import type { ResourceDetailState } from '@/queries/resources'
 
 import { EmptyValue, RelatedBadges } from './values'
 
+/** 본문의 여백(`p-4`). 아래쪽에는 시스템 막대의 높이가 더해진다. */
+const CONTENT_PADDING = 16
+
 /**
  * 자원 상세 - 스펙 8.1 의 상세 화면 몸통. 무엇을 그릴지는 `detailView`(lib/resources/view.ts)가
  * 정해 왔다: 스켈레톤 · 상세 · not-found(없는 id, 스펙 9.2) · 닿지 못함 · 배너.
@@ -19,6 +23,9 @@ import { EmptyValue, RelatedBadges } from './values'
  *
  * testID 는 E2E 플로(test/e2e/)가 찾는 이름이다 - `detail-value-<항목 키>` 의 키는 자원 선언에서
  * 온다(자원 이름으로 분기하지 않는다).
+ *
+ * 끝 여백: 마지막 항목이 시스템 내비게이션 막대 밑으로 들어가지 않게 아래 여백만큼 띄운다(`useSafeAreaInsets` -
+ * Android(SDK 57)는 화면 끝까지 그린다).
  */
 export function ResourceDetailView({
   detail,
@@ -28,6 +35,7 @@ export function ResourceDetailView({
   /** 스켈레톤의 줄 수 - `detailLabels`(선언만으로 정해진다). */
   labels: readonly DetailLabel[]
 }) {
+  const insets = useSafeAreaInsets()
   const { view } = detail
   if (view === null) return <DetailSkeleton labels={labels} />
   if (view.kind === 'notFound') return <NotFoundView />
@@ -47,6 +55,7 @@ export function ResourceDetailView({
       testID="detail-screen"
       className="flex-1 bg-background"
       contentContainerClassName="gap-4 p-4"
+      contentContainerStyle={{ paddingBottom: CONTENT_PADDING + insets.bottom }}
     >
       <Text testID="detail-heading" variant="h3">
         {view.heading}

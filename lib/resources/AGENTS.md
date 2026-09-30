@@ -25,6 +25,11 @@ Accept-Language 를 싣지 않는다 - 싣는 자리는 `platform/api.ts` 하나
 Router 는 이동이 싣는 값(로그인·가입 뒤 복귀의 `withAnchor` 가 싣는 `initial`)도 라우트 파라미터에 섞고,
 정렬·필터 주소는 남의 파라미터를 그대로 옮긴다(`view.ts` 의 `carriedParams`). 이름이 정해진 파라미터(상세의
 `id`)는 이름으로 꺼낸다. 어느 화면도 라우트 파라미터 전체를 펼치거나 돌지 않는다.
+`test/unit/resources/route-params-usage.test.ts` 가 `app/` 을 훑어 이 규칙을 막는다 - `useLocalSearchParams` 의
+호출은 `listRouteParams(…)` 안이거나, 이름으로 구조 분해하거나, 키 하나를 바로 읽는 것이어야 한다.
+
+`isCurrentListHref` 는 이동할 목록 주소가 지금 화면의 조건과 같은지 본다 - 같으면 화면이 `router.push` 하지 않고 시트만
+닫는다(같은 목록 화면이 한 벌 더 쌓이지 않게).
 
 ## 선언은 데이터다
 

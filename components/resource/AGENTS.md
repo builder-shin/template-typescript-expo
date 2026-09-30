@@ -16,6 +16,11 @@
 - 판단을 두지 않는다. 쿼리·주소 조립과 응답 → 화면 상태는 `lib/resources/view.ts`, 요청과 캐시는
   `queries/resources.ts` 다. 주소로의 이동(`router.push`)은 화면(`app/`)이 한다.
 - 로딩에 글자를 쓰지 않는다 - 첫 로딩은 스켈레톤, 더 읽기·당겨서 새로고침·다시 시도는 스피너(스펙 8.7).
+- 아래 여백: 목록·상세의 끝과 시트의 아래는 시스템 내비게이션 막대만큼 띄운다(`useSafeAreaInsets` -
+  Android(SDK 57)는 화면 끝까지 그린다).
+- 접근성: 아이콘으로만 전하는 상태(정렬 방향)는 `accessibilityLabel` 에도 적는다. 범위 입력은 자리표시자
+  ("최소"·"최대")와 라벨이 어느 끝인지 말하고, 숫자 범위의 자판은 `FilterField` 의 `signed`(선언의 `min`)로 가른다 -
+  자원 이름이 아니다.
 - 백엔드가 응답조차 주지 못한 자리(`unreachable`)는 `components/app/request-failed.tsx` 가 그린다 - 앱 문구
   하나(`UNUSABLE_RESPONSE_MESSAGE`)와 "다시 시도"(스펙 9.3).
 - testID 는 E2E 플로(`test/e2e/flows/examples-*.yaml`)가 찾는 이름이다. 선언에서 만드는 이름 -

@@ -36,3 +36,45 @@ export function listRouteParams(params: RouteParams): RouteParams {
   }
   return picked
 }
+
+/** 이름마다 값들을 모은다 - 같은 이름의 값은 나온 순서대로다. */
+function valuesByName(entries: Iterable<readonly [string, string]>): Map<string, string[]> {
+  const grouped = new Map<string, string[]>()
+  for (const [name, value] of entries) {
+    const values = grouped.get(name)
+    if (values === undefined) grouped.set(name, [value])
+    else values.push(value)
+  }
+  return grouped
+}
+
+/**
+ * 이동할 목록 주소가 지금 화면과 같은 조건인가. 같은데도 `router.push` 하면 같은 목록 화면이 한 벌 더 쌓여 뒤로 가기가
+ * 같은 조건을 두 번 보여 준다 - 필터를 바꾸지 않고 "적용" 을 누르거나 걸린 필터가 없는데 "필터 지우기" 를 누르면 그렇다.
+ *
+ * 경로가 같고 쿼리를 푼 파라미터가 같으면 같다. 파라미터의 순서와 퍼센트 인코딩의 모양(`[` 를 `%5B` 로 쓰든 말든, 공백을
+ * `+` 로 쓰든 `%20` 으로 쓰든)은 보지 않고, 한 이름에 값이 여럿이면 그 순서는 본다. 지금의 조건은 `listRouteParams` 를 거친
+ * 값이다 - 이동이 싣는 값과 남의 파라미터는 조건이 아니다.
+ */
+export function isCurrentListHref(href: string, path: string, params: RouteParams): boolean {
+  const at = href.indexOf('?')
+  if ((at < 0 ? href : href.slice(0, at)) !== path) return false
+
+  const target = valuesByName(new URLSearchParams(at < 0 ? '' : href.slice(at + 1)).entries())
+  const current = valuesByName(
+    Object.entries(listRouteParams(params)).flatMap(([name, value]) =>
+      (Array.isArray(value) ? value : [value]).map((entry): [string, string] => [
+        name,
+        entry ?? '',
+      ]),
+    ),
+  )
+
+  if (target.size !== current.size) return false
+  for (const [name, values] of target) {
+    const others = current.get(name)
+    if (others === undefined || others.length !== values.length) return false
+    if (values.some((value, position) => value !== others[position])) return false
+  }
+  return true
+}

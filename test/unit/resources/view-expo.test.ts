@@ -407,3 +407,67 @@ describe('라우트 파라미터의 initial — 조건이 아니다', () => {
     )
   })
 })
+
+/**
+ * 숫자 범위 입력이 음수를 받을 수 있는가(`signed`). 모바일의 숫자 자판(`number-pad`)은 빼기 기호를
+ * 치지 못한다 - 음수를 받는 필드에는 다른 자판을 줘야 하고, 어느 필드가 그런지는 선언이 안다(`int`
+ * 의 `min`). 화면은 자원을 모르고 필터 필드만 받으므로(`FilterField`) 그 판단이 범위 필드에 실려 온다.
+ */
+function probeGauge() {
+  const attribute = { readOnly: false, nullable: false, listed: true } as const
+  return defineResource({
+    type: 'probeGauges',
+    path: '/probe/api/gauges',
+    attributes: {
+      probeDelta: { ...attribute, kind: 'int', label: 'PROBE 증감', min: -10, max: 10 },
+      probeCount: { ...attribute, kind: 'int', label: 'PROBE 개수', min: 0 },
+      probeRank: { ...attribute, kind: 'int', label: 'PROBE 순위', min: 1 },
+      probeFree: { ...attribute, kind: 'int', label: 'PROBE 자유' },
+      probeSeen: { ...attribute, kind: 'datetime', label: 'PROBE 시각' },
+      probeNote: { ...attribute, kind: 'string', label: 'PROBE 메모' },
+    },
+    relationships: {},
+    filters: {
+      probeDelta: ['gte', 'lte'],
+      probeCount: ['gte', 'lte'],
+      probeRank: ['gt'],
+      probeFree: ['lte'],
+      probeSeen: ['gte', 'lte'],
+      probeNote: ['gte'],
+    },
+    sorts: ['probeDelta'],
+    defaultSort: 'probeDelta',
+    includes: [],
+    writable: false,
+  })
+}
+
+describe('filterFields — 숫자 범위의 부호 (모바일 자판)', () => {
+  function rangeOf(key: string) {
+    const field = filterFields(probeGauge(), {}).find((candidate) => candidate.key === key)
+    if (field?.kind !== 'range') throw new Error(`${key} 는 범위여야 한다`)
+    return field
+  }
+
+  it.each([
+    ['min 이 음수면 부호가 필요하다', 'probeDelta', 'number', true],
+    ['min 이 없으면(아래가 열려 있다) 부호가 필요하다', 'probeFree', 'number', true],
+    ['min 이 0 이면 필요 없다', 'probeCount', 'number', false],
+    ['min 이 양수면 필요 없다', 'probeRank', 'number', false],
+    ['시각은 숫자가 아니다', 'probeSeen', 'date', false],
+    ['문자열은 숫자가 아니다', 'probeNote', 'text', false],
+  ] as const)('%s', (_name, key, shape, signed) => {
+    const field = rangeOf(key)
+    expect(field.shape).toBe(shape)
+    expect(field.signed).toBe(signed)
+  })
+
+  it('허용된 끝이 한쪽뿐인 필드도 부호는 필드의 것이다', () => {
+    // probeRank 는 gt(하한)만, probeFree 는 lte(상한)만 허용한다 - 어느 끝이 있든 판단은 min 으로 정해진다.
+    const rank = rangeOf('probeRank')
+    const free = rangeOf('probeFree')
+    expect([rank.lower !== null, rank.upper !== null]).toEqual([true, false])
+    expect([free.lower !== null, free.upper !== null]).toEqual([false, true])
+    expect([rank.signed, free.signed]).toEqual([false, true])
+  })
+})

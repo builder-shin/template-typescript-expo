@@ -6,7 +6,7 @@ import { FilterSheet } from '@/components/resource/filter-sheet'
 import { ResourceListView } from '@/components/resource/resource-list'
 import { ListToolbar, SortSheet } from '@/components/resource/sort-sheet'
 import { EXAMPLE } from '@/lib/resources'
-import { listRouteParams } from '@/lib/resources/route-params'
+import { isCurrentListHref, listRouteParams } from '@/lib/resources/route-params'
 import { clearFiltersHref, filterFields, filterHref, sortOptions } from '@/lib/resources/view'
 import { useResourceList } from '@/queries/resources'
 
@@ -28,14 +28,20 @@ export default function ExamplesScreen() {
   const [sheet, setSheet] = useState<'filter' | 'sort' | null>(null)
   const fields = filterFields(EXAMPLE, params)
   const options = sortOptions(EXAMPLE, LIST_PATH, params)
-  // lib 가 만든 앱 안 주소다 - 타입드 라우트가 모르는 문자열이라 단언한다. 단언은 변수에 담는다
-  // (D2 의 login.tsx 와 같은 이유 - prop 자리의 단언은 새 체크아웃의 lint 가 막는다).
-  const clearHref = clearFiltersHref(LIST_PATH, params) as Href
 
+  // 조건을 바꾸는 이동은 push 다 - 뒤로 가기가 이전 조건의 목록으로 돌아간다(스펙 8.2). 지금과 같은 조건의 주소로는
+  // 가지 않는다: 같은 목록 화면이 한 벌 더 쌓여 뒤로 가기가 같은 조건을 두 번 보여 준다(필터를 바꾸지 않은 "적용",
+  // 걸린 필터가 없는 "필터 지우기"). 그때는 시트만 닫는다.
   const go = (href: string) => {
     setSheet(null)
+    if (isCurrentListHref(href, LIST_PATH, params)) return
+    // lib 가 만든 앱 안 주소다 - 타입드 라우트가 모르는 문자열이라 단언한다. 단언은 변수에 담는다
+    // (D2 의 login.tsx 와 같은 이유 - 인자 자리의 단언은 새 체크아웃의 lint 가 막는다).
     const target = href as Href
     router.push(target)
+  }
+  const clearFilters = () => {
+    go(clearFiltersHref(LIST_PATH, params))
   }
 
   return (
@@ -52,7 +58,7 @@ export default function ExamplesScreen() {
       />
       <ResourceListView
         list={list}
-        clearFiltersHref={clearHref}
+        onClearFilters={clearFilters}
         onOpen={(id) => {
           router.push({ pathname: '/examples/[id]', params: { id } })
         }}
@@ -63,9 +69,7 @@ export default function ExamplesScreen() {
         onApply={(values) => {
           go(filterHref(LIST_PATH, fields, params, values))
         }}
-        onClear={() => {
-          go(clearFiltersHref(LIST_PATH, params))
-        }}
+        onClear={clearFilters}
         onClose={() => {
           setSheet(null)
         }}
