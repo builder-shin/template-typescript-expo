@@ -12,11 +12,14 @@ import type { ResourceListState } from '@/queries/resources'
 import { ResourceRow } from './resource-row'
 
 /**
- * 자원 목록 - 스펙 8.1 의 목록 화면 몸통. 무엇을 그릴지는 `listView`(lib/resources/view.ts)가 이미
- * 정해 왔다: 스켈레톤(첫 쪽 전) · 닿지 못함(앱 문구와 다시 시도) · 배너(백엔드 문구) · 목록.
+ * 자원 목록 - 스펙 8.1 의 목록 화면 몸통. 무엇을 그릴지는 `listScreen`(lib/resources/screen-state.ts)이 이미
+ * 정해 왔다: 스켈레톤(첫 쪽 전) · 닿지 못함(첫 조회 - 앱 문구와 다시 시도가 화면 전부) · 배너(백엔드 문구) · 목록.
  *
+ * - 재조회(당겨서 새로고침·앱 복귀·네트워크 복귀)가 닿지 못해도 읽은 행은 그대로 두고 목록 위에 작은 실패
+ *   (`RequestFailed` 의 `compact`)와 "다시 시도" 를 그린다(`refreshFailed`) - 다시 시도는 읽은 쪽을 모두 다시 읽는다.
  * - 무한 스크롤: 끝에 닿으면 `loadMore` 를 부르고, 읽는 동안 끝에 스피너만 그린다(스펙 8.7).
- *   목록이 화면을 채우지 못하면 FlatList 가 곧바로 끝에 닿았다고 알려 다음 쪽을 이어 읽는다.
+ *   목록이 화면을 채우지 못하면 FlatList 가 곧바로 끝에 닿았다고 알려 다음 쪽을 이어 읽는다. 다음 쪽이 닿지
+ *   못하면 목록 끝에 작은 실패를 그리고, 다시 시도는 그 쪽만 읽는다(`retryNextPage`).
  * - 당겨서 새로고침: 사용자가 당긴 동안만 도는 스피너다 - 앱 복귀의 재조회는 돌리지 않는다.
  * - 빈 결과: 필터가 걸린 0건이면 "필터 지우기" 를 준다(필터 시트의 "필터 지우기" 와 같은 동작 - 화면이
  *   `onClearFilters` 로 준다. 이동은 화면이 한다).
@@ -36,15 +39,18 @@ export function ResourceListView({
   onOpen: (id: string) => void
 }) {
   const insets = useSafeAreaInsets()
-  const { view } = list
-  if (view === null) return <ListSkeleton />
-  if (view.kind === 'unreachable') {
+  const { screen } = list
+  if (screen.kind === 'loading') return <ListSkeleton />
+  if (screen.kind === 'unreachable') {
     return <RequestFailed retrying={list.retrying} onRetry={list.retry} />
   }
-  if (view.kind === 'banner') {
+  if (screen.kind === 'banner') {
     return (
-      <View className="p-4">
-        <FormBanner messages={view.messages} />
+      <View className="gap-3 p-4">
+        <FormBanner messages={screen.messages} />
+        {screen.refreshFailed ? (
+          <RequestFailed compact retrying={list.retrying} onRetry={list.retry} />
+        ) : null}
       </View>
     )
   }
@@ -52,14 +58,19 @@ export function ResourceListView({
   return (
     <FlatList
       testID="resource-list"
-      data={view.rows}
+      data={screen.rows}
       keyExtractor={(row) => row.id}
-      renderItem={({ item }) => <ResourceRow columns={view.columns} row={item} onOpen={onOpen} />}
+      renderItem={({ item }) => <ResourceRow columns={screen.columns} row={item} onOpen={onOpen} />}
       onEndReached={list.loadMore}
       onEndReachedThreshold={0.5}
       refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={list.refresh} />}
-      ListEmptyComponent={<EmptyList filtered={view.filtered} onClearFilters={onClearFilters} />}
-      ListFooterComponent={<ListFooter list={list} failure={view.failure} />}
+      ListHeaderComponent={
+        screen.refreshFailed ? (
+          <RequestFailed compact retrying={list.retrying} onRetry={list.retry} />
+        ) : null
+      }
+      ListEmptyComponent={<EmptyList filtered={screen.filtered} onClearFilters={onClearFilters} />}
+      ListFooterComponent={<ListFooter list={list} failure={screen.failure} />}
       contentContainerClassName="grow"
       contentContainerStyle={{ paddingBottom: insets.bottom }}
     />
@@ -89,7 +100,7 @@ function EmptyList({
 
 function ListFooter({ list, failure }: { list: ResourceListState; failure: ListFailure | null }) {
   if (failure?.kind === 'unreachable') {
-    return <RequestFailed compact retrying={list.retrying} onRetry={list.retry} />
+    return <RequestFailed compact retrying={list.retrying} onRetry={list.retryNextPage} />
   }
   if (failure?.kind === 'banner') {
     return (

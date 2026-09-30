@@ -10,8 +10,9 @@ import { AppState } from 'react-native'
  *
  * networkMode 는 offlineFirst 다. 기본값 online 은 onlineManager 가 끊겼다고 하면 요청을 보내지
  * 않고 멈춰 둔다 - 첫 조회라면 스켈레톤이, 쓰기라면 제출 버튼의 스피너가 연결이 돌아올 때까지
- * 돈다. offlineFirst 는 요청을 한 번 보내고, 실패는 client.ts 가 NETWORK_ERROR 결과로 돌려준다 -
- * 화면이 앱 문구와 "다시 시도" 를 그린다(스펙 9.3). 멈추는 것은 재시도뿐인데 재시도는 꺼져 있다.
+ * 돈다. offlineFirst 는 요청을 한 번 보내고, 실패는 client.ts 가 NETWORK_ERROR 결과로 돌려준다 - 조회의
+ * queryFn 이 그것을 던져(queries/resource-options.ts) 읽은 데이터는 남고, 화면이 앱 문구와 "다시 시도" 를
+ * 그린다(스펙 9.3). 멈추는 것은 재시도뿐인데 재시도는 꺼져 있다.
  * 연결이 돌아오면 다시 부르는 것(refetchOnReconnect)은 이 모드의 기본값 그대로 켜져 있다.
  */
 export const queryClient = new QueryClient({

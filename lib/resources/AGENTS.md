@@ -12,6 +12,15 @@
 Accept-Language 를 싣지 않는다 - 싣는 자리는 `platform/api.ts` 하나다(스펙 9.4). 이 저장소가 더한 판단의
 시험은 `test/unit/resources/view-expo.test.ts` 다. 폼 판단 `form.ts` 는 쓰기 화면(D4)이 같은 방식으로 복사한다.
 
+## 조회 화면의 상태
+
+`screen-state.ts` 는 이 저장소의 새 파일이다(복사본이 아니다). 조회의 `queryFn` 이 백엔드에 닿지 못한 결과를
+던지게 하고(`throwIfUnreachable` - `UnreachableError`), TanStack Query 가 준 데이터·오류에서 화면이 그릴 것을 정한다
+(`listScreen`·`detailScreen`). 재조회가 닿지 못해도 읽은 목록·상세를 두고 작은 실패를 싣는다 - 실패를 결과 값으로
+캐시에 두면 재조회의 실패가 읽은 쪽을 갈아엎는다(스펙 8.5·9.3 의 D3 정정). `view.ts` 의 `listView`·`detailView` 는
+그대로 쓴다 - 닿지 못함이 캐시에 들지 않을 뿐이다. 시험은 `test/unit/resources/screen-state.test.ts`(판단)와
+`test/unit/queries/resource-options.test.ts`(실제 `QueryClient` 의 전이)다.
+
 ## 목록 주소의 인코딩
 
 앱이 만드는 목록 주소(정렬·필터 적용·필터 지우기)는 `hrefWithQuery` 의 `URLSearchParams` 직렬화 그대로

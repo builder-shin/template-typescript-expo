@@ -10,7 +10,9 @@ import { cn } from '@/lib/utils'
  * 시도". 문구는 복사한 `UNUSABLE_RESPONSE_MESSAGE` 하나다 - 앱 자신의 문구를 새로 만들지 않는다.
  * 다시 부르는 동안에는 버튼이 글자 대신 스피너만 그린다(스펙 8.7).
  *
- * `compact` 는 목록 끝(뒤따르는 쪽의 실패)에 둘 때다 - 화면을 채우지 않는다.
+ * `compact` 는 읽은 내용과 함께 그릴 때다 - 재조회가 닿지 못했을 때 목록·상세 위에, 다음 쪽이 닿지 못했을 때
+ * 목록 끝에 둔다. 화면을 채우지 않고 testID 가 다르다(`request-failed-compact`) - E2E 가 읽은 행이 남았는지와
+ * 함께 가른다.
  */
 export function RequestFailed({
   retrying,
@@ -23,7 +25,7 @@ export function RequestFailed({
 }) {
   return (
     <View
-      testID="request-failed"
+      testID={compact ? 'request-failed-compact' : 'request-failed'}
       className={cn('items-center gap-3 p-6', !compact && 'flex-1 justify-center')}
     >
       <Text className="text-center text-sm text-muted-foreground">{UNUSABLE_RESPONSE_MESSAGE}</Text>

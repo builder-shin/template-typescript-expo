@@ -18,7 +18,7 @@ export default function ExampleDetailScreen() {
   return (
     <>
       <Stack.Screen
-        options={{ title: detail.view?.kind === 'detail' ? detail.view.heading : 'Example' }}
+        options={{ title: detail.screen.kind === 'detail' ? detail.screen.heading : 'Example' }}
       />
       <ResourceDetailView detail={detail} labels={detailLabels(EXAMPLE)} />
     </>

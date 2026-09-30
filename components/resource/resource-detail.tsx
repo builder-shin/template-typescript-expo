@@ -15,8 +15,9 @@ import { EmptyValue, RelatedBadges } from './values'
 const CONTENT_PADDING = 16
 
 /**
- * 자원 상세 - 스펙 8.1 의 상세 화면 몸통. 무엇을 그릴지는 `detailView`(lib/resources/view.ts)가
- * 정해 왔다: 스켈레톤 · 상세 · not-found(없는 id, 스펙 9.2) · 닿지 못함 · 배너.
+ * 자원 상세 - 스펙 8.1 의 상세 화면 몸통. 무엇을 그릴지는 `detailScreen`(lib/resources/screen-state.ts)이
+ * 정해 왔다: 스켈레톤 · 상세 · not-found(없는 id, 스펙 9.2) · 닿지 못함(첫 조회) · 배너. 다시 들어온 상세의
+ * 재조회가 닿지 못해도 읽은 상세는 그대로 두고 위에 작은 실패와 "다시 시도" 를 그린다(`refreshFailed`).
  *
  * 항목은 선언 순서 그대로 속성 전부와 관계 전부다(`detailFields` - 목록의 `listed` 를 따르지
  * 않는다). 시각은 UTC 다(`formatAttributeValue`). 여러 줄 본문은 줄바꿈을 그대로 그린다.
@@ -36,16 +37,20 @@ export function ResourceDetailView({
   labels: readonly DetailLabel[]
 }) {
   const insets = useSafeAreaInsets()
-  const { view } = detail
-  if (view === null) return <DetailSkeleton labels={labels} />
-  if (view.kind === 'notFound') return <NotFoundView />
-  if (view.kind === 'unreachable') {
+  const { screen } = detail
+  if (screen.kind === 'loading') return <DetailSkeleton labels={labels} />
+  if (screen.kind === 'notFound') return <NotFoundView />
+  if (screen.kind === 'unreachable') {
     return <RequestFailed retrying={detail.retrying} onRetry={detail.retry} />
   }
-  if (view.kind === 'banner') {
+  const refreshFailed = screen.refreshFailed ? (
+    <RequestFailed compact retrying={detail.retrying} onRetry={detail.retry} />
+  ) : null
+  if (screen.kind === 'banner') {
     return (
-      <View className="p-4">
-        <FormBanner messages={view.messages} />
+      <View className="gap-3 p-4">
+        <FormBanner messages={screen.messages} />
+        {refreshFailed}
       </View>
     )
   }
@@ -57,10 +62,11 @@ export function ResourceDetailView({
       contentContainerClassName="gap-4 p-4"
       contentContainerStyle={{ paddingBottom: CONTENT_PADDING + insets.bottom }}
     >
+      {refreshFailed}
       <Text testID="detail-heading" variant="h3">
-        {view.heading}
+        {screen.heading}
       </Text>
-      {view.fields.map((field) => (
+      {screen.fields.map((field) => (
         <View key={field.key} className="gap-1">
           <Text className="text-sm font-medium text-muted-foreground">{field.label}</Text>
           <FieldValue field={field} />
