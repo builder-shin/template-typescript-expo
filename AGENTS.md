@@ -21,16 +21,19 @@
 | `queries/`             | 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화                                                         | JSX, 쿼리 문자열 조립                     |
 | `app/`                 | 화면, 라우팅, 가드 배치                                                                       | fetch, `request()` 호출, 쿼리 문자열 조립 |
 | `components/ui/`       | React Native Reusables 복사본                                                                 | 자원 이름, fetch, 세션                    |
+| `components/hooks/`    | React Native Reusables 가 받는 UI 도우미 훅(`components.json`의 `hooks` 별칭)                 | 조회·쓰기 훅, 자원 이름, fetch, 세션      |
 | `components/app/`      | 앱 전체에 걸린 화면 조각(설정 오류 화면 `FatalConfig` 등)                                     | 자원 UI, fetch                            |
 | `components/form/`     | 폼 조각 - 필드 오류·배너·제출 버튼·자격증명 폼                                                | 자원 이름, fetch, 세션                    |
 | `components/resource/` | 선언을 읽어 만드는 획일 UI                                                                    | 자원 이름으로 분기                        |
 
-`lib/config/`·`components/ui/`·`components/form/`·`components/app/`은 스펙 5장의 표에 없다. 앞의 셋은
-스펙 4장의 트리에는 있지만 소유 규칙이 표에 없었다. `components/app/`은 트리에도 없다 - 시작 설정 오류
-화면(`FatalConfig`)처럼 앱 전체에 걸린 화면 조각이 `components/ui/`(React Native Reusables
-복사본)도 `components/resource/`(자원 UI)도 아니어서 따로 뒀다. `lib/config/`의 제약은 그
-디렉터리의 `AGENTS.md`에 있다. `settings.ts`가 읽는 설정 자리(`process.env`, 앱에서는
-`extra`)를 정하는 바인딩은 `platform/config.ts`가 한다.
+`lib/config/`·`components/ui/`·`components/form/`·`components/app/`·`components/hooks/`는 스펙 5장의 표에
+없다. 앞의 셋은 스펙 4장의 트리에는 있지만 소유 규칙이 표에 없었다. `components/app/`은 트리에도 없다 -
+시작 설정 오류 화면(`FatalConfig`)처럼 앱 전체에 걸린 화면 조각이 `components/ui/`(React Native Reusables
+복사본)도 `components/resource/`(자원 UI)도 아니어서 따로 뒀다. `components/hooks/`도 트리에 없다 -
+`components.json`의 `hooks` 별칭이 가리키는 자리다. React Native Reusables의 훅은 UI 도우미라 데이터를
+다루는 `queries/`와 섞지 않는다. `lib/config/`의 제약은 그 디렉터리의 `AGENTS.md`에 있다.
+`settings.ts`가 읽는 설정 자리(`process.env`, 앱에서는 `extra`)를 정하는 바인딩은
+`platform/config.ts`가 한다.
 
 위반의 정의:
 
@@ -77,10 +80,16 @@ Expo Router는 `app/` 아래의 모든 파일을 라우트로 취급한다. 판�
 
 `components/ui/` 는 React Native Reusables CLI 로 받는다 -
 `printf 'n\n' | BACKEND_URL=https://gate-check.invalid pnpm dlx @react-native-reusables/cli@0.7.1 add <이름> --styling-library uniwind --yes`
-(이미 있는 `text.tsx` 등의 덮어쓰기는 "아니오"). 받은 파일에서 미디어 쿼리 변형(`sm:`·`md:` 등)을 뺀다 -
-Uniwind 1.12.0 이 한 미디어 블록의 둘째 규칙부터 조건을 잃어 폰에서도 적용한다.
-`test/unit/ui/breakpoints.test.ts` 가 `app/`·`components/` 를 훑어 막는다. 받은 파일을 고친 곳은 그 파일에
-"원본과 다른 곳" 주석으로 남긴다. 근거는 `docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L2.
+(이미 있는 `text.tsx` 등의 덮어쓰기는 "아니오"). 받은 파일을 고친 곳은 그 파일에 "원본과 다른 곳" 주석으로
+남긴다.
+
+`app/`·`components/` 의 클래스에 **`@media` 로 컴파일되는 변형을 쓰지 않는다** - 너비(`sm:`·`md:`·`lg:`·`xl:`·
+`2xl:` 과 그 `max-`·`min-` 꼴), 방향(`portrait:`·`landscape:`), 플랫폼(`ios:`·`android:`·`native:`·`tv:`·
+`android-tv:`·`apple-tv:`), `[@media …]:` 꼴의 임의 변형. Uniwind 1.12.0 이 한 미디어 블록의 둘째 규칙부터 조건을
+잃어 그 규칙이 모든 폭과 모든 플랫폼에서 적용된다(`sm:h-9` 가 폰에서도, `android:px-4` 가 iOS 에서도). 받은 파일에서도
+뺀다. 플랫폼마다 다른 스타일은 클래스 변형이 아니라 `Platform.select`·`Platform.OS` 로 클래스 문자열을 고른다.
+`dark:` 는 영향이 없다. `test/unit/ui/breakpoints.test.ts` 가 `app/`·`components/` 를 훑어 막는다. 근거와 잰 범위는
+`docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L2.
 
 ## 로딩 표현
 

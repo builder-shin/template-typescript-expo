@@ -950,11 +950,15 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > 는 경로 길이를 검사하지 않는다)은 더는 맞지 않는다 - E2E 하네스가 짧은 경로의 사본에서 빌드한다(12장의
 > D2 정정).
 
-> 정정(2026-09-30, D3): 위 Uniwind 결함의 대응은 **미디어 쿼리 변형을 쓰지 않는 것**이다. `app/`·`components/`
-> 에서 `sm:`·`md:` 같은 브레이크포인트 변형과 `max-`·`min-` 꼴, `portrait:`·`landscape:` 를
-> `test/unit/ui/breakpoints.test.ts` 가 막고, React Native Reusables 에서 받은 컴포넌트(`button`·`input`·`text`)의
-> 변형을 뺐다. 패치는 Metro 변환기 안쪽을 고쳐야 하고, 고쳐진 릴리스는 아직 없다(npm `latest` 1.12.0). 폰과
-> 태블릿이 같은 크기를 쓴다. 근거는 `docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L2.
+> 정정(2026-09-30, D3): 위 Uniwind 결함의 대응은 **미디어 쿼리 변형을 쓰지 않는 것**이다. 결함은 `sm:` 같은 너비
+> 변형만이 아니라 `@media` 로 컴파일되는 모든 변형에 걸린다 - `ios:`·`android:`·`native:`·`tv:`·`android-tv:`·
+> `apple-tv:` 의 플랫폼 변형도 같은 블록의 둘째 규칙부터 플랫폼 조건을 잃어 `android:px-4` 가 iOS 에서도 적용된다
+> (`dark:` 는 영향이 없다). `app/`·`components/` 에서 `sm:`·`md:` 같은 브레이크포인트 변형과 `max-`·`min-` 꼴,
+> `portrait:`·`landscape:`, 플랫폼 변형, `[@media …]:` 꼴의 임의 변형을 `test/unit/ui/breakpoints.test.ts` 가 막고,
+> React Native Reusables 에서 받은 컴포넌트(`button`·`input`·`text`)의 변형을 뺐다. 플랫폼마다 다른 스타일은
+> `Platform.select`·`Platform.OS` 로 클래스 문자열을 고른다. 패치는 Metro 변환기 안쪽을 고쳐야 하고, 고쳐진
+> 릴리스는 아직 없다(npm `latest` 1.12.0). 폰과 태블릿이 같은 크기를 쓴다. 근거는
+> `docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L2.
 
 ## 17. 완료 조건
 

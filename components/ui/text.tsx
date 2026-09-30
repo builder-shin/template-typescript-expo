@@ -47,7 +47,8 @@ type TextVariantProps = VariantProps<typeof textVariants>
 
 type TextVariant = NonNullable<TextVariantProps['variant']>
 
-// 원본과 다른 한 곳: exactOptionalPropertyTypes 아래에서 Platform.select 의 undefined 를 받는다.
+// 원본과 다른 곳 둘: exactOptionalPropertyTypes 아래에서 Platform.select 의 undefined 를 받는다. 그리고
+// 640dp 이상의 여백 변형을 뺐다(위 textVariants 의 p·blockquote) - button.tsx 의 같은 주석(Uniwind 1.12.0).
 const ROLE: Partial<Record<TextVariant, Role | undefined>> = {
   h1: 'heading',
   h2: 'heading',

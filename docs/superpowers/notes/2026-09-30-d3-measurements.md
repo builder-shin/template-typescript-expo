@@ -39,14 +39,34 @@ L5·L6 은 Task 5 가 적었다.
 
 ## L2 — Uniwind 1.12.0 의 미디어 블록 결함에 대한 대응 (스펙 16장, D1 실측 M1)
 
-**정한 것.** 미디어 쿼리 변형(`sm:`·`md:`·`lg:`·`xl:`·`2xl:` 과 그 `max-`·`min-` 꼴, `portrait:`·`landscape:`)을
-쓰지 않는다. `test/unit/ui/breakpoints.test.ts` 가 `app/`·`components/` 의 `.ts`·`.tsx` 를 훑어 막는다(객체
-키 `sm: …` 는 콜론 뒤 공백으로 가른다).
+**정한 것.** `@media` 로 컴파일되는 변형을 쓰지 않는다 - 너비(`sm:`·`md:`·`lg:`·`xl:`·`2xl:` 과 그 `max-`·`min-`
+꼴), 방향(`portrait:`·`landscape:`), 플랫폼(`ios:`·`android:`·`native:`·`tv:`·`android-tv:`·`apple-tv:`),
+`[@media …]:` 꼴의 임의 변형. `test/unit/ui/breakpoints.test.ts` 가 `app/`·`components/` 의 `.ts`·`.tsx` 를 훑어
+막는다(객체 키 `sm: …`·`native: …` 는 콜론 뒤 공백으로 가른다). 플랫폼마다 다른 스타일은 `Platform.select`·
+`Platform.OS` 로 클래스 문자열을 고른다.
+
+**걸리는 범위.** D1 실측 M1 은 `sm:` 만 쟀다("`md:` 같은 다른 브레이크포인트도 … 재지 않았다"). 이번에 저장소의
+`global.css` 를 `@tailwindcss/node` 의 `compile` 로 컴파일한 CSS 를 설치본 `uniwind/dist/metro/transformer.cjs` 의
+`ProcessorBuilder` 에 먹여, 변형마다 유틸리티 셋(`pt-1`·`px-2`·`mb-3`)을 주고 규칙이 읽은 조건을 봤다. Tailwind 는
+같은 조건의 유틸리티를 한 `@media` 블록으로 모으고(`@media android { .android\:mb-1 … .android\:px-4 … }`),
+Uniwind 는 그 블록의 첫 규칙만 조건을 지킨다 - 변형마다 셋 중 하나만 조건을 지녔고 둘은 조건 없는 규칙이 됐다.
+
+- 너비·방향: `sm:`·`md:`·`max-sm:`·`min-[400px]:`·`max-[500px]:`·`portrait:`·`landscape:`.
+- 플랫폼: `ios:`·`android:`·`native:`·`tv:`·`android-tv:`·`apple-tv:` - 둘은 `platform` 이 `null` 이라 다른
+  플랫폼에서도 적용된다(`android:px-4` 가 iOS 에서도). Uniwind 가 이 여섯을 `@custom-variant <이름> (@media <이름>)` 으로
+  정의하고(`uniwind/dist/common/bundler/artifacts/css/variants.js`) 너비와 같은 `parseRuleRec` 경로로 읽는다.
+- 임의 변형: `[@media(min-width:600px)]:`·`[@media_(orientation:landscape)]:`·`[@media_android]:` 도 같다.
+- 영향이 없는 것: `dark:`(셋 모두 `theme` 이 `dark` - 조건이 블록이 아니라 유틸리티마다의 선택자
+  `:where(.dark, .dark *)` 에 있다), `web:`(`@supports selector(div > div)` 라 네이티브에는 규칙이 들어오지 않는다).
 
 **뺀 것.** React Native Reusables 에서 받은 세 파일 - `button.tsx` 크기 넷의 `sm:h-9`·`sm:h-8`·`sm:h-10`·
 `sm:h-9 sm:w-9`, `text.tsx` 의 `p` 변형 `sm:mt-6` 과 `blockquote` 변형 `sm:mt-6 sm:pl-6`, `input.tsx` 의 `sm:h-9`
-와 web 갈래의 `md:text-sm`. 폰에서 버튼 기본 높이가 40dp 로 돌아간다(D1 은 36dp 를 쟀다). 파일마다 "원본과
-다른 곳" 주석이 있다.
+와 web 갈래의 `md:text-sm`. 폰에서 버튼 기본 높이가 40dp 로 돌아간다(D1 은 36dp 를 쟀다). **입력칸도 바뀐다** -
+`sm:h-9` 는 버튼 기본과 같은 규칙이라 폰에서 입력칸이 36dp 였다가 40dp 가 되고, D2 의 폼(로그인·가입)은 입력칸과
+제출 버튼마다 4dp 커진다. D1 이 잰 조건 표(`sm:mt-6` 만 `minWidth` 640, `sm:h-8`·`sm:h-9`·`sm:h-10`·`sm:w-9`·
+`sm:pl-6` 은 0)에서 미루면 나머지도 폰에서 바뀐다: 버튼 `sm` 32→36dp, `lg` 40→44dp, `icon` 36→40dp, `blockquote`
+의 왼쪽 안쪽 여백 24→12dp(`p` 는 `sm:mt-6` 이 첫 규칙이라 그대로). 기기에서 잰 것은 버튼 기본 하나뿐이고 입력칸을
+포함한 나머지는 Task 5 의 D2 플로(기기)에서 본다. 파일마다 "원본과 다른 곳" 주석이 있다.
 
 **버린 선택지.**
 
@@ -56,8 +76,9 @@ L5·L6 은 Task 5 가 적었다.
   떠안고, 고친 결과는 번들을 풀어 봐야 잴 수 있다.
 - **다른 버전**: npm `latest` 가 1.12.0(2026-09-04)이다. 고쳐진 릴리스가 없다.
 
-**대가.** 640dp 이상(태블릿·펼친 폴더블)도 폰과 같은 크기를 쓴다. 되살릴 조건: 고쳐진 Uniwind 릴리스 - 그때
-시험을 지우고 컴포넌트를 CLI 로 다시 받는다.
+**대가.** 640dp 이상(태블릿·펼친 폴더블)도 폰과 같은 크기를 쓰고, 플랫폼마다 다른 클래스는 클래스 변형이 아니라
+JS 의 `Platform.select`·`Platform.OS` 로만 고른다(`components/ui/` 가 이미 web 갈래에 쓰는 방식). 되살릴 조건: 고쳐진
+Uniwind 릴리스 - 그때 시험을 지우고 컴포넌트를 CLI 로 다시 받는다.
 
 ## L3 — 내비게이션 테마의 색 (D1 운반)
 
