@@ -522,6 +522,13 @@ offset과 cursor는 섞을 수 없다(백엔드가 거부한다). 한 화면은 
 
 캐시 키와 무효화 표는 `queries/`의 순수 함수로 두고 단위 테스트로 고정한다.
 
+> 정정(2026-09-30, D3): TanStack Query 의 `networkMode` 는 조회·쓰기 모두 `offlineFirst` 다. 기본값 `online` 은
+> NetInfo 가 끊겼다고 하면 요청을 보내지 않고 멈춰 둬서, 첫 조회의 스켈레톤·쓰기의 스피너가 연결이 돌아올 때까지
+> 돈다 - 9.3 의 "네트워크 실패 → 앱 문구와 다시 시도" 가 오지 않는다. `offlineFirst` 는 요청을 한 번 보내고
+> (실패는 `request()` 가 결과로 준다) 연결이 돌아오면 다시 부른다. NetInfo 의 `isConnected` 가 `null` 이면
+> 연결된 것으로 본다. 요청에 TanStack Query 의 `signal` 을 넘기지 않는다. 캐시 키와 무효화 표는 `queries/keys.ts`
+> 이고 로그아웃도 그 표를 지난다. 배선은 `platform/query-client.ts`.
+
 ### 8.6 계약 실험실
 
 `(lab)/contract` — 실무 화면이 쓰지 않는 표면을 모으고, 각 실험이 원본 JSON

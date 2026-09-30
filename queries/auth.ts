@@ -5,6 +5,7 @@ import { decideAfterLogin, decideAfterRegistration, type SignInPlan } from '@/li
 import type { LogoutOutcome } from '@/lib/auth/logout'
 import { apiRequest } from '@/platform/api'
 import { sessionManager } from '@/platform/session'
+import { applyCacheEffects, cacheEffects } from '@/queries/keys'
 
 /**
  * 인증 쓰기 훅 - 가입·로그인·로그아웃(스펙 7.4).
@@ -51,11 +52,12 @@ async function establishIfSignedIn(plan: SignInPlan): Promise<SignInPlan> {
 const DISCARD_SOON_MS = 1_000
 
 /**
- * 인증 쓰기는 오프라인이어도 멈추지 않는다. 기본값('online')은 onlineManager 가 오프라인이면 mutationFn 을
- * 부르지 않고 멈춰 두면서 진행 중으로 센다 - D3 가 onlineManager 를 NetInfo 에 물리면 오프라인 로그아웃은
- * 기기 세션을 지우지 못한 채 스피너가 끝나지 않고, 로그인·가입은 실패 대신 멈춘다. 'always' 는 그냥
- * 보낸다: 닿지 못하면 API 클라이언트가 만든 transport 오류가 오고, 로그아웃은 기기 쪽을 이미 비운 뒤라 폐기만
- * 실패한다.
+ * 인증 쓰기는 오프라인이어도 멈추지 않는다. TanStack Query 의 기본값('online')은 onlineManager 가 오프라인이면
+ * mutationFn 을 부르지 않고 멈춰 두면서 진행 중으로 센다 - onlineManager 는 NetInfo 에 물려 있어
+ * (platform/query-client.ts) 오프라인 로그아웃은 기기 세션을 지우지 못한 채 스피너가 끝나지 않고, 로그인·가입은
+ * 실패 대신 멈춘다. 'always' 는 그냥 보낸다: 닿지 못하면 API 클라이언트가 만든 transport 오류가 오고, 로그아웃은
+ * 기기 쪽을 이미 비운 뒤라 폐기만 실패한다. 앱의 기본값(offlineFirst)도 재시도가 꺼져 있어 한 번은 보내지만, 이
+ * 쓰기는 기본값에 기대지 않게 모드를 여기에 적는다.
  */
 const NETWORK_MODE = 'always' as const
 
@@ -118,7 +120,7 @@ export function useLogoutMutation(onSettled: () => void) {
     networkMode: NETWORK_MODE,
     mutationFn: (): Promise<LogoutOutcome> =>
       sessionManager.logout(() => {
-        queryClient.removeQueries()
+        applyCacheEffects(queryClient, cacheEffects({ kind: 'logout' }))
       }),
     onError: (error) => {
       logFailure('로그아웃이 오류로 끝났다 - 기기 세션과 캐시는 이미 비웠다', error)
