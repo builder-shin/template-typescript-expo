@@ -73,6 +73,15 @@
 Expo Router는 `app/` 아래의 모든 파일을 라우트로 취급한다. 판단 함수·타입·상수는
 `lib/`의 해당 계층에 둔다.
 
+## React Native Reusables 컴포넌트
+
+`components/ui/` 는 React Native Reusables CLI 로 받는다 -
+`printf 'n\n' | BACKEND_URL=https://gate-check.invalid pnpm dlx @react-native-reusables/cli@0.7.1 add <이름> --styling-library uniwind --yes`
+(이미 있는 `text.tsx` 등의 덮어쓰기는 "아니오"). 받은 파일에서 미디어 쿼리 변형(`sm:`·`md:` 등)을 뺀다 -
+Uniwind 1.12.0 이 한 미디어 블록의 둘째 규칙부터 조건을 잃어 폰에서도 적용한다.
+`test/unit/ui/breakpoints.test.ts` 가 `app/`·`components/` 를 훑어 막는다. 받은 파일을 고친 곳은 그 파일에
+"원본과 다른 곳" 주석으로 남긴다. 근거는 `docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L2.
+
 ## 로딩 표현
 
 로딩 상태에 텍스트를 쓰지 않는다. 스켈레톤 또는 스피너만 쓴다(스펙 8.7).

@@ -39,11 +39,14 @@ const buttonVariants = cva(
         ),
         link: '',
       },
+      // 원본과 다른 곳: 크기마다 붙은 640dp 이상의 변형(원본의 h-9 등)을 뺐다. Uniwind 1.12.0 은 한
+      // 미디어 블록의 둘째 규칙부터 조건을 잃어 그 변형이 폰에서도 적용된다(D1 실측 M1) -
+      // test/unit/ui/breakpoints.test.ts 가 다시 들어오는 것을 막는다.
       size: {
-        default: cn('h-10 px-4 py-2 sm:h-9', Platform.select({ web: 'has-[>svg]:px-3' })),
-        sm: cn('h-9 gap-1.5 rounded-md px-3 sm:h-8', Platform.select({ web: 'has-[>svg]:px-2.5' })),
-        lg: cn('h-11 rounded-md px-6 sm:h-10', Platform.select({ web: 'has-[>svg]:px-4' })),
-        icon: 'h-10 w-10 sm:h-9 sm:w-9',
+        default: cn('h-10 px-4 py-2', Platform.select({ web: 'has-[>svg]:px-3' })),
+        sm: cn('h-9 gap-1.5 rounded-md px-3', Platform.select({ web: 'has-[>svg]:px-2.5' })),
+        lg: cn('h-11 rounded-md px-6', Platform.select({ web: 'has-[>svg]:px-4' })),
+        icon: 'h-10 w-10',
       },
     },
     defaultVariants: {
