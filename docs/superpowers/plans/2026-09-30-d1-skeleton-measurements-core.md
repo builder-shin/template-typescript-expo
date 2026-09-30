@@ -71,7 +71,7 @@
 
 **pnpm 11**: 의존성의 빌드 스크립트는 `pnpm-workspace.yaml`의 `allowBuilds`에 허용 여부를 적어야 한다 — 형제 NestJS 저장소가 그렇게 한다.
 
-**개발 머신**: Node 24.19.0, pnpm 11.22.0, OpenJDK 17.0.20(`JAVA_HOME` 설정됨), Android SDK(`ANDROID_HOME=C:\Users\rootj\AppData\Local\Android\Sdk`, platforms `android-36`·`android-37.0`, build-tools 35·36, NDK 27.1·28.2, CMake 3.22.1, AVD `Pixel_9_API_36`), Docker 29.7.2, Windows `LongPathsEnabled=1`. Maestro는 없다. iOS 시뮬레이터는 돌 수 없다.
+**개발 머신**: Node 24.19.0, pnpm 11.22.0, OpenJDK 17.0.20(`JAVA_HOME` 설정됨), Android SDK(`ANDROID_HOME=<home>\AppData\Local\Android\Sdk`, platforms `android-36`·`android-37.0`, build-tools 35·36, NDK 27.1·28.2, CMake 3.22.1, AVD `Pixel_9_API_36`), Docker 29.7.2, Windows `LongPathsEnabled=1`. Maestro는 없다. iOS 시뮬레이터는 돌 수 없다.
 
 **원본 저장소**: `../template-typescript-nextjs`의 로컬 `main`과 GitHub `main`이 모두 `34d0b1057d65693645e75bec4e9558dcf6838822`다. 세 백엔드 저장소는 모두 공개다(`gh repo view`).
 
@@ -147,7 +147,7 @@ docs/superpowers/notes/2026-09-30-d1-measurements.md
 - [ ] **Step 1: 작업 브랜치를 만든다**
 
 ```bash
-cd "C:/Users/rootj/OneDrive/Desktop/develop/templates/template-typescript-expo"
+cd "<저장소 루트>"
 git switch -c feat/d1-skeleton-core
 ```
 
