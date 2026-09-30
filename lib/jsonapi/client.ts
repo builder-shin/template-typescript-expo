@@ -42,6 +42,14 @@ import { isErrorDocument, type ErrorObject } from './document'
 export const JSONAPI_MEDIA_TYPE = 'application/vnd.api+json'
 
 /**
+ * 요청 하나가 쓸 수 있는 최대 시간(template-typescript-expo 스펙 8.5).
+ *
+ * 모바일 네트워크는 거절하지 않고 멈추는 경우가 많다 - 이 값이 없으면 멈춘 요청이
+ * 화면의 스피너를 끝없이 돌린다. 연결·응답 대기·본문 읽기를 모두 덮는다.
+ */
+export const REQUEST_TIMEOUT_MS = 15_000
+
+/**
  * 204 는 별도 리터럴 분기다 - `document: T`인 분기와 합쳐 `null as T`로
  * 거짓말하면(과거 버전) `r.document.data`가 타입체크는 통과하고 런타임에
  * "Cannot read properties of null"로 죽는다(204 에는 본문이 없다).
@@ -191,9 +199,9 @@ export async function request<T>(
     init = {
       method: options.method ?? 'GET',
       headers,
-      cache: 'no-store',
     }
-    if (options.signal !== undefined) init.signal = options.signal
+    // cache 를 넘기지 않는다 - RN 의 fetch polyfill(whatwg-fetch)은 no-store 인 GET 의
+    // URL 에 `_=<시각>` 을 덧붙인다. signal 은 아래에서 타임아웃과 합쳐 싣는다.
     if (options.body !== undefined) {
       headers.set('content-type', JSONAPI_MEDIA_TYPE)
       init.body = JSON.stringify(options.body)
@@ -217,10 +225,51 @@ export async function request<T>(
     }
   }
 
+  // 타임아웃과 호출자 signal 을 컨트롤러 하나로 합친다. 어느 쪽이 끊었는지는 timedOut 이
+  // 가른다 - 호출자가 끊은 것은 기존대로 NETWORK_ERROR, 시간이 다 된 것은 REQUEST_TIMEOUT.
+  const controller = new AbortController()
+  let timedOut = false
+  const timer: ReturnType<typeof setTimeout> = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, REQUEST_TIMEOUT_MS)
+  const callerSignal = options.signal
+  const forwardAbort = (): void => {
+    controller.abort()
+  }
+  if (callerSignal !== undefined) {
+    if (callerSignal.aborted) controller.abort()
+    else callerSignal.addEventListener('abort', forwardAbort, { once: true })
+  }
+  init.signal = controller.signal
+
+  try {
+    return await exchange<T>(url, init, () => timedOut)
+  } finally {
+    clearTimeout(timer)
+    callerSignal?.removeEventListener('abort', forwardAbort)
+  }
+}
+
+/** 타임아웃으로 끊긴 요청의 결과. 백엔드가 응답하지 못한 것이라 문구를 앱이 갖는다. */
+function timeoutResult<T>(cause?: string): JsonApiResult<T> {
+  return {
+    ok: false,
+    status: 0,
+    errors: synthesizeError(0, 'REQUEST_TIMEOUT', 'The backend did not respond in time.', cause),
+  }
+}
+
+async function exchange<T>(
+  url: string,
+  init: RequestInit,
+  timedOut: () => boolean,
+): Promise<JsonApiResult<T>> {
   let response: Response
   try {
     response = await fetch(url, init)
   } catch (error) {
+    if (timedOut()) return timeoutResult(causeOf(error))
     return {
       ok: false,
       status: 0,
@@ -245,7 +294,8 @@ export async function request<T>(
   let parsed: unknown
   try {
     parsed = await response.json()
-  } catch {
+  } catch (error) {
+    if (timedOut()) return timeoutResult(causeOf(error))
     return {
       ok: false,
       status: response.status,

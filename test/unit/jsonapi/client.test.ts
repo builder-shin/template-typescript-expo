@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { JSONAPI_MEDIA_TYPE, request, withAcceptLanguage } from '@/lib/jsonapi/client'
+import {
+  JSONAPI_MEDIA_TYPE,
+  REQUEST_TIMEOUT_MS,
+  isSyntheticError,
+  request,
+  withAcceptLanguage,
+} from '@/lib/jsonapi/client'
 import { COLLECTION_EMPTY, ERROR_NOT_FOUND, SINGLE_CREATED } from '../../fixtures/documents'
 
 // 실전 예시 값(`http://api:4000` · `http://localhost:4000`, .env.example)을
@@ -102,10 +108,14 @@ describe('request — 요청 조립', () => {
     expect(headerOf(lastCall()[1], 'accept-language')).toBe('en')
   })
 
-  it('캐시를 쓰지 않는다', async () => {
+  it('cache 옵션을 넘기지 않는다 - RN fetch polyfill 이 URL 을 바꾼다', async () => {
+    // RN 0.86.3 의 fetch 는 whatwg-fetch 3.6.20 이고, 그 Request 는 cache 가
+    // no-store·no-cache 인 GET 의 URL 끝에 `_=<시각>` 을 붙인다(fetch.js:398-407).
+    // JSON:API 요청 URL 은 백엔드의 쿼리 문법 검사를 거치므로 바뀌면 안 된다.
     fetchMock.mockResolvedValue(jsonApiResponse(COLLECTION_EMPTY))
     await request('/api/v1/examples')
-    expect(lastCall()[1].cache).toBe('no-store')
+    expect(lastCall()[1].cache).toBeUndefined()
+    expect(lastCall()[0]).toBe(`${BACKEND}/api/v1/examples`)
   })
 
   // 아래 4개는 뮤테이션 검증 중 스스로 찾은 공백을 메운다.
@@ -137,13 +147,31 @@ describe('request — 요청 조립', () => {
     expect(lastCall()[1].method).toBe('GET')
   })
 
-  it('signal 을 그대로 전달한다', async () => {
-    // signal 전달 자체를 통째로 지워도 브리핑 17개는 전부 green 이었다 - 전달
-    // 여부를 확인하는 테스트가 하나도 없었기 때문이다.
+  it('호출자 signal 이 끊기면 요청도 끊긴다', async () => {
+    fetchMock.mockImplementation(
+      // vi.fn() 모의의 인자 타입에 void 를 돌려주는 갈래가 섞여 있어 이 규칙이 오탐한다.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => {
+            reject(new DOMException('aborted', 'AbortError'))
+          })
+        }),
+    )
+    const controller = new AbortController()
+    const pending = request('/api/v1/examples', { signal: controller.signal })
+    controller.abort()
+    const result = await pending
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.errors[0]?.code).toBe('NETWORK_ERROR')
+  })
+
+  it('이미 끊긴 signal 을 주면 요청이 시작부터 끊겨 있다', async () => {
     fetchMock.mockResolvedValue(jsonApiResponse(COLLECTION_EMPTY))
     const controller = new AbortController()
+    controller.abort()
     await request('/api/v1/examples', { signal: controller.signal })
-    expect(lastCall()[1].signal).toBe(controller.signal)
+    expect(lastCall()[1].signal?.aborted).toBe(true)
   })
 })
 
@@ -438,5 +466,94 @@ describe('withAcceptLanguage', () => {
     const original = { method: 'PROBE-METHOD' }
     withAcceptLanguage(original, PROBE_ACCEPT_LANGUAGE)
     expect(original).toEqual({ method: 'PROBE-METHOD' })
+  })
+})
+
+describe('request — 타임아웃(스펙 8.5)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  /** 응답하지 않다가 signal 이 끊기면 AbortError 로 거절하는 fetch. */
+  function hangUntilAborted(): void {
+    fetchMock.mockImplementation(
+      // vi.fn() 모의의 인자 타입에 void 를 돌려주는 갈래가 섞여 있어 이 규칙이 오탐한다.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => {
+            reject(new DOMException('aborted', 'AbortError'))
+          })
+        }),
+    )
+  }
+
+  it('REQUEST_TIMEOUT_MS 는 15초다', () => {
+    expect(REQUEST_TIMEOUT_MS).toBe(15_000)
+  })
+
+  it('시간이 다 되면 끊고 REQUEST_TIMEOUT 을 합성한다', async () => {
+    hangUntilAborted()
+    const pending = request('/api/v1/examples')
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS)
+    const result = await pending
+    expect(result).toMatchObject({ ok: false, status: 0 })
+    if (result.ok) throw new Error('끊기지 않았다')
+    const [error] = result.errors
+    expect(error?.code).toBe('REQUEST_TIMEOUT')
+    expect(error?.detail).toBe('The backend did not respond in time.')
+    expect(error !== undefined && isSyntheticError(error)).toBe(true)
+  })
+
+  it('시간이 다 되기 전에는 끊지 않는다', async () => {
+    hangUntilAborted()
+    let settled = false
+    const pending = request('/api/v1/examples').then((result) => {
+      settled = true
+      return result
+    })
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS - 1)
+    expect(settled).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    await pending
+    expect(settled).toBe(true)
+  })
+
+  it('본문을 읽다가 멈춰도 끊는다', async () => {
+    // vi.fn() 모의의 인자 타입에 void 를 돌려주는 갈래가 섞여 있어 이 규칙이 오탐한다.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    fetchMock.mockImplementation((_url: string, init: RequestInit) =>
+      Promise.resolve({
+        status: 200,
+        ok: true,
+        json: () =>
+          new Promise((_resolve, reject) => {
+            init.signal?.addEventListener('abort', () => {
+              reject(new DOMException('aborted', 'AbortError'))
+            })
+          }),
+      } as unknown as Response),
+    )
+    const pending = request('/api/v1/examples')
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS)
+    const result = await pending
+    if (result.ok) throw new Error('끊기지 않았다')
+    expect(result.errors[0]?.code).toBe('REQUEST_TIMEOUT')
+  })
+
+  it('끝난 요청은 타이머를 남기지 않는다', async () => {
+    fetchMock.mockResolvedValue(jsonApiResponse(COLLECTION_EMPTY))
+    await request('/api/v1/examples')
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('실패한 요청도 타이머를 남기지 않는다', async () => {
+    fetchMock.mockRejectedValue(new TypeError('probe network failure'))
+    await request('/api/v1/examples')
+    expect(vi.getTimerCount()).toBe(0)
   })
 })
