@@ -3,6 +3,7 @@
 스펙 15장 "0단계에서 먼저 실측할 것"과 D1 계획이 더한 둘(M7·M8)의 결과다. 각 절은
 **무엇을 했고(명령) 무엇이 나왔는가(출력)**를 사실로 적고, 그 결과로 정한 것을 따로 적는다.
 결과가 스펙과 어긋나면 스펙에 날짜가 붙은 정정을 더한다.
+계측 화면과 플로는 커밋 3d16db5에 있고 다음 커밋에서 지웠다 - 다시 재려면 그 커밋을 체크아웃한다.
 
 | # | 질문 | 결과 | 정한 것 |
 | --- | --- | --- | --- |
@@ -898,7 +899,7 @@ Add the following to your Expo config
 `app/(lab)/probe.tsx`(라우트 `/probe`)가 다음을 각각 `testID`가 붙은 텍스트로 그린다: `useLocalSearchParams()`(`probe-params`), `getLocales()`의 `languageTag`(`probe-locales`),
 `Constants.expoConfig?.extra`(`probe-extra`), `request('/health/ready')`의 결과(`probe-health-result`), 블랙홀 서버에 건 `fetch`를 2초 뒤 `abort()`한 결과(`probe-abort-result`).
 플로는 `test/e2e/measure/`에 있다: `m2-params.yaml` · `m2-params-raw.yaml` · `m2-params-cold.yaml` · `m2-params-raw-cold.yaml` · `m3-locale.yaml` · `m4-health.yaml` ·
-`m6-abort.yaml` · `m6-request-timeout.yaml`. 이 화면은 계층 규칙(`app/`은 `fetch`·`request()`를 부르지 않는다)을 일부러 어기므로 실측 뒤에 지운다.
+`m6-abort.yaml` · `m6-request-timeout.yaml`. 이 화면은 계층 규칙(`app/`은 `fetch`·`request()`를 부르지 않는다)을 일부러 어겼고, 실측을 기록한 뒤 지웠다.
 
 ### 스택과 블랙홀 서버
 
