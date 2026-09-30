@@ -8,12 +8,10 @@ allowBuilds:
 # engines.node 를 강제한다 — pnpm 11 은 .npmrc 의 engine-strict 를 읽지 않는다.
 engineStrict: true
 
-# pnpm 11 은 릴리스 후 1일(minimumReleaseAge, 기본 1440분)이 지나지 않은 버전이 락파일에 있으면 설치를
-# 막는다(ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION). 아래는 설치할 때 그 창 안에 있어 pnpm 이 스스로 적은
-# 예외다. 릴리스로부터 하루가 지나면 없어도 설치되므로 다음 의존성 변경 때 뺀다
-# (`pnpm view <이름>@<버전> time --json` 으로 릴리스 시각을 본다).
-minimumReleaseAgeExclude:
-  - lucide-react-native@1.49.0
+# pnpm 11 은 릴리스 후 1일(minimumReleaseAge, 기본 1440분)이 지나지 않은 버전이 락파일에 있으면
+# --frozen-lockfile 설치도 막는다(ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION). 그 창 안의 버전을 설치하면 pnpm 이
+# 여기에 minimumReleaseAgeExclude 를 스스로 적는다 - 그대로 두고, 릴리스로부터 하루가 지난 뒤의 다음 의존성
+# 변경 때 뺀다(`pnpm view <이름>@<버전> time --json` 으로 릴리스 시각을 본다).
 
 # 웹은 대상이 아니므로(스펙 1.2) expo-router 의 웹 전용 의존성이 요구하는 react-dom 은 설치하지 않는다.
 peerDependencyRules:

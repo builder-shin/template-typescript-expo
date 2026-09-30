@@ -10,7 +10,13 @@
 상태 객체로(`FilterFormValues`·`filterFormValues`·`filterHref`), 백엔드에 닿지 못함을 던지지 않는
 `unreachable` 로 고쳤고 offset 쪽 이동을 뺐다. 요청 조립(`listRequest`·`detailRequest`·`referenceRequest`)은
 Accept-Language 를 싣지 않는다 - 싣는 자리는 `platform/api.ts` 하나다(스펙 9.4). 이 저장소가 더한 판단의
-시험은 `test/unit/resources/view-expo.test.ts` 다. 폼 판단 `form.ts` 는 쓰기 화면(D4)이 같은 방식으로 복사한다.
+시험은 `test/unit/resources/view-expo.test.ts` 다. 쓰기 판단 `form.ts` 는 D4 가 같은 방식으로 복사했다 - 입력이
+FormData 가 아니라 폼 상태 객체(`ResourceFormValues` 를 만들고 고치는 `newFormValues`·`withAttribute`·
+`withRelationshipChoice`)이고, 원본이 컴포넌트에 두던 관계 선택기의 판단(`relationshipTargets`·`relationshipChoice`)을
+더했다. 그 시험은 `test/unit/resources/form-expo.test.ts` 다. 쓰기 한 번의 흐름(세션 확인 → 요청 → 응답 해석, 원본의
+Server Action 자리)은 이 저장소의 `write.ts` 이고 `test/unit/resources/write.test.ts` 가 가짜 전송·토큰으로 잰다.
+무한 스크롤의 끝(`nextPageQuery`)과 관계 선택기의 잘림(`referenceList` 의 `truncated`)은 한 판정(`nextLinkQuery`)이다 -
+`test/unit/resources/next-link.test.ts` 가 같은 응답을 두 함수에 넣어 잰다.
 
 ## 조회 화면의 상태
 
@@ -19,7 +25,9 @@ Accept-Language 를 싣지 않는다 - 싣는 자리는 `platform/api.ts` 하나
 (`listScreen`·`detailScreen`). 재조회가 닿지 못해도 읽은 목록·상세를 두고 작은 실패를 싣는다 - 실패를 결과 값으로
 캐시에 두면 재조회의 실패가 읽은 쪽을 갈아엎는다(스펙 8.5·9.3 의 D3 정정). `view.ts` 의 `listView`·`detailView` 는
 그대로 쓴다 - 닿지 못함이 캐시에 들지 않을 뿐이다. 시험은 `test/unit/resources/screen-state.test.ts`(판단)와
-`test/unit/queries/resource-options.test.ts`(실제 `QueryClient` 의 전이)다.
+`test/unit/queries/resource-options.test.ts`(실제 `QueryClient` 의 전이)다. 관계 선택기의 참조 목록도 같은 규칙이다
+(`referenceState` - 읽은 보기는 재조회가 닿지 못해도 두고, 선택기는 작은 실패를 따로 그리지 않는다). 그 시험은
+`test/unit/resources/reference-state.test.ts` 와 `test/unit/queries/reference-options.test.ts` 다.
 
 ## 목록 주소의 인코딩
 
@@ -32,7 +40,7 @@ Accept-Language 를 싣지 않는다 - 싣는 자리는 `platform/api.ts` 하나
 
 목록 화면은 라우트 파라미터를 `route-params.ts` 의 `listRouteParams` 로 거른 뒤 판단 함수에 넘긴다 - Expo
 Router 는 이동이 싣는 값(로그인·가입 뒤 복귀의 `withAnchor` 가 싣는 `initial`)도 라우트 파라미터에 섞고,
-정렬·필터 주소는 남의 파라미터를 그대로 옮긴다(`view.ts` 의 `carriedParams`). 이름이 정해진 파라미터(상세의
+정렬·필터 주소는 남의 파라미터를 그대로 옮긴다(`view.ts` 의 `carriedParams`). 이름이 정해진 파라미터(상세·수정의
 `id`)는 이름으로 꺼낸다. 어느 화면도 라우트 파라미터 전체를 펼치거나 돌지 않는다.
 `test/unit/resources/route-params-usage.test.ts` 가 `app/` 을 훑어 이 규칙을 막는다 - `useLocalSearchParams` 의
 호출은 `listRouteParams(…)` 안이거나, 이름으로 구조 분해하거나, 키 하나를 바로 읽는 것이어야 한다.

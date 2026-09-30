@@ -3,12 +3,15 @@ import type { CollectionDocument, SingleDocument } from '@/lib/jsonapi/document'
 import { actionForErrors } from '@/lib/jsonapi/errors'
 import type { ResourceDefinition } from '@/lib/resources/define'
 import {
+  bannerMessages,
   detailView,
   listView,
+  referenceList,
   type DetailView,
   type ListFailure,
   type ListRequest,
   type ListView,
+  type ReferenceList,
 } from '@/lib/resources/view'
 
 /**
@@ -115,4 +118,44 @@ export function detailScreen(resource: ResourceDefinition, facts: DetailQueryFac
   // 없는 자원은 재조회가 닿지 못해도 없는 자원이다 - 작은 실패를 싣지 않는다.
   if (view.kind === 'notFound' || view.kind === 'unreachable') return view
   return { ...view, refreshFailed: failed }
+}
+
+/**
+ * 관계 선택기가 그릴 참조 목록 하나 - 목록·상세와 같은 규칙이다(스펙 9.3). 받기 전이면 `list` 가 `null`(스켈레톤)
+ * 이다. 첫 조회가 닿지 못했으면 앱 문구와 "다시 시도"(`unreachable`), 백엔드가 거절했으면 그 문구(`banner`)를 보기
+ * 대신 그린다 - 문구가 하나도 없는 거절도 앱 문구로 물러선다(폼 안의 선택기 하나 때문에 화면을 오류 경계로 보내지
+ * 않는다). 실패한 동안 `list` 는 빈 목록이다 - 폼은 고른 것을 목록 밖 선택으로 그린다(`relationshipChoice`).
+ *
+ * 읽은 목록이 있으면 재조회가 닿지 못해도 그 목록을 그대로 두고 실패를 싣지 않는다 - 선택기는 고를 것을 보여 줄
+ * 뿐이고, 그사이 없어진 보기를 고르면 저장이 관계 오류로 그 선택기 아래에 알린다(스펙 9.1).
+ */
+export interface ReferenceState {
+  /** 선택기가 그릴 보기 - 받기 전이면 `null`, 실패했으면 빈 목록이다. */
+  readonly list: ReferenceList | null
+  /** 보기 대신 그릴 실패. */
+  readonly failure: ListFailure | null
+}
+
+/** 조회가 준 것 - 참조 목록 응답(없으면 `undefined`)과 마지막 조회의 오류. */
+export interface ReferenceQueryFacts {
+  readonly result: JsonApiResult<CollectionDocument> | undefined
+  readonly error: unknown
+}
+
+export function referenceState(
+  target: ResourceDefinition,
+  facts: ReferenceQueryFacts,
+): ReferenceState {
+  const failed = refetchUnreachable(facts.error)
+  if (facts.result === undefined) {
+    return failed
+      ? { list: referenceList(target, null), failure: { kind: 'unreachable' } }
+      : { list: null, failure: null }
+  }
+  if (facts.result.ok) return { list: referenceList(target, facts.result.document), failure: null }
+  const messages = bannerMessages(facts.result.errors)
+  return {
+    list: referenceList(target, null),
+    failure: messages.length === 0 ? { kind: 'unreachable' } : { kind: 'banner', messages },
+  }
 }
