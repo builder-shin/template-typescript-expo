@@ -20,13 +20,16 @@ Server Action 자리)은 이 저장소의 `write.ts` 이고 `test/unit/resources
 
 ## 조회 화면의 상태
 
-`screen-state.ts` 는 이 저장소의 새 파일이다(복사본이 아니다). 조회의 `queryFn` 이 백엔드에 닿지 못한 결과를
-던지게 하고(`throwIfUnreachable` - `UnreachableError`), TanStack Query 가 준 데이터·오류에서 화면이 그릴 것을 정한다
+`screen-state.ts` 는 이 저장소의 새 파일이다(복사본이 아니다). 조회의 `queryFn` 이 백엔드의 판정을 받지 못한
+결과 - 닿지 못함과 판정하지 않은 응답(5xx·408·429, D4) - 를 던지게 하고(`throwIfUnreachable` - `UnreachableError`), TanStack Query 가 준 데이터·오류에서 화면이 그릴 것을 정한다
 (`listScreen`·`detailScreen`). 재조회가 닿지 못해도 읽은 목록·상세를 두고 작은 실패를 싣는다 - 실패를 결과 값으로
 캐시에 두면 재조회의 실패가 읽은 쪽을 갈아엎는다(스펙 8.5·9.3 의 D3 정정). `view.ts` 의 `listView`·`detailView` 는
 그대로 쓴다 - 닿지 못함이 캐시에 들지 않을 뿐이다. 시험은 `test/unit/resources/screen-state.test.ts`(판단)와
-`test/unit/queries/resource-options.test.ts`(실제 `QueryClient` 의 전이)다. 관계 선택기의 참조 목록도 같은 규칙이다
-(`referenceState` - 읽은 보기는 재조회가 닿지 못해도 두고, 선택기는 작은 실패를 따로 그리지 않는다). 그 시험은
+`test/unit/queries/resource-options.test.ts`(실제 `QueryClient` 의 전이)다. 판정한 백엔드 오류 문서(그 밖의 4xx)는
+결과 값이라 재조회의 답이어도 새 답이다(지워진 상세는 not-found) - 판정하지 않은 응답의 판단은
+`test/unit/resources/screen-state-unjudged.test.ts`, 그 전이는 `test/unit/queries/refetch-unjudged.test.ts` 가 잰다.
+목록 끝에서 다음 쪽을 부를지는 `canLoadMore` 다. 관계 선택기의 참조 목록도 같은 규칙이다(`referenceState` - 읽은
+보기는 재조회가 판정을 받지 못해도 두고, 선택기는 작은 실패를 따로 그리지 않는다). 그 시험은
 `test/unit/resources/reference-state.test.ts` 와 `test/unit/queries/reference-options.test.ts` 다.
 
 ## 목록 주소의 인코딩

@@ -21,9 +21,9 @@ import { detailQueryOptions, listQueryOptions } from '@/queries/resource-options
  * `apiRequest`(platform/api.ts)를 지난다 - 그 자리가 Accept-Language 를 싣는다(스펙 9.4).
  *
  * `apiRequest` 는 결과 값을 돌려준다 - 백엔드 오류도 닿지 못함도 값이다. 설정 오류만 예외다: `request()` 가
- * 일부러 던진다(queries/AGENTS.md). 조회의 `queryFn` 은 그 값 가운데 닿지 못함만 던진다 - TanStack Query 가
- * 재조회의 실패에도 읽은 데이터를 두게 하려는 것이다(`throwIfUnreachable`). 백엔드 오류 문서는 값으로 캐시에
- * 들어 배너가 된다.
+ * 일부러 던진다(queries/AGENTS.md). 조회의 `queryFn` 은 그 값 가운데 백엔드의 판정을 받지 못한 것 - 닿지 못함과
+ * 판정하지 않은 응답(5xx·408·429) - 만 던진다. TanStack Query 가 재조회의 실패에도 읽은 데이터를 두게 하려는
+ * 것이다(`throwIfUnreachable`). 판정한 백엔드 오류 문서는 값으로 캐시에 들어 배너가 된다.
  */
 
 /** 라우트 파라미터 - `useLocalSearchParams()` 가 주는 모양. */

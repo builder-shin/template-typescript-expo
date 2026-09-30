@@ -75,10 +75,19 @@ describe('throwIfUnreachable - 조회의 queryFn 이 캐시에 넣을 값', () =
   it('백엔드가 응답조차 주지 못했으면 던진다 - TanStack Query 가 앞의 데이터를 둔다', () => {
     expect(() => throwIfUnreachable(failed([TRANSPORT]), '목록')).toThrowError(UnreachableError)
     expect(() => throwIfUnreachable(failed([TRANSPORT]), '목록')).toThrowError(/목록/)
+
+    // 응답이 없었으니 실을 응답도 없다 - 합성 오류는 상태가 5xx 여도(게이트웨이의 HTML 오류 페이지) 닿지 못함이다.
+    // 싣으면 첫 조회의 참조 목록이 앱 문구와 "다시 시도" 대신 합성한 영어 문구의 배너가 된다.
+    const gateway = failed<CollectionDocument>([{ ...TRANSPORT, status: '502' }], 502)
+    for (const result of [failed<CollectionDocument>([TRANSPORT]), gateway]) {
+      expect(() => throwIfUnreachable(result, '목록')).toThrowError(
+        expect.objectContaining({ response: undefined }),
+      )
+    }
   })
 
-  it('백엔드 오류 문서는 값 그대로다 - 협상된 문구를 배너로 그린다', () => {
-    const result = failed<CollectionDocument>([BACKEND], 500)
+  it('판정한 백엔드 오류 문서(그 밖의 4xx)는 값 그대로다 - 협상된 문구를 배너로 그린다', () => {
+    const result = failed<CollectionDocument>([{ ...BACKEND, status: '400' }], 400)
     expect(throwIfUnreachable(result, '목록')).toBe(result)
   })
 

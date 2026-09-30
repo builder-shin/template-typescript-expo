@@ -12,9 +12,10 @@ import { queryKeys } from '@/queries/keys'
  * (test/unit/queries/resource-options.test.ts)이 가짜 요청을 넣어 실제 QueryClient 로 전이를 잰다. React 와
  * 기기 모듈을 모른다.
  *
- * `queryFn` 은 백엔드가 응답조차 주지 못한 실패를 던진다(`throwIfUnreachable`) - TanStack Query 가 재조회의
- * 실패에도 읽은 데이터를 두게 한다(lib/resources/screen-state.ts). 백엔드 오류 문서는 결과 값으로 캐시에
- * 든다 - 화면이 협상된 문구를 배너로 그린다.
+ * `queryFn` 은 백엔드의 판정을 받지 못한 조회 - 응답조차 없었거나, 판정하지 않은 응답(5xx·408·429)이다 - 를
+ * 던진다(`throwIfUnreachable`) - TanStack Query 가 재조회의 실패에도 읽은 데이터를 두게 한다
+ * (lib/resources/screen-state.ts). 판정한 백엔드 오류 문서(그 밖의 4xx)는 결과 값으로 캐시에 든다 - 화면이
+ * 협상된 문구를 배너로 그린다.
  */
 
 /**

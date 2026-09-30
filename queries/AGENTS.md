@@ -35,12 +35,14 @@ TanStack Query 의 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화를 소�
   던진다(`lib/jsonapi/client.ts` 머리말 - 배포에 고정된 결함을 "연결할 수 없다" 배너로 삼키지 않으려는 것). 조회 훅은
   그 예외를 다루지 않는다 - 설정 검증을 통과한 갈래(`STARTUP.ok`)에서만 도는 훅이라 여기까지 오지 않는다
   (`platform/AGENTS.md` 의 부팅 순서).
-- 조회의 `queryFn`(`resource-options.ts`)은 `apiRequest` 의 결과 가운데 **닿지 못함만 던진다**(`throwIfUnreachable` -
+- 조회의 `queryFn`(`resource-options.ts`)은 `apiRequest` 의 결과 가운데 **백엔드의 판정을 받지 못한 것만 던진다** - 닿지
+  못함과 판정하지 않은 응답(5xx·408·429 - D4, 회전과 같은 셋)이다(`throwIfUnreachable` -
   `UnreachableError`). TanStack Query 는 재조회가 실패해도 앞의 `data` 를 두므로 - 무한 조회는 읽은 쪽 전부를 - 앱
   복귀·네트워크 복귀·당겨서 새로고침·다시 들어온 상세·쓰기 뒤 무효화의 재조회가 닿지 못해도 읽은 목록과 상세가 남고,
   연결이 돌아온 뒤의 재조회도 읽어 둔 쪽을 모두 다시 읽는다. 닿지 못함을 결과 값으로 캐시에 두면 재조회의 실패가 읽은
   데이터를 갈아엎는다(쪽 배열이 `[실패]` 하나가 되고 다음 재조회는 그 한 쪽만 읽는다 - D3 최종 검토가 설치본 query-core
-  로 재 보였다). 백엔드 오류 문서는 결과 값으로 캐시에 든다 - 배너다. 화면 상태는 Query 의 데이터·오류에서
+  로 재 보였다. D3 재검토가 같은 결함을 백엔드 오류 문서에서 봐 D4 가 5xx·408·429 를 더했다). 판정한 백엔드 오류
+  문서(그 밖의 4xx)는 결과 값으로 캐시에 든다 - 배너다(첫 조회의 판정하지 않은 응답도 그 문구의 배너다). 화면 상태는 Query 의 데이터·오류에서
   `listScreen`·`detailScreen`(`lib/resources/screen-state.ts`)이 정한다 - 닿지 못함이 아닌 오류는 결함이라 렌더 중에
   다시 던져 오류 경계로 보낸다. `test/unit/queries/resource-options.test.ts` 가 실제 `QueryClient` 와 `focusManager`·
   `onlineManager` 로 전이를 잰다(훅 자체는 시험하지 않는다 - 스펙 11.1).
