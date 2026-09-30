@@ -689,12 +689,16 @@ npm `latest`는 1.12.0(2026-09-04)이라 고쳐진 릴리스는 아직 없다.
 4. **Uniwind의 Metro 캐시 디렉터리는 고정이다.** `uniwind/metro`의 `cacheStore`는 `os.tmpdir()/metro-cache` 하나를 쓴다. 같은 머신에서 Metro가 동시에 둘 돌면
    위의 `EPERM`처럼 서로 지우려다 부딪힐 수 있다(Release 빌드를 병렬로 돌렸을 때 재현됐다).
 5. **`components/ui/`의 `Platform.select({ web: … })` 분기는 이 저장소에서 실행되지 않는다.** 웹은 대상이 아니지만(스펙 1.2) 원본과 어긋나지 않게 그대로 두었다.
-6. **새 체크아웃의 `pnpm lint`는 `expo-env.d.ts` 없이는 실패한다.** 커밋을 `git archive`로 받아 `pnpm install --frozen-lockfile`만 한 사본에서
-   `app.config.ts`(26·27행)와 `lib/config/settings.ts`(46행)의 `process.env.…`가 `any`로 잡혀 `@typescript-eslint/no-unsafe-argument`·`no-unsafe-assignment` 3건이 난다.
-   이 작업 이전의 `b22c2e2`를 같은 방법으로 받아도 같다. 원인은 TypeScript 6.0에서 `types`의 기본값이 빈 목록이라 `@types/node`가 프로그램에 들어오지 않고(프로그램 안의
-   `@types/node` 파일 0개), `process`가 `expo-modules-core/build/ts-declarations/global.d.ts`의 느슨한 선언으로 잡히는 것이다. `expo-env.d.ts`가 있으면 `expo/types`의 선언이 잡혀 통과한다.
-   `compilerOptions.types: ["node"]`는 이를 고치지 못했고(lint 3건 그대로), `["expo/types"]`는 `expo-env.d.ts` 없이 typecheck·lint·test가 모두 exit 0이었다.
-   두 시험 모두 스크래치 사본에서만 했고 저장소의 `tsconfig.json`에는 적용하지 않았다.
+6. **새 체크아웃의 `pnpm lint`는 `expo-env.d.ts` 없이는 실패했다.** 커밋을 `git archive`로 받아 `pnpm install --frozen-lockfile`만 한 사본에서
+   `app.config.ts`(26·27행)와 `lib/config/settings.ts`(46행)의 `process.env.…`가 `any`로 잡혀 `@typescript-eslint/no-unsafe-argument`·`no-unsafe-assignment` 3건이 났다.
+   이 작업 이전의 `b22c2e2`를 같은 방법으로 받아도 같았다. 원인은 TypeScript 6.0에서 `types`의 기본값이 빈 목록이라 `@types/node`가 프로그램에 들어오지 않고(프로그램 안의
+   `@types/node` 파일 0개), `process`가 `expo-modules-core/build/ts-declarations/global.d.ts`의 느슨한 선언으로 잡히는 것이다. `expo-env.d.ts`가 있으면 `expo/types`의 선언이 잡혀 통과했다.
+   스크래치 사본에서 `compilerOptions.types: ["node"]`는 이를 고치지 못했고(lint 3건 그대로), `["expo/types"]`는 `expo-env.d.ts` 없이 typecheck·lint·test가 모두 exit 0이었다.
+   그래서 `tsconfig.json`의 `compilerOptions`에 `"types": ["expo/types"]`를 두었다. `expo-env.d.ts`가 쓰는 `/// <reference types="expo/types" />`와 같은 참조다(JSON이라 주석을 달 수 없어 이유를 여기에 적는다).
+7. **`node:fs`·`node:child_process` import는 이 설정 전에도 후에도 타입체크되지 않는다.** 그런 import를 담은 시험 파일은 `TS2591: Cannot find name 'node:fs'. … add 'node' to the types field in your tsconfig`로
+   실패한다(`expo-env.d.ts`가 있어도 같다). 지금 저장소의 TS 파일에는 그런 import가 없다. `process.env`를 쓰는 `test/unit/config/settings.test.ts`와 `process.env`를 읽는 `@/app.config`를 부르는
+   `test/unit/config/app-config.test.ts`는 통과한다. `types`에 `"node"`를 더하면(`["expo/types", "node"]`, 순서를 바꿔도 같다) 그 시험 파일은 통과하지만 전역 `setTimeout`의 반환형이 `NodeJS.Timeout`이 되어
+   `const handle: number = setTimeout(…)`이 `TS2322`로 실패한다. 스크래치 사본에서만 시험했고 저장소에는 적용하지 않았다.
 
 ### 정한 것
 
@@ -703,6 +707,7 @@ npm `latest`는 1.12.0(2026-09-04)이라 고쳐진 릴리스는 아직 없다.
   Linux·macOS에서 isolated가 되는지는 이 머신에서 재지 못했다. CI가 잰다.
 - **`uniwind-types.d.ts`와 `css.d.ts`를 커밋한다.** 새 체크아웃의 `pnpm typecheck`를 통과시키는 것은 `css.d.ts`(`*.css` 선언)이고,
   `uniwind-types.d.ts`는 Uniwind 전용 props와 테마 이름 타입을 준다.
+- **`tsconfig.json`에 `"types": ["expo/types"]`를 둔다.** 새 체크아웃의 `pnpm lint`가 `expo-env.d.ts` 없이 통과한다(관찰 6).
 - **받은 컴포넌트는 `text.tsx`의 `ROLE` 타입 한 줄만 고쳤다.**
 
 아래는 이 기록이 정하지 않은 것이다.
@@ -710,5 +715,5 @@ npm `latest`는 1.12.0(2026-09-04)이라 고쳐진 릴리스는 아직 없다.
 - Uniwind의 `@media` 블록 결함에 어떻게 대응할지(패치, 다른 버전, `sm:` 회피). 지금은 `Button`의 높이만 눈에 띈다.
 - 이 머신에서 APK를 만드는 방법(47자 이하 경로의 작업 트리). `test/e2e/android.sh`는 경로 길이를 검사하지 않는다.
 - expo-doctor가 지목한 `secretlint` 스크립트 이름.
-- 새 체크아웃의 `pnpm lint`(관찰 6). 후보는 `tsconfig.json`의 `compilerOptions.types: ["expo/types"]`이다.
+- 시험에서 `node:fs`·`node:child_process`를 쓰려면 필요한 Node 타입(관찰 7). `types`에 `"node"`를 더하면 앱 코드의 `setTimeout` 반환형이 바뀌고, 더하지 않으면 그런 import가 타입체크되지 않는다.
 - `expo-system-ui` 설치 여부.
