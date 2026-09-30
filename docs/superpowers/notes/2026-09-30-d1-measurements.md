@@ -69,6 +69,33 @@ Android Bundled 19817ms node_modules\.pnpm\expo-router@57.0.24_89d878ceb6f28d33f
 isolated 배치를 따라 해석했다는 증거다. `React Compiler enabled`는 `babel-preset-expo@57.0.13`이
 `babel-plugin-react-compiler@1.0.0`을 직접 의존하기 때문에 별도 의존성 없이 나온다.
 
+`node_modules`를 지우고 락파일로 다시 설치한 트리에서 같은 명령을 다시 돌려도 exit 0이고 `tail -20`이
+위와 글자 그대로 같다(번들 파일 이름의 해시가 같다). `(N modules)`는 실행마다 달랐다. 위 명령을 세 번
+돌린 결과는 iOS 1098·884·1096, Android 1248·1248·1248이고, 아래 소스맵 플래그를 더한 실행은 iOS 1103,
+Android 1236이었다. 같은 명령의 세 번은 번들 해시가 같았으므로 이 숫자를 판정 근거로 쓰지 않는다.
+
+### 번들 안의 중복 검사
+
+isolated 배치는 peer 조합이 다르면 같은 패키지를 가상 스토어에 여러 벌 만들 수 있다. 번들에 같은 패키지가
+두 벌 들어가는지 소스맵으로 확인했다.
+
+```bash
+pnpm exec expo export --platform android --platform ios --no-bytecode --dump-sourcemap --output-dir <임시 디렉터리>
+```
+
+두 소스맵의 `sources`를 `node_modules/.pnpm/<폴더>/node_modules/<패키지>`로 묶은 결과다.
+
+| 플랫폼 | `.pnpm` 아래 소스 | 패키지 수 | 둘 이상의 폴더에서 온 패키지 |
+| --- | --- | --- | --- |
+| android | 1248 | 57 | 0 |
+| ios | 1103 | 52 | 0 |
+
+`react` · `react-native` · `react-native-screens` · `react-native-safe-area-context` ·
+`expo-modules-core` · `expo-router` · `expo`는 두 플랫폼 모두 한 벌씩이다. 이 검사는 `node_modules`를
+지우고 `pnpm install --frozen-lockfile`로 다시 깐 트리에서 했다. 증분 설치(`pnpm add` → `expo install` →
+`pnpm add -D`)를 거친 `node_modules/.pnpm`에는 락파일에 없는 낡은 변형 폴더가 남아 `react-native@0.86.3_…`가
+세 벌, `react-native-screens`가 두 벌로 보였고, 다시 깔면 새 clone의 `.pnpm` 목록과 같아진다.
+
 ### expo-doctor
 
 ```bash
@@ -139,3 +166,17 @@ doctor exit=0
    `react-native-safe-area-context` · `react-native-screens`도 잡는다). 네이티브 빌드가 이 버전들을
    컴파일하게 되는지는 아직 빌드하지 않아 재지 못했다. D1 계획 Task 4가 이 셋을 `expo install`로 직접
    설치하므로 그때 `pnpm peers check`를 다시 본다. 이 태스크에서는 손대지 않았다.
+5. **Windows 경로 길이.** `node_modules`를 락파일로 다시 깐 트리에서 `node_modules/.pnpm` 아래 파일 33,314개
+   가운데 절대 경로가 260자를 넘는 것이 2,075개이고 가장 긴 것은 354자다. 저장소 루트
+   (`C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo`, 74자)를 뺀 상대 경로만도
+   279자라 저장소를 더 짧은 경로로 옮겨도 260자를 넘는 파일이 남는다. 가장 긴 파일은 `react-native`의
+   `ReactCommon/react/renderer/components/legacyviewmanagerinterop/platform/ios/…ComponentDescriptor.mm`(iOS용
+   소스)이다. 260자를 넘는 2,075개는 `react-native` 691개, `react-native-screens` 389개,
+   `@react-native/debugger-frontend` 201개, `react-native-gesture-handler` 162개, `react-native-reanimated` 133개,
+   `expo-modules-core` 110개 등이고, 이 가운데 948개는 경로에 `android` 또는 `ReactAndroid` 폴더가 있다
+   (예: `@react-native-masked-view/masked-view`의 Java 소스 273~280자). Windows의 `LongPathsEnabled`는 1이고
+   git의 `core.longpaths`는 설정되어 있지 않다.
+   그 결과 `git status --ignored`는 이 폴더들을 `Filename too long` 경고로 열지 못했다(`--ignored`가 없는
+   `git status`는 이 폴더로 들어가지 않아 영향이 없다). Node 기반 도구(`expo export`·`tsc`·pnpm)는 영향 없이
+   돌았다. Gradle·CMake 네이티브 빌드가 이 경로를 읽을 때 문제가 되는지는 아직 빌드하지 않아 재지 못했고,
+   hoisted 배치의 경로 길이도 재지 않았다.
