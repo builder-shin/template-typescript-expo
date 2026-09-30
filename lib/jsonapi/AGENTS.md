@@ -29,13 +29,22 @@
 곳에서 직접 비교하지 않는다.
 
 합성 코드는 넷이다 - 원본의 `REQUEST_ASSEMBLY_FAILED`·`NETWORK_ERROR`·`NON_JSONAPI_RESPONSE`에
-이 저장소가 더한 `REQUEST_TIMEOUT`(`REQUEST_TIMEOUT_MS` 15초, 스펙 8.5). 응답이 오기 전에
-호출자가 `signal`로 끊은 요청은 타임아웃이 아니라 `NETWORK_ERROR`다. 응답이 온 뒤 본문을 읽다가
-끊은 요청은 본문을 읽지 못한 것이라 `NON_JSONAPI_RESPONSE`다.
+이 저장소가 더한 `REQUEST_TIMEOUT`(`REQUEST_TIMEOUT_MS` 15초, 스펙 8.5). 호출자가 `signal`로
+끊은 요청은 타임아웃이 아니다 - 응답을 받기 전에 끊은 요청은 `NETWORK_ERROR`, 본문을 읽는 도중
+끊겨 `json()`이 거절되면 `NON_JSONAPI_RESPONSE`(status는 응답의 것)다.
 
 ## 플랫폼을 모른다
 
-이 디렉터리는 react·react-native·expo를 import하지 않는다(ESLint가 막는다). 그래서 node의
-vitest에서 그대로 돌고, 앱에서는 SDK 57의 전역 fetch인 `expo/fetch` 위에서 돈다. 둘의
-차이는 `docs/provenance/copied-core.json`의 `client.ts` 이탈 기록(`cache`를 읽지 않는 것)과
-실측 기록 M6(응답 전에 취소하면 오류 이름이 `AbortError`가 아니라 `Error`인 것)에 있다.
+이 디렉터리는 react·react-native·expo를 import하지 않는다(ESLint가 막는다 - 정적 import·
+`export … from`만 잰다. 동적 `import()`·`require()`는 `lib/`에서 쓰지 않는다). 그래서 node의
+vitest에서 그대로 돌고, 앱에서는 SDK 57의 `expo/fetch` 위에서 돈다.
+
+- `expo/fetch`는 `cache`를 읽지 않고, RN 폴리필(`EXPO_PUBLIC_USE_RN_FETCH=1`)은 `cache`가
+  no-store인 GET의 URL에 `_=<시각>`을 붙인다. 어느 쪽이든 캐시 정책은 TanStack Query가 소유하므로
+  `request()`는 `cache`를 넘기지 않는다(스펙 8.5).
+- 취소는 단계마다 다르게 거절된다. 요청 단계의 취소는 `AbortError`가 아니라 `Error`(`FetchError`)이고
+  (실측 M6), 본문을 스트림(`response.body`)으로 읽는 중의 취소는 `AbortError`다. `request()`가 쓰는
+  `response.json()`은 스트림이 아니라 네이티브 `text()`를 기다려서 이 구분 밖이다. 그래서 취소를 오류
+  이름으로 가르지 않는다.
+- 근거와 소스의 파일·줄은 `docs/superpowers/notes/2026-09-30-d1-measurements.md`의 M6, 원본과
+  달라진 곳은 `docs/provenance/copied-core.json`의 `client.ts` 이탈 기록에 있다.

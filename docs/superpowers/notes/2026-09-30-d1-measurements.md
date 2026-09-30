@@ -4,20 +4,22 @@
 **무엇을 했고(명령) 무엇이 나왔는가(출력)**를 사실로 적고, 그 결과로 정한 것을 따로 적는다.
 결과가 스펙과 어긋나면 스펙에 날짜가 붙은 정정을 더한다.
 계측 화면과 플로는 커밋 3d16db5에 있고 다음 커밋에서 지웠다 - 다시 재려면 그 커밋을 체크아웃한다.
-출력 원문에 나온 로컬 절대 경로에서 저장소 루트(74자)는 `…`로 줄였다.
+해시 대신 경로로 찾으려면 `git log --all --diff-filter=D -- 'app/(lab)/probe.tsx'`가 그 화면을 지운 커밋(`14c7c13`)을
+알려 주고, 그 부모(`14c7c13^`)가 계측기가 있던 커밋이다.
+출력의 저장소 경로·계정 이름은 줄였다. 저장소 루트(74자)는 `<저장소 루트>`, `ls -l`의 소유자·그룹은 `<user> <group>`이다.
 
 | # | 질문 | 결과 | 정한 것 |
 | --- | --- | --- | --- |
 | M1 | Uniwind + React Native Reusables가 SDK 57 Android Release 빌드에서 렌더되는가 | 렌더된다 — `e2e` 변형 Release APK가 API 36 에뮬레이터에서 크래시 없이 뜨고, 라이트·다크 모두 `global.css` 토큰 값 그대로 그려진다(UI 덤프에 `template-typescript-expo`·`Uniwind`). 단 Windows에서 APK를 만들려면 hoisted 링커와 짧은 저장소 경로가 필요하다 — 이 머신의 저장소 위치(74자)에서는 APK가 만들어지지 않았다 | 스타일 스택 유지. `nodeLinker: hoisted`로 바꿨다(M5 재판정). Uniwind 1.12.0의 `@media` 블록 결함을 기록했다 |
-| M2 | Expo Router가 대괄호 키를 딥링크·`router.setParams`에서 보존하는가 | 보존된다 — 키가 `filter[status]`·`filter[title][contains]` 그대로 나온다. 딥링크(대괄호를 `%5B`·`%5D`로 인코딩한 것과 그대로 쓴 것, 앱이 켜진 채 받은 것과 꺼진 앱을 링크로 띄운 것 넷 모두)와 `router.setParams` 모두 통과했다. 값의 `%20`은 공백으로 풀린다 | 대괄호 키를 위한 인코딩 규칙을 `lib/resources`에 두지 않는다 — 필터 키를 그대로 라우트 파라미터로 쓴다(스펙 8.2). 값의 특수문자(`&`·`=`·`+`·`#`·비ASCII)와 중복 키는 재지 않았다 |
-| M3 | Maestro로 Android 기기 로캘을 바꿀 수 있는가 | Android는 된다 — 앱별 언어(`adb shell cmd locale set-app-locales`)를 `ko-KR`로 주면 앱의 `getLocales()`가 `ko-KR,en-US`를 낸다(시스템 로캘은 `en-US` 그대로). `maestro test --device-locale`은 없는 옵션이라 실패했고(`Unknown option`, exit 2), 시스템 로캘을 바꾸는 길은 이 이미지(`user` 빌드)에서 root가 막혀 안 된다. iOS는 재지 못했다 | 앱별 언어로 정한다. 하네스는 상태 지우기(`pm clear`) → `set-app-locales` → 앱 실행 순서를 지키고 로캘 플로는 `clearState`를 쓰지 않는다 — `pm clear`가 앱별 언어를 지운다. `expo-localization` 설정 플러그인은 필요 없었다 |
+| M2 | Expo Router가 대괄호 키를 딥링크·`router.setParams`에서 보존하는가 | 보존된다 — 키가 `filter[status]`·`filter[title][contains]` 그대로 나온다. 딥링크(대괄호를 `%5B`·`%5D`로 인코딩한 것과 그대로 쓴 것, 앱이 켜진 채 받은 것과 꺼진 앱을 링크로 띄운 것 넷 모두)와 `router.setParams` 모두 통과했다. 단 중첩 키(`filter[title][contains]`)는 인코딩한 링크와 `router.setParams`로만 확인했고 인코딩하지 않은 링크는 `filter[status]` 하나만 썼다. 값의 `%20`은 공백으로 풀린다 | 대괄호 키를 위한 인코딩 규칙을 `lib/resources`에 두지 않는다 — 필터 키를 그대로 라우트 파라미터로 쓴다(스펙 8.2). 값의 특수문자(`&`·`=`·`+`·`#`·비ASCII)와 중복 키는 재지 않았다 |
+| M3 | Maestro로 Android 기기 로캘을 바꿀 수 있는가 | Android는 된다 — 앱별 언어(`adb shell cmd locale set-app-locales`)를 `ko-KR`로 주면 앱의 `getLocales()`가 `ko-KR,en-US`를 낸다(시스템 로캘은 `en-US` 그대로). `maestro test --device-locale`은 없는 옵션이라 실패했고(`Unknown option`, exit 2), 시스템 로캘을 `adb root`와 `setprop`으로 바꾸는 길은 이 이미지(`user` 빌드)에서 root가 막혀 안 됐다(다른 길은 시도하지 않았다). iOS는 재지 못했다 | 앱별 언어로 정한다. 하네스는 상태 지우기(`pm clear`) → `set-app-locales` → 앱 실행 순서를 지키고 로캘 플로는 `clearState`를 쓰지 않는다 — `pm clear`가 앱별 언어를 지운다. `expo-localization` 설정 플러그인은 Android에서는 필요 없었다(iOS는 재지 못했다) |
 | M4 | `e2e` 변형 Release APK가 평문 HTTP로 `10.0.2.2:4100`에 닿는가 | 닿는다 — `e2e` 변형 Release APK가 평문 HTTP로 `http://10.0.2.2:4100/health/ready`를 불러 `ok 200`을 받는다(FastAPI 스택). 빌드된 매니페스트에 `usesCleartextTraffic=true`가 있다 | 현재 설정(`expo-build-properties`의 `usesCleartextTraffic`, `development`·`e2e`만)을 유지한다. 이 요청은 `platform/config.ts`가 설정 자리를 `extra`로 돌린 뒤 나갔으므로 그 바인딩도 함께 확인됐다 |
 | M5 | pnpm 기본(isolated) 링커에서 Metro 번들과 expo-doctor가 도는가 | 돈다 — `expo export`(android·ios) exit 0, expo-doctor 21/21 통과 exit 0 | 당시에는 isolated 유지(기본값)로 정했다. M1의 Android Release 빌드가 Windows에서 isolated로는 만들어지지 않아 2026-09-30에 `pnpm-workspace.yaml`의 `nodeLinker: hoisted`로 바꿨다(pnpm 11은 `.npmrc`의 `node-linker`를 읽지 않는다). 아래 M5 절 끝의 재판정과 M1 절을 본다 |
-| M6 | RN fetch에서 `AbortController` 타임아웃이 요청을 실제로 끊는가 | 끊긴다 — 연결은 받고 응답하지 않는 서버에 건 요청이 2초 타이머의 `abort()`로 2,023ms에 거절된다. 단 오류 이름이 `AbortError`가 아니라 `Error`다 — 이 앱의 전역 `fetch`는 RN 폴리필이 아니라 `expo/fetch`(SDK 57)다. 백엔드를 멈추면 `request()`의 타임아웃이 약 15초(15,021ms)에 `REQUEST_TIMEOUT`을 낸다 | `AbortController` 방식의 타임아웃을 유지한다(15초, 스펙 8.5). 취소를 오류 이름으로 가르지 않는다 — `lib/jsonapi/client.ts`는 타이머 플래그(`timedOut`)로 가른다 |
+| M6 | RN fetch에서 `AbortController` 타임아웃이 요청을 실제로 끊는가 | 거절된다 — 연결은 받고 응답하지 않는 서버에 건 요청이 2초 타이머의 `abort()`로 2,023ms에 JS 쪽에서 거절된다(소켓이 닫혔는지는 관찰하지 못했다). 단 오류 이름이 `AbortError`가 아니라 `Error`다 — 이 앱의 전역 `fetch`는 RN 폴리필이 아니라 `expo/fetch`(SDK 57)다. 백엔드를 멈추면 `request()`의 타임아웃이 약 15초(대기 단계 15,021ms)에 `REQUEST_TIMEOUT`을 낸다 | `AbortController` 방식의 타임아웃을 유지한다(15초, 스펙 8.5). 취소를 오류 이름으로 가르지 않는다 — `lib/jsonapi/client.ts`는 타이머 플래그(`timedOut`)로 가른다 |
 | M7 | `app.config.ts`가 `./lib/config/*.ts`를 확장자 포함 import로 쓸 수 있는가 | 쓸 수 있다 — `expo config --type public --json`(e2e 변형) exit 0에 변형 값이 나오고, `BACKEND_URL` 없음과 production+http는 각각 해당 오류 문구와 exit 1 | 확장자 포함 import 유지(검증 복사 없음). 전제는 Node의 type stripping이다 — 끄면 같은 명령이 구문 오류로 exit 1 |
 | M8 | Maestro CLI가 Windows Git Bash에서 도는가 | 돈다 — Git Bash의 셸 런처와 `maestro.bat` 모두 `2.11.0`·exit 0이고 `maestro test`가 에뮬레이터에서 플로를 돌린다. 플로를 쓸 때 걸리는 것이 넷 있다: `evalScript`의 `: `는 따옴표가 필요하고, `launchApp` 직후 보낸 딥링크는 버려지고, `console.log`는 콘솔이 아니라 디버그 로그에 남고, `clearState`는 앱별 언어를 지운다 | Maestro 2.11.0을 `~/.maestro`에 설치해 셸 런처로 쓴다(`.bat` 폴백은 필요 없었다). 위 넷을 플로 작성 규칙으로 삼는다 |
 
-iOS 쪽(M1·M2·M3의 iOS 절반)은 개발 머신이 Windows라 여기서 잴 수 없다. CI 계획이 잰다.
+iOS 쪽(M1·M2·M3의 iOS 절반, M4의 iOS `NSAllowsLocalNetworking`, M6)은 개발 머신이 Windows라 여기서 잴 수 없다. CI 계획이 잰다.
 
 ## M5 — pnpm 링커
 
@@ -149,7 +151,8 @@ doctor exit=0
    이 예외가 필요 없어질 것으로 보이지만, 이는 pnpm이 출력한 컷오프 규칙에서 읽은 것이고 그 시점
    이후에는 다시 재지 않았다.
 3. **무시된 빌드 스크립트는 없다.** pnpm이 무시된 빌드 스크립트를 보고하지 않았고 `.modules.yaml`의
-   `pendingBuilds`가 빈 배열이다. 그래서 `allowBuilds`를 적지 않았다.
+   `pendingBuilds`가 빈 배열이다. 그래서 `allowBuilds`를 적지 않았다(D1 계획 Task 2에서 `eslint-config-expo`가 끌어오는
+   `unrs-resolver` 때문에 `pnpm-workspace.yaml`에 더했다).
 4. **미충족 peer 세 건.** `pnpm install`이 경고 `Issues with peer dependencies found`를 내고
    `pnpm peers check`가 exit 1로 아래를 보고한다. `expo export`와 expo-doctor에는 나타나지 않았다.
 
@@ -239,15 +242,15 @@ head -9 "$TMPDIR/m7-nourl.out"
 
 ```text
 exit=1
-Error: Error reading Expo config at …\app.config.ts:
+Error: Error reading Expo config at <저장소 루트>\app.config.ts:
 
 BACKEND_URL is required
-Error: Error reading Expo config at …\app.config.ts:
+Error: Error reading Expo config at <저장소 루트>\app.config.ts:
 
 BACKEND_URL is required
-    at requireAbsoluteUrl (file:///…/lib/config/settings.ts:29:11)
-    at loadSettings (file:///…/lib/config/settings.ts:46:17)
-    at appConfig (…\app.config.js:23:59)
+    at requireAbsoluteUrl (file:///<저장소 루트>/lib/config/settings.ts:29:11)
+    at loadSettings (file:///<저장소 루트>/lib/config/settings.ts:46:17)
+    at appConfig (<저장소 루트>\app.config.js:23:59)
 ```
 
 출력은 16줄이고 이하 7줄은 Expo 내부 프레임이다.
@@ -259,14 +262,14 @@ head -8 "$TMPDIR/m7-prodhttp.out"
 
 ```text
 exit=1
-Error: Error reading Expo config at …\app.config.ts:
+Error: Error reading Expo config at <저장소 루트>\app.config.ts:
 
 BACKEND_URL must use https for the production variant (got "http://probe-backend:4321")
-Error: Error reading Expo config at …\app.config.ts:
+Error: Error reading Expo config at <저장소 루트>\app.config.ts:
 
 BACKEND_URL must use https for the production variant (got "http://probe-backend:4321")
-    at assertBackendUrlAllowed (file:///…/lib/config/app-variant.ts:67:11)
-    at appConfig (…\app.config.js:24:50)
+    at assertBackendUrlAllowed (file:///<저장소 루트>/lib/config/app-variant.ts:67:11)
+    at appConfig (<저장소 루트>\app.config.js:24:50)
 ```
 
 출력은 16줄이고 이하 8줄은 Expo·Node 내부 프레임이다.
@@ -295,7 +298,7 @@ head -6 "$TMPDIR/m7-nostrip.out"
 strip
 false
 exit=1
-SyntaxError: Error reading Expo config at …\app.config.ts:
+SyntaxError: Error reading Expo config at <저장소 루트>\app.config.ts:
 
 Unexpected identifier 'as'
 SyntaxError: Unexpected identifier 'as'
@@ -469,7 +472,7 @@ props와 테마 이름(`light`·`dark`)을 더한다. 그래서 새 체크아웃
 
 | # | 저장소 위치(경로 길이) | 링커 | 결과 |
 | --- | --- | --- | --- |
-| 1 | 이 머신의 저장소 위치(74자) | isolated | 실패, 3m 35s — `configureCMakeRelWithDebInfo[arm64-v8a]` 두 개 |
+| 1 | `<저장소 루트>`(74자) | isolated | 실패, 3m 35s — `configureCMakeRelWithDebInfo[arm64-v8a]` 두 개 |
 | 2 | 같은 저장소를 `subst X:`로 드라이브 루트에 매핑(`X:\`) | isolated | 실패, 1초 — prebuild |
 | 3 | 저장소의 부모 폴더를 `subst X:`로 매핑(`X:\template-typescript-expo`, 27자) | isolated | 실패, 12초 — `generateCodegenSchemaFromJavaScript` 네 개 |
 | 4 | 74자 | hoisted | 실패, 1m 23s — `buildCMakeRelWithDebInfo` 두 개 |
@@ -505,7 +508,7 @@ Error: Couldn't find "package.json" up from path "X:\"
 
 ```text
 Execution failed for task ':react-native-gesture-handler:generateCodegenSchemaFromJavaScript'.
-> this and base files have different roots: X:\template-typescript-expo\node_modules\.pnpm\@react-native+codegen@0.86._88ef50d3e46a14e4cb3ce2c2b07db85d\node_modules\@react-native\codegen\lib\cli\combine\combine-js-to-schema-cli.js and …\node_modules\.pnpm\react-native-gesture-handle_b36ab204c3e9e0e9b3fd57438cb099df\node_modules\react-native-gesture-handler\android.
+> this and base files have different roots: X:\template-typescript-expo\node_modules\.pnpm\@react-native+codegen@0.86._88ef50d3e46a14e4cb3ce2c2b07db85d\node_modules\@react-native\codegen\lib\cli\combine\combine-js-to-schema-cli.js and <저장소 루트>\node_modules\.pnpm\react-native-gesture-handle_b36ab204c3e9e0e9b3fd57438cb099df\node_modules\react-native-gesture-handler\android.
 ```
 
 `react-native-safe-area-context`·`react-native-screens`·`react-native-svg`도 같다. `node_modules`의 링크는 상대 경로 symlink라
@@ -517,7 +520,7 @@ Execution failed for task ':react-native-gesture-handler:generateCodegenSchemaFr
 
 ```text
 Execution failed for task ':react-native-worklets:buildCMakeRelWithDebInfo[arm64-v8a][worklets]'.
-> com.android.ide.common.process.ProcessException: ninja: Entering directory `…\node_modules\react-native-worklets\android\.cxx\RelWithDebInfo\6x1k4z1o\arm64-v8a'
+> com.android.ide.common.process.ProcessException: ninja: Entering directory `<저장소 루트>\node_modules\react-native-worklets\android\.cxx\RelWithDebInfo\6x1k4z1o\arm64-v8a'
   …
   ninja: error: manifest 'build.ninja' still dirty after 100 tries
 ```
@@ -567,7 +570,7 @@ APK를 만들려면 커밋 대상 파일을 47자 이하의 경로에 복사해 
 > Task :app:assembleRelease
 BUILD SUCCESSFUL in 5m 3s
 612 actionable tasks: 612 executed
--rw-r--r-- 1 jwshin 197609 102792486 Sep 30 11:57 android/app/build/outputs/apk/release/app-release.apk
+-rw-r--r-- 1 <user> <group> 102792486 Sep 30 11:57 android/app/build/outputs/apk/release/app-release.apk
 ```
 
 APK는 102,792,486바이트다(`reactNativeArchitectures=armeabi-v7a,arm64-v8a,x86,x86_64`, `newArchEnabled=true`, `hermesEnabled=true`).
@@ -782,7 +785,7 @@ exit=0
 ### `maestro test`
 
 `maestro test`는 에뮬레이터를 찾아(`Running on Pixel_9_API_36`) 명령마다 `COMPLETED`·`FAILED`를 낸다. 단언이 실패하면 exit 1, 옵션 오류는 exit 2다. 실행하는 동안 기기에서
-`Maestro` 태그의 프로세스(드라이버)가 돌고, 끝난 뒤 `adb shell pm list packages`에는 `maestro`가 남지 않는다.
+`Maestro` 태그의 프로세스(드라이버)가 돌고, 끝난 뒤 `adb shell pm list packages`에는 `maestro`가 남지 않는다 - 관찰(명령 기록 없음).
 
 ### 플로를 쓸 때 걸린 것
 
@@ -802,6 +805,8 @@ exit=0
 Parsing Failed at C:\syntax-checker:8:38
 exit=1
 ```
+
+위 출력은 고치기 전 플로의 것이다. 3d16db5에 커밋된 `test/e2e/measure/m4-health.yaml`은 값을 큰따옴표로 감싼 줄(아래)을 담고 있어 같은 명령이 `OK`를 낸다.
 
 줄:칸은 플로마다 다르고(`8:57` · `8:53` · `8:40` · `8:38` · `15:38`) 모두 문자열 안의 `: `(콜론과 공백)을 가리킨다. 따옴표 없는 YAML 스칼라 안의 `: `는 매핑으로 읽힌다. 값을
 큰따옴표로 감싸면 `OK`(exit 0)이고 스칼라의 내용은 같다.
@@ -903,7 +908,7 @@ Add the following to your Expo config
 ```
 
 패키지를 설치한 뒤에 exit 1로 끝난다. `app.json`은 만들어지지 않았고, `package.json`에 한 줄, `pnpm-lock.yaml`에 `expo-localization@57.0.2`와 `rtl-detect@1.1.2`(20줄)가 더해졌다.
-`pnpm-workspace.yaml`은 그대로다(릴리스 후 하루가 지난 버전이다). 설정 플러그인은 더하지 않았다. 아래 M3 절대로 앱별 언어가 플러그인 없이 동작한다.
+`pnpm-workspace.yaml`은 그대로다(릴리스 후 하루가 지난 버전이다). 설정 플러그인은 더하지 않았다. 아래 M3 절에서 보듯 앱별 언어가 플러그인 없이 동작한다.
 
 ### 계측 화면과 플로
 
@@ -956,7 +961,7 @@ Android Bundled 8138ms node_modules\expo-router\entry.js (1475 modules)
 BUILD SUCCESSFUL in 5m 49s
 612 actionable tasks: 612 executed
 APK 의 앱 설정: extra.appVariant=e2e
--rw-r--r-- 1 jwshin 197609 102809734 Sep 30 16:23 android/app/build/outputs/apk/release/app-release.apk
+-rw-r--r-- 1 <user> <group> 102809734 Sep 30 16:23 android/app/build/outputs/apk/release/app-release.apk
 Performing Streamed Install
 Success
 ```
@@ -1044,6 +1049,7 @@ M2 cold raw deep link params: {"filter[status]":"active","sort":"-createdAt"}
 ### 정한 것
 
 - **M2 = 예.** 대괄호 키를 위한 인코딩 규칙은 `lib/resources`에 두지 않는다. 필터·정렬 키를 그대로 라우트 파라미터에 쓴다(스펙 8.2의 첫 갈래).
+- 중첩 대괄호 키(`filter[title][contains]`)는 인코딩한 링크(`%5B`·`%5D`)와 `router.setParams`로만 확인했다. 인코딩하지 않은 링크로 보낸 것은 `filter[status]` 하나였다.
 - 이 절이 재지 않은 것: 값에 든 `&`·`=`·`+`·`#`·비ASCII, 같은 키가 두 번 나오는 링크, `router.push`·`Link`의 `params`가 만드는 URL, iOS.
 
 ## M6 — 요청 타임아웃
@@ -1069,7 +1075,7 @@ exit=1
 M6 abort: Error 2023ms
 ```
 
-요청은 2초 타이머에 2,023ms에 거절됐고(`resolved`가 아니다) 15초를 기다리지 않았다. 그러므로 abort는 요청을 실제로 끊는다. 플로의 마지막 단언은 `AbortError`를 요구해서 실패했다 — 던져진 오류의 이름이
+요청은 2초 타이머에 2,023ms에 거절됐고(`resolved`가 아니다) 15초를 기다리지 않았다. 그러므로 abort는 JS 쪽 요청을 거절시킨다. 소켓이 닫혔는지는 관찰하지 못했다 - 소스로는 `request.cancel()`이 OkHttp `Call`을 취소한다(아래). 플로의 마지막 단언은 `AbortError`를 요구해서 실패했다 — 던져진 오류의 이름이
 `Error`이기 때문이다. 플로 파일은 이 단언을 그대로 둔다.
 
 **이 앱의 `fetch`는 `expo/fetch`다.** SDK 57의 winter 런타임이 RN의 폴리필을 덮어쓴다. `EXPO_PUBLIC_USE_RN_FETCH`가 `1`이나 `true`일 때만 RN 것을 쓴다.
@@ -1084,7 +1090,7 @@ if (!useRnFetch) {
 }
 ```
 
-APK의 Hermes 번들(`unzip -p app-release.apk assets/index.android.bundle | grep -a -c …`)에 `ExpoFetchModule` · `fetch failed` · `NativeRequest` · `EXPO_PUBLIC_USE_RN_FETCH`가 각각 들어 있다.
+APK의 Hermes 번들(`unzip -p app-release.apk assets/index.android.bundle | grep -a -c …`)에 `ExpoFetchModule` · `fetch failed` · `NativeRequest` · `EXPO_PUBLIC_USE_RN_FETCH`가 각각 들어 있다 - 관찰(명령 기록 없음).
 `node_modules/expo`의 소스를 읽으면 abort는 이렇게 흐른다: `fetch.ts`가 `signal`의 `abort` 이벤트에서 `response.abort(signal.reason)`과 `request.cancel()`을 부른다. Android
 `NativeRequest.cancel()`이 OkHttp `Call`을 취소하고 `emitRequestCanceled()`로 응답을 `ERROR_RECEIVED`(`FetchRequestCanceledException`, "Fetch request has been canceled")로 만들어 진행 중이던
 `start`가 거절된다. `fetch.ts`는 그 거절을 `FetchError.createFromError`로 감싼다. `FetchError`는 `Error`를 확장하지만 `name`을 바꾸지 않고 메시지를 `fetch failed: <원인>`으로 만든다.
@@ -1092,7 +1098,7 @@ APK의 Hermes 번들(`unzip -p app-release.apk assets/index.android.bundle | gre
 
 ### `request()`의 15초 타임아웃
 
-`lib/jsonapi/client.ts`의 `REQUEST_TIMEOUT_MS`(15초)를 같은 경로로 기기에서 쟀다. 우리 compose 프로젝트의 API 컨테이너만 잠시 멈췄다. 멈춘 컨테이너는 연결을 받고(Docker가 포트를 열어 둔다) 응답하지 않는다.
+`lib/jsonapi/client.ts`의 `REQUEST_TIMEOUT_MS`(15초)를 같은 경로로 기기에서 쟀다. 우리 compose 프로젝트의 API 컨테이너만 잠시 멈췄다. 멈춘 컨테이너는 연결을 받고(Docker가 포트를 열어 둔다) 응답하지 않는다고 본다 - 관찰(명령 기록 없음). 기록된 것은 `curl`이 3초 뒤 exit 28로 끝났다는 것뿐이고, 연결 단계와 응답 단계 중 어디서 멈췄는지는 가르지 않았다.
 
 ```bash
 docker pause template-typescript-expo-e2e-api-fastapi-1
@@ -1113,8 +1119,9 @@ http_code=200
 9
 ```
 
-플로가 끝난 화면의 `probe-health-result`는 `fail 0 REQUEST_TIMEOUT`이다. Maestro 디버그 출력의 명령별 시간에서 `probe-health`를 누른 다음 결과를 기다린 단계가 15,021ms였다
-(`launchApp` 1,918 · 홈 대기 958 · `openLink` 1,246 · `tapOn` 2,143 · 결과 대기 15,021). `REQUEST_TIMEOUT_MS`(15,000ms)와 21ms 차이다.
+플로가 끝난 화면의 `probe-health-result`는 `fail 0 REQUEST_TIMEOUT`이다. Maestro 디버그 출력의 명령별 시간에서 `probe-health`를 누른 다음 결과를 기다린 `extendedWaitUntil` 단계가 15,021ms였다
+(`launchApp` 1,918 · 홈 대기 958 · `openLink` 1,246 · `tapOn` 2,143 · 결과 대기 15,021). 이 숫자는 그 대기 단계의 길이이지 요청의 시간이 아니다 - 요청이 나간 시각과 화면이 바뀐 시각을 따로
+재지 않았다. `REQUEST_TIMEOUT_MS`(15,000ms) 타이머가 걸렸다는 것까지가 관찰이다.
 
 ### `cache` 옵션은 무시된다 (소스 확인)
 
@@ -1136,14 +1143,34 @@ http_code=200
   118–133행)를 쓰고 요청에 `cachePolicy`를 주지 않는다(`ExpoURLSessionTask.swift` 24–41행). 둘 다 요청의 `cache` 옵션이 아니라 응답 헤더(`Cache-Control` 등)를 따른다. 세 백엔드가 응답에
   어떤 캐시 헤더를 싣는지는 재지 않았다.
 
+### 취소가 거절되는 경로 (소스 확인)
+
+M6이 기기에서 잰 것은 응답 헤더가 오기 전의 취소(블랙홀 서버)뿐이다. 본문을 읽는 도중의 취소는 재지 않았고 설치된 소스로 읽었다. 기기에서 잰 것이 아니다.
+
+- **응답 헤더 전.** `node_modules/expo/src/winter/fetch/fetch.ts` 80–85행의 abort 리스너가 `response.abort(signal?.reason)`과 `request.cancel()`을 부르고, 진행 중이던 `request.start`가 거절된다(87–93행).
+  그 오류는 `FetchError`다(`FetchErrors.ts` 1–11행 - `Error`를 확장하고 `name`을 바꾸지 않는다). M6이 잰 경우다.
+- **본문을 스트림(`response.body`)으로 읽는 중.** `FetchResponse.abort()`(`FetchResponse.ts` 183–200행)가 스트림 컨트롤러를 `AbortError`로 거절한다. `signal.reason`이 없으면 새로 만드는데(185–189행),
+  RN이 까는 `abort-controller` 3.0.0 폴리필(`react-native/Libraries/Core/setUpXHR.js` 37–44행)은 `reason`을 만들지 않는다(`dist/abort-controller.js`에 `reason`이 없다). expo의 자체 시험이 이 경우를 고정한다
+  (`fetch/__tests__/FetchResponse-test.ts` 141–162행).
+- **`response.json()`은 스트림이 아니다.** `json()`(`FetchResponse.ts` 397–401행)은 `text()`(421–431행)를 거쳐 네이티브 `text`를 부르고, 네이티브는 본문이 다 올 때(`BODY_COMPLETED`)까지 기다린다
+  (Android `ExpoFetchModule.kt` 115–121행, iOS `ExpoFetchModule.swift` 81–87행). 스트림(`get body()`, 281행)을 만든 적이 없으면 `abort()`가 거절할 스트림이 없다.
+  - **Android.** 취소되면 `NativeResponse.emitRequestCanceled()`가 상태를 `ERROR_RECEIVED`로 만들고(`NativeResponse.kt` 78–85행), 본문 펌프(194–224행)가 `IOException`을 잡거나 잘못된 상태에서 `break`한 뒤
+    어느 쪽이든 끝나면 `BODY_COMPLETED`로 넘어간다(143–160행, 158행). 그러면 `text()`가 읽은 만큼의 본문으로 끝나고 `JSON.parse`가 실패해 `json()`이 거절된다.
+  - **iOS.** `emitRequestCanceled()`가 상태를 `.errorReceived`로 만들고(`NativeResponse.swift` 62–70행), `ExpoURLSessionTask.cancel`이 delegate를 먼저 떼므로(`ExpoURLSessionTask.swift` 48–53행,
+    `expo-modules-core/ios/DevTools/URLSessionSessionDelegateProxy.swift` 21–25행·44–52행) 상태가 `.bodyCompleted`로 갈 길이 없다. 그러면 헤더를 받은 뒤 본문이 멈춘 요청의 `json()`은
+    취소나 타임아웃 뒤에도 끝나지 않을 수 있다.
+- **그래서.** `lib/jsonapi/client.ts`의 `REQUEST_TIMEOUT_MS` 주석은 타임아웃이 연결·응답 대기·본문 읽기를 모두 덮는다고 적는다. 소스로는 Android에서 뒷받침되고 iOS에서는 위 경로가 걸린다.
+  재지 않았다 - iOS를 재는 CI 계획이 헤더 뒤에 본문이 멈추는 서버로 타임아웃을 함께 재야 한다.
+
 ### 정한 것
 
-- **M6 = 예.** 타이머와 `AbortController`로 거는 타임아웃이 요청을 끊는다. `REQUEST_TIMEOUT_MS`는 15초로 둔다(스펙 8.5).
-- **취소를 오류 이름으로 가르지 않는다.** SDK 57의 `fetch`는 취소를 `AbortError`가 아니라 `Error`로 던진다. `lib/jsonapi/client.ts`의 `exchange()`는 `catch`에서 `timedOut()` 플래그로
-  `REQUEST_TIMEOUT`을 가르므로 이름에 기대지 않는다. 다른 호출자가 `error.name === 'AbortError'`로 취소를 가르면 이 앱에서는 맞지 않는다.
+- **M6 = 예.** 타이머와 `AbortController`로 거는 타임아웃이 요청을 거절시킨다(JS 쪽에서 관찰했다). `REQUEST_TIMEOUT_MS`는 15초로 둔다(스펙 8.5).
+- **취소를 오류 이름으로 가르지 않는다.** SDK 57의 `fetch`는 응답 헤더 전의 취소를 `AbortError`가 아니라 `Error`로 던진다(본문을 스트림으로 읽는 중의 취소는 `AbortError`다 - 위 소스 확인 절).
+  `lib/jsonapi/client.ts`의 `exchange()`는 `catch`에서 `timedOut()` 플래그로 `REQUEST_TIMEOUT`을 가르므로 이름에 기대지 않는다. 다른 호출자가 `error.name === 'AbortError'`로 취소를 가르면
+  이 앱에서는 단계에 따라 맞지 않는다.
 - 스펙이 "RN fetch"라고 부른 것은 이 앱에서는 `expo/fetch`다. RN 폴리필(`EXPO_PUBLIC_USE_RN_FETCH=1`)의 동작은 재지 않았다.
 - **`request()`는 `cache`를 계속 넘기지 않는다.** 이유가 바뀌었을 뿐이다 - `expo/fetch`가 `cache`를 읽지 않고, RN 폴리필로 되돌려도 URL이 바뀐다(위 소스 확인 절). 스펙 6.2·15장에 정정을 더했다.
-- 이 절이 재지 않은 것: 본문을 읽는 도중의 타임아웃, 호출자 `signal`이 끊은 요청의 화면 결과, 오류 메시지 원문, iOS.
+- 이 절이 재지 않은 것: 본문을 읽는 도중의 타임아웃(소스를 읽은 결과와 iOS의 우려는 위 소스 확인 절에 있다), 호출자 `signal`이 끊은 요청의 화면 결과, 오류 메시지 원문, iOS.
 
 ## M3 — 기기 로캘
 
@@ -1178,7 +1205,8 @@ exit=2
 ```
 
 둘 다 같다(`--no-ansi`도 함께 주었다). `maestro test --help`의 옵션 목록에 `--device-locale`이 없다. 이 옵션은 `maestro start-device`(`--device-locale`은 `de_DE` 형식, 새 에뮬레이터·시뮬레이터를 만들거나
-띄우는 명령이고 `--force-create`는 같은 이름의 기기를 덮어쓴다)에만 있다. 이미 떠 있는 `Pixel_9_API_36`의 로캘을 바꾸는 용도가 아니어서 실행하지 않았다.
+띄우는 명령이고 `--force-create`는 같은 이름의 기기를 덮어쓴다)에만 있다. 이미 떠 있는 `Pixel_9_API_36`의 로캘을 바꾸는 용도가 아니어서 실행하지 않았다. 이 문단의 `--help` 목록과 `start-device` 설명은
+관찰(명령 기록 없음)이고, 기록된 근거는 위 `Unknown option` 출력(`Possible solutions`에 `--device-locale`이 없다)뿐이다.
 
 ### 방법 2 — Android 13+ 앱별 언어
 
@@ -1225,7 +1253,7 @@ Locales for com.example.templateexpo.e2e for user 0 are [ko-KR]
 | `ko-KR`(대조) | `en-US` | `ko-KR,en-US` | 실패, exit 1 — 단언이 걸러낸다 |
 | 없음(`set-app-locales`에 `--locales` 없이) | `en-US` | `en-US` | 통과, exit 0 |
 
-앱별 언어가 `getLocales()`의 맨 앞에 오고 시스템 로캘이 뒤따른다. 이 과정에서 시스템 로캘은 바뀌지 않았다. 빌드된 매니페스트에는 `localeConfig`가 없다(`expo-localization` 설정 플러그인을 더하지 않았다).
+앱별 언어가 `getLocales()`의 맨 앞에 오고 시스템 로캘이 뒤따른다. 이 과정에서 시스템 로캘은 바뀌지 않았다. 빌드된 매니페스트에는 `localeConfig`가 없다(`expo-localization` 설정 플러그인을 더하지 않았다) - 관찰(명령 기록 없음).
 
 ### 방법 3 — 시스템 로캘(root)
 
@@ -1244,7 +1272,7 @@ See dmesg for error reason.
 exit=1
 ```
 
-이 이미지는 `user` 빌드(`ro.debuggable=0`, `ro.secure=1`)라 root가 안 된다. `adb root`는 거절하고도 exit 0이어서 `&&`가 뒤를 막지 못했다. 뒤의 `setprop` 둘은 shell 사용자(uid 2000)라 거부됐고 아무것도 바뀌지 않았다.
+이 이미지는 `user` 빌드(`ro.build.type`과 `ro.debuggable=0`은 위 명령의 출력이고 `ro.secure=1`은 관찰(명령 기록 없음))라 root가 안 된다. `adb root`는 거절하고도 exit 0이어서 `&&`가 뒤를 막지 못했다. 뒤의 `setprop` 둘은 shell 사용자(uid 2000)라 거부됐고 아무것도 바뀌지 않았다.
 
 ### 되돌린 상태
 
@@ -1265,10 +1293,10 @@ Locales for com.example.templateexpo.e2e for user 0 are []
 ### 정한 것
 
 - **M3(Android) = 예.** 방법 2(앱별 언어)로 정한다. E2E 하네스는 `adb shell cmd locale set-app-locales <패키지> --locales <태그>`로 로캘이 다른 두 실행을 만든다(스펙 9.4·11.3).
-- **순서.** 상태 지우기(`pm clear`) → `set-app-locales` → 앱 실행. `pm clear`가 앱별 언어를 지우므로 로캘 플로는 `clearState`를 쓰지 않는다. Maestro 플로는 adb를 부를 수 없어서 `pm clear`와 `set-app-locales`는
-  플로를 시작하는 하네스 스크립트가 맡는다.
+- **순서.** 상태 지우기(`pm clear`) → `set-app-locales` → 앱 실행. `pm clear`가 앱별 언어를 지우므로 로캘 플로는 `clearState`를 쓰지 않는다. Maestro 플로에서 adb를 부르는 방법은 찾지 못해서(관찰, 명령 기록 없음)
+  `pm clear`와 `set-app-locales`는 플로를 시작하는 하네스 스크립트가 맡는다.
 - **`getLocales()` 모양.** 한국어 실행은 `ko-KR,en-US`, 영어 실행은 `en-US` 하나다. 두 실행에서 `getLocales()`로 만드는 `Accept-Language`가 다르게 나온다.
-- `expo-localization` 설정 플러그인은 더하지 않는다.
+- `expo-localization` 설정 플러그인은 더하지 않는다(Android에서 잰 결과다. iOS는 재지 못했다).
 - 이 절이 재지 않은 것: iOS의 `-AppleLanguages` 실행 인자(CI), 앱이 켜진 채 로캘을 바꿨을 때 화면이 다시 그려지는지, 시스템 로캘이 `en-US`가 아닌 기기.
 
 ## 함께 관찰한 것 (기기 실측)

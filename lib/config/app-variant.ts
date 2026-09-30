@@ -3,6 +3,8 @@
  *
  * app.config.ts(빌드 시점, node)와 테스트가 함께 쓰는 순수 모듈이다. 네이티브 모듈을
  * import 하지 않는다(스펙 5장).
+ * app.config.ts 가 Node 의 type stripping 으로 직접 실행한다 - 타입만 지우면 도는 구문만 쓰고
+ * import 에는 `.ts` 확장자를 붙인다(lib/config/AGENTS.md).
  */
 
 export const APP_VARIANTS = ['development', 'preview', 'production', 'e2e'] as const

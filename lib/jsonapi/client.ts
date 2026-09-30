@@ -200,11 +200,10 @@ export async function request<T>(
       method: options.method ?? 'GET',
       headers,
     }
-    // cache 를 넘기지 않는다 - 이 앱의 전역 fetch 는 expo/fetch 라서(SDK 57 기본값) init.cache 를
-    // 읽지 않아 넘겨도 무시되고, RN 에는 Next.js 서버 fetch 의 데이터 캐시가 없다(캐시는 TanStack
-    // Query 가 소유한다 - template-typescript-expo 스펙 8.5). EXPO_PUBLIC_USE_RN_FETCH 로 RN 의
-    // polyfill(whatwg-fetch)을 되살리면 no-store 인 GET 의 URL 끝에 `_=<시각>` 이 붙는데, 요청 URL 은
-    // 백엔드의 쿼리 문법 검사를 거치므로 바뀌면 안 된다. signal 은 아래에서 타임아웃과 합쳐 싣는다.
+    // cache 를 넘기지 않는다 - 앱의 전역 fetch(SDK 57 의 expo/fetch)는 cache 를 읽지 않고, RN 폴리필
+    // (EXPO_PUBLIC_USE_RN_FETCH=1)은 cache 가 no-store·no-cache 인 GET·HEAD 의 URL 끝에 `_=<시각>` 을
+    // 붙인다. 어느 쪽이든 캐시 정책은 TanStack Query 가 소유하므로 넘기지 않는다
+    // (template-typescript-expo 스펙 8.5). signal 은 아래에서 타임아웃과 합쳐 싣는다.
     if (options.body !== undefined) {
       headers.set('content-type', JSONAPI_MEDIA_TYPE)
       init.body = JSON.stringify(options.body)

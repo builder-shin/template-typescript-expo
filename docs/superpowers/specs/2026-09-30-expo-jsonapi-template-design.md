@@ -179,6 +179,10 @@ docs/superpowers/specs/ · plans/ · notes/
 
 `android/`·`ios/`는 커밋하지 않는다(10.4).
 
+> 정정(2026-09-30, D1): 트리에 `components/app/` 이 없다 - 앱 전체에 걸린 화면 조각(시작 설정 오류
+> 화면 `FatalConfig` 등)을 두는 디렉터리다. React Native Reusables 복사본(`ui/`)도 자원 UI(`resource/`)도
+> 아니어서 따로 뒀다. 소유 규칙은 루트 `AGENTS.md` 의 표에 있다.
+
 ## 5. 계층 소유권
 
 | 위치 | 소유하는 것 | 소유하지 않는 것 |
@@ -255,13 +259,13 @@ docs/superpowers/specs/ · plans/ · notes/
 그것들의 테스트. `lib/utils.ts`는 React Native Reusables가 자기 `cn`을 가져오므로
 복사하지 않는다.
 
-> 정정(2026-09-30, D1): "복사한 뒤 고치는 것" 표의 `lib/jsonapi/client.ts` 행이 "RN fetch"라 부른 것은
-> 이 앱에서 `expo/fetch` 다. SDK 57 의 winter 런타임이 전역 `fetch` 를 바꿔 끼우고
-> (`EXPO_PUBLIC_USE_RN_FETCH` 가 1·true 일 때만 RN 의 whatwg-fetch 폴리필이 남는다), `expo/fetch` 는
-> `init` 에서 `cache` 를 읽지 않는다. 그래서 `cache: 'no-store'` 를 넘겨도 무시된다. RN 에는 Next.js
-> 서버의 fetch 가 참조하는 데이터 캐시가 없고 캐시는 TanStack Query 가 소유하므로(8.5) `cache` 를 빼는
-> 결정은 그대로다. 이유의 사실 문장은 `docs/provenance/copied-core.json` 의 `lib/jsonapi/client.ts`
-> 이탈 기록에 있다.
+> 정정(2026-09-30, D1): "복사한 뒤 고치는 것" 표의 `lib/jsonapi/client.ts` 행은 "`cache: 'no-store'`는
+> RN fetch에 해당하지 않는다"고 적었다. 앱의 전역 `fetch` 는 RN 의 폴리필이 아니라 SDK 57 의
+> `expo/fetch` 다(winter 런타임이 바꿔 끼운다. `EXPO_PUBLIC_USE_RN_FETCH=1` 일 때만 RN 의 whatwg-fetch
+> 폴리필이 남는다). `expo/fetch` 는 `cache` 를 읽지 않아 넘겨도 무시되고, RN 폴리필은 no-store 인 GET 의
+> URL 에 `_=<시각>` 을 붙인다. 어느 쪽이든 캐시 정책은 TanStack Query 가 소유하므로(8.5) `cache` 를
+> 넘기지 않는 결정은 그대로다. 사실 문장과 소스의 파일·줄은 `docs/provenance/copied-core.json` 의
+> `lib/jsonapi/client.ts` 이탈 기록과 실측 기록 M6 에 있다.
 
 ### 6.3 출처 기록과 검사
 
@@ -673,13 +677,14 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 **로캘 전환:** Android는 앱별 언어(`cmd locale set-app-locales`), iOS는 실행
 인자(`-AppleLanguages`)로 바꾼다. 실제로 되는지는 0단계에서 실측한다.
 
-> 정정(2026-09-30, D1): Android 는 앱별 언어로 성립했다(실측 M3) -
+> 정정(2026-09-30, D1): 스펙이 적은 Android 앱별 언어가 성립했다(실측 M3) -
 > `adb shell cmd locale set-app-locales <패키지> --locales <태그>` 를 주면 앱의 `getLocales()` 가 그 태그를
-> 앞세우고 시스템 로캘이 뒤따른다. Maestro 2.11 의 `maestro test` 에는 `--device-locale` 옵션이 없고
-> (`Unknown option`, exit 2), 시스템 로캘을 바꾸는 길은 `user` 빌드 이미지에서 root 가 막혀 쓸 수 없다.
-> Maestro 플로는 adb 를 부를 수 없으므로 `pm clear` → `set-app-locales` → 앱 실행 순서는 플로를 시작하는
-> 하네스 스크립트가 맡는다. 그리고 로캘 플로에는 `clearState` 를 쓰지 않는다 - `clearState` 는 `pm clear` 라서
-> 앱별 언어까지 지운다. iOS 의 `-AppleLanguages` 는 개발 머신이 Windows 라 재지 못했다(CI 가 잰다).
+> 앞세우고 시스템 로캘이 뒤따른다. 순서가 중요하다: `pm clear` 는 앱별 언어를 지우고 Maestro 의
+> `clearState` 도 그렇다. 그래서 `pm clear` → `set-app-locales` → 앱 실행 순서로 하고 로캘 플로에는
+> `clearState` 를 쓰지 않는다. Maestro 플로에서 adb 를 부르는 방법은 찾지 못해서 그 순서는 플로를 시작하는
+> 하네스 스크립트가 맡는다. `maestro test --device-locale` 은 `Unknown option`(exit 2)이었다. 시스템 로캘을
+> `adb root`·`setprop` 으로 바꾸는 길은 `user` 빌드 이미지에서 root 가 막혀 안 됐다. iOS 의
+> `-AppleLanguages` 는 개발 머신이 Windows 라 재지 못했다(CI 가 잰다).
 
 ### 11.4 E2E 스택
 
@@ -724,6 +729,11 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
   빠졌는지 알리고 멈춘다.
 - 스크립트의 실행 권한(`100755`)은 `git ls-tree`로 확인한다 —
   `core.filemode=false`인 머신에서는 권한이 빠져도 `git status`에 드러나지 않는다.
+
+> 정정(2026-09-30, D1): Windows 개발 머신에서 13단계의 e2e APK 빌드는 pnpm `nodeLinker: hoisted`
+> (3장의 정정)와 **실제 디렉터리 경로 47자 이하**의 저장소(16장의 정정)가 필요하다. 로컬 게이트가
+> Windows 에서 13단계까지 돌려면 두 조건을 만족하는 작업 트리가 있어야 한다. `test/e2e/android.sh` 는
+> 경로 길이를 검사하지 않는다.
 
 ## 13. CI (GitHub Actions)
 
@@ -805,8 +815,12 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 각 실측 결과는 `docs/superpowers/notes/`에 남기고, 설계와 어긋나면 이 문서에
 날짜가 붙은 정정을 덧붙인다.
 
-> 정정(2026-09-30, D1): 위 6번의 "RN fetch"는 이 앱에서 `expo/fetch` 다(6.2의 정정). `AbortController`
-> 로 건 타임아웃이 요청을 실제로 끊는다는 결과는 그대로다(실측 M6).
+> 정정(2026-09-30, D1): 위 6번의 "RN fetch"는 이 앱에서 `expo/fetch` 다(6.2의 정정). 타이머와
+> `AbortController` 로 건 타임아웃이 요청을 거절시킨다는 결과는 그대로다(실측 M6: 응답 헤더 전의 취소를
+> Android 에서 쟀다). 취소가 거절되는 모양은 단계마다 다르다 - 요청 단계는 `AbortError` 가 아니라
+> `Error`(`FetchError`), 본문을 스트림으로 읽는 중은 `AbortError` 다. `request()` 가 쓰는 `response.json()`
+> 은 스트림이 아니어서 이 구분 밖이고, 그래서 취소를 오류 이름으로 가르지 않는다. 본문을 읽는 도중의
+> 취소·타임아웃은 재지 못했다(소스를 읽은 결과는 실측 기록 M6).
 
 ## 16. 리스크
 

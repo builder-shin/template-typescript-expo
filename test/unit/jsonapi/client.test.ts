@@ -112,11 +112,11 @@ describe('request — 요청 조립', () => {
     expect(headerOf(lastCall()[1], 'accept-language')).toBe('en')
   })
 
-  it('cache 옵션을 넘기지 않고 URL 을 그대로 둔다', async () => {
-    // 이 앱의 전역 fetch(expo/fetch)는 cache 를 읽지 않으므로 넘겨도 소용이 없다.
-    // EXPO_PUBLIC_USE_RN_FETCH 로 되살리는 RN polyfill(whatwg-fetch 3.6.20)은 Request 가
-    // cache 가 no-store·no-cache 인 GET 의 URL 끝에 `_=<시각>` 을 붙인다(fetch.js:398-407).
-    // JSON:API 요청 URL 은 백엔드의 쿼리 문법 검사를 거치므로 어느 fetch 에서든 바뀌면 안 된다.
+  it('cache 옵션을 넘기지 않는다 - 캐시는 TanStack Query 가 소유한다', async () => {
+    // 앱의 전역 fetch(SDK 57 의 expo/fetch)는 cache 를 읽지 않고, RN 폴리필
+    // (EXPO_PUBLIC_USE_RN_FETCH=1, whatwg-fetch 3.6.20)은 cache 가 no-store·no-cache 인 GET·HEAD 의
+    // URL 끝에 `_=<시각>` 을 붙인다(fetch.js:398-407). 어느 쪽이든 캐시 정책은 TanStack Query 가
+    // 소유하므로 넘기지 않는다(template-typescript-expo 스펙 8.5). URL 이 그대로인 것도 함께 잰다.
     fetchMock.mockResolvedValue(jsonApiResponse(COLLECTION_EMPTY))
     await request('/api/v1/examples')
     expect(lastCall()[1].cache).toBeUndefined()

@@ -53,7 +53,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '
 
 const CITATIONS_SCRIPT_NAME = 'check-citations.sh'
 
-/** Git Bash 는 역슬래시 경로를 이스케이프로 먹어 치운다(실측: `C:Users\rootj…`). */
+/** Git Bash 는 역슬래시 경로를 이스케이프로 먹어 치운다(실측: `C:Users\<사용자>…`). */
 function toPosix(path: string): string {
   return path.split('\\').join('/')
 }
