@@ -280,7 +280,7 @@ BACKEND_URL must use https for the production variant (got "http://probe-backend
 
 ### 누가 `.ts` import를 처리하는가
 
-실패 경로의 스택에서 `settings.ts`와 `app-variant.ts`는 `file:///…/lib/config/*.ts` 프레임으로, 줄 번호는 원본
+실패 경로의 스택에서 `settings.ts`와 `app-variant.ts`는 `file:///<저장소 루트>/lib/config/*.ts` 프레임으로, 줄 번호는 원본
 소스와 같다(`settings.ts:29`는 `throw new Error(`${name} is required`)` 줄, `app-variant.ts:67`은 `throw new Error(`
 줄). `app.config.ts`는 `app.config.js` 프레임으로 나타난다. `@expo/require-utils@57.0.5`의 `loadModuleSync`는
 진입 파일 `app.config.ts` 하나만 프로젝트의 TypeScript로 변환해 `app.config.js`라는 이름으로 평가한다. 그 안의
@@ -486,11 +486,11 @@ props와 테마 이름(`light`·`dark`)을 더한다. 그래서 새 체크아웃
 
 ```text
 Execution failed for task ':react-native-worklets:configureCMakeRelWithDebInfo[arm64-v8a]'.
-> [CXX1428] exception while building Json A problem occurred starting process 'command '…\node_modules\.pnpm\react-native-worklets@0.10._def3c069969de18c77460f611c587fd2\node_modules\react-native-worklets\android\build\intermediates\cxx\RelWithDebInfo\402g4w3c\logs\arm64-v8a\prefab_command.bat''
-Caused by: net.rubygrapefruit.platform.NativeException: Could not start '…\prefab_command.bat'
+> [CXX1428] exception while building Json A problem occurred starting process 'command '<저장소 루트>\node_modules\.pnpm\react-native-worklets@0.10._def3c069969de18c77460f611c587fd2\node_modules\react-native-worklets\android\build\intermediates\cxx\RelWithDebInfo\402g4w3c\logs\arm64-v8a\prefab_command.bat''
+Caused by: net.rubygrapefruit.platform.NativeException: Could not start '<저장소 루트>\…\prefab_command.bat'
 ```
 
-`react-native-screens`도 같은 오류다. 실패한 두 `.bat`의 전체 경로는 279자와 278자다(`…`는 저장소 루트 74자). 같은 빌드의 JS 번들링은
+`react-native-screens`도 같은 오류다. 실패한 두 `.bat`의 전체 경로는 279자와 278자다(`<저장소 루트>`는 74자). 같은 빌드의 JS 번들링은
 성공했다: `Android Bundled 12626ms … (1466 modules)`, `Done writing bundle output`.
 
 **2. `subst X:`(드라이브 루트).** `expo-modules-autolinking`이 프로젝트를 못 찾는다.

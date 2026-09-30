@@ -229,7 +229,8 @@ export async function request<T>(
   }
 
   // 타임아웃과 호출자 signal 을 컨트롤러 하나로 합친다. 어느 쪽이 끊었는지는 timedOut 이
-  // 가른다 - 호출자가 끊은 것은 기존대로 NETWORK_ERROR, 시간이 다 된 것은 REQUEST_TIMEOUT.
+  // 가른다 - 호출자가 끊은 것은 기존대로 NETWORK_ERROR(본문을 읽는 도중이면
+  // NON_JSONAPI_RESPONSE), 시간이 다 된 것은 REQUEST_TIMEOUT.
   const controller = new AbortController()
   let timedOut = false
   const timer: ReturnType<typeof setTimeout> = setTimeout(() => {

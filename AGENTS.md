@@ -34,8 +34,8 @@
 위반의 정의:
 
 - `lib/**`에서 `react`·`react-native`·`expo`·`expo-*`·`@expo/*`·`@react-native*` 등
-  플랫폼 모듈을 import하면 위반이다. ESLint가 막고(정적 import·`export … from`만 잰다 -
-  동적 `import()`·`require()`는 `lib/`에서 쓰지 않는다) `test/unit/lint/lib-boundary.test.ts`가
+  플랫폼 모듈을 import하면 위반이다. ESLint가 막고(정적 import·`export … from`·`import x = require()`만
+  잰다 - 동적 `import()`와 `require()` 호출은 `lib/`에서 쓰지 않는다) `test/unit/lint/lib-boundary.test.ts`가
   그 규칙을 잰다. `lib/`가 node의 vitest에서 그대로 돌아야 복사한 테스트가 유효하다.
 - `lib/jsonapi/`에 이 저장소의 실제 자원 이름 문자열이 코드로 나타나면 위반이다.
 - `lib/resources/*.ts`에 JSX가 있으면 위반이다.
@@ -88,8 +88,8 @@ pnpm install --frozen-lockfile
 머신에서는 권한이 빠져도 `git status`로 드러나지 않는다.
 
 번들 단계는 `expo export --clear`라서 Metro·Uniwind 캐시를 지운다 - 게이트를 돌리기 전에 이 저장소의
-`expo start`를 끈다. 캐시를 두면 Windows에서 `expo export`가 끝날 때 간헐적으로 죽었다(실측 기록 M1
-관찰 8).
+`expo start`를 끈다. 캐시를 두면 이 개발 머신(Windows)에서 `expo export`가 끝날 때 간헐적으로 죽었다(실측 기록
+M1 관찰 8).
 
 secretlint 단계는 `pnpm lint:secrets`다. 스크립트 이름을 `secretlint`로 두면
 `node_modules/.bin/secretlint`를 가려서 의존성 호환 단계(expo-doctor)의 package.json 검사가

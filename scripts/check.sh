@@ -65,8 +65,9 @@ done
 echo "=== [9/11] 의존성 호환 ==="
 BACKEND_URL="$GATE_BACKEND_URL" pnpm exec expo-doctor
 
-# Windows 에서 캐시를 둔 expo export 는 대개 결과를 다 쓴 뒤 종료할 때 간헐적으로 0xC0000005(Git Bash 에서는
-# 139)로 죽었고 --clear 를 주면 죽지 않았다(실측 기록의 M1 관찰 8: 26회 중 13회, 10회 중 0회). 그래서 준다.
+# 이 개발 머신(Windows)에서 캐시를 둔 expo export 는 대개 결과를 다 쓴 뒤 종료할 때 간헐적으로
+# 0xC0000005(Git Bash 에서는 139)로 죽었고 --clear 를 주면 죽지 않았다(실측 기록의 M1 관찰 8: 26회 중
+# 13회, 10회 중 0회). 그래서 준다.
 echo "=== [10/11] 번들 ==="
 APP_VARIANT=production BACKEND_URL="$GATE_BACKEND_URL" pnpm exec expo export --clear --platform android --platform ios --output-dir dist
 

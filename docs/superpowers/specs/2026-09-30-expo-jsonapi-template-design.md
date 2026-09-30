@@ -262,8 +262,8 @@ docs/superpowers/specs/ · plans/ · notes/
 > 정정(2026-09-30, D1): "복사한 뒤 고치는 것" 표의 `lib/jsonapi/client.ts` 행은 "`cache: 'no-store'`는
 > RN fetch에 해당하지 않는다"고 적었다. 앱의 전역 `fetch` 는 RN 의 폴리필이 아니라 SDK 57 의
 > `expo/fetch` 다(winter 런타임이 바꿔 끼운다. `EXPO_PUBLIC_USE_RN_FETCH=1` 일 때만 RN 의 whatwg-fetch
-> 폴리필이 남는다). `expo/fetch` 는 `cache` 를 읽지 않아 넘겨도 무시되고, RN 폴리필은 no-store 인 GET 의
-> URL 에 `_=<시각>` 을 붙인다. 어느 쪽이든 캐시 정책은 TanStack Query 가 소유하므로(8.5) `cache` 를
+> 폴리필이 남는다). `expo/fetch` 는 `cache` 를 읽지 않아 넘겨도 무시되고, RN 폴리필은 no-store·no-cache 인
+> GET·HEAD 의 URL 에 `_=<시각>` 을 붙인다. 어느 쪽이든 캐시 정책은 TanStack Query 가 소유하므로(8.5) `cache` 를
 > 넘기지 않는 결정은 그대로다. 네이티브 HTTP 캐시(Android OkHttp·iOS URLCache)는 응답 헤더를
 > 따른다(미측정 - D2 가 잰다). 사실 문장과 소스의 파일·줄은 `docs/provenance/copied-core.json` 의
 > `lib/jsonapi/client.ts` 이탈 기록과 실측 기록 M6 에 있다.

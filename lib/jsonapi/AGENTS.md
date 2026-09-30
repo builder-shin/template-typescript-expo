@@ -37,11 +37,12 @@
 ## 플랫폼을 모른다
 
 이 디렉터리는 react·react-native·expo를 import하지 않는다(ESLint가 막는다 - 정적 import·
-`export … from`만 잰다. 동적 `import()`·`require()`는 `lib/`에서 쓰지 않는다). 그래서 node의
+`export … from`·`import x = require()`만 잰다. 동적 `import()`와 `require()` 호출은 `lib/`에서
+쓰지 않는다). 그래서 node의
 vitest에서 그대로 돌고, 앱에서는 SDK 57의 `expo/fetch` 위에서 돈다.
 
 - `expo/fetch`는 `cache`를 읽지 않고, RN 폴리필(`EXPO_PUBLIC_USE_RN_FETCH=1`)은 `cache`가
-  no-store인 GET의 URL에 `_=<시각>`을 붙인다. 어느 쪽이든 캐시 정책은 TanStack Query가 소유하므로
+  no-store·no-cache인 GET·HEAD의 URL에 `_=<시각>`을 붙인다. 어느 쪽이든 캐시 정책은 TanStack Query가 소유하므로
   `request()`는 `cache`를 넘기지 않는다(스펙 8.5). 네이티브 HTTP 캐시(Android OkHttp·iOS URLCache)는
   응답 헤더를 따른다(미측정 - D2가 잰다).
 - 취소는 단계마다 다르게 거절된다. 요청 단계의 취소는 `AbortError`가 아니라 `Error`(`FetchError`)이고
