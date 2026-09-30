@@ -11,7 +11,12 @@
   "scripts": {
     "start": "expo start",
     "types:routes": "expo customize tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "secretlint": "secretlint --secretlintignore .gitignore \"**/*\"",
+    "test": "vitest run"
   },
   "dependencies": {
     "expo": "~57.0.26",
@@ -26,7 +31,16 @@
     "react-native-screens": "~4.26.2"
   },
   "devDependencies": {
+    "@secretlint/secretlint-rule-preset-recommend": "13.0.5",
+    "@types/node": "24.13.3",
     "@types/react": "~19.2.18",
-    "typescript": "~6.0.3"
+    "eslint": "9.39.5",
+    "eslint-config-expo": "~57.0.2",
+    "eslint-config-prettier": "10.1.8",
+    "prettier": "3.9.6",
+    "secretlint": "13.0.5",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "8.68.0",
+    "vitest": "5.0.2"
   }
 }
