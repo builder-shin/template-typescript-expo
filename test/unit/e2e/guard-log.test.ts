@@ -92,6 +92,22 @@ describe('test/e2e/guard-log.sh', () => {
     expect(guard([RUNNING, 'E/ReactNativeJS( 4321): probe error']).status).toBe(1)
   })
 
+  it('JS 치명 오류(F)가 있으면 실패한다', () => {
+    expect(guard([RUNNING, 'F/ReactNativeJS( 4321): probe fatal']).status).toBe(1)
+  })
+
+  // 로그를 모으지 못했을 때의 모양 셋이다. 걸릴 줄이 하나도 없어서, 앱의 줄을 요구하지 않으면 아래 검사가
+  // 전부 통과한다 - "가드가 돌았다"와 "가드가 죽었다"가 구별되지 않는다.
+  it.each<[string, readonly string[]]>([
+    ['빈 로그', []],
+    ['adb 오류만 든 로그', ['error: no devices/emulators found']],
+    ['logcat 버퍼 머리 줄만 든 로그', ['--------- beginning of main']],
+  ])('%s는 실패한다 - 앱의 줄(ReactNativeJS)이 없으면 가드가 잰 것이 없다', (_label, lines) => {
+    const run = guard(lines)
+    expect(run.status).toBe(1)
+    expect(run.stderr).toContain('ReactNativeJS')
+  })
+
   it('앱이 치명 오류로 죽으면 실패한다', () => {
     expect(guard([RUNNING, 'E/AndroidRuntime( 4321): FATAL EXCEPTION: main']).status).toBe(1)
   })
@@ -117,6 +133,12 @@ describe('test/e2e/guard-log.sh', () => {
       httpFailureLine('POST', '/api/v1/auth/login', 0, [{ code: 'NETWORK_ERROR' }]),
     )
     expect(guard([RUNNING, unreachable]).status).toBe(1)
+  })
+
+  it('선언한 HTTP 실패가 기기 로그에 없으면 실패한다 - 플로가 더는 일으키지 않는 선언을 남기지 않는다', () => {
+    const run = guard([RUNNING], '409')
+    expect(run.status).toBe(1)
+    expect(run.stderr).toContain('409')
   })
 
   it('상태가 둘이면 둘 다 선언해야 통과한다', () => {

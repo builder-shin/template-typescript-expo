@@ -15,7 +15,7 @@
 #   E2E_STAGE_DIR     Windows 에서 저장소 경로가 길 때 빌드할 짧은 경로. 기본 C:/t/e
 #   E2E_FORCE_BUILD   1 이면 빌드 입력이 같아도 APK 를 다시 만든다
 #   E2E_FLOW          돌릴 플로 이름(공백으로 구분, 확장자 없이). 비우면 전부 - 게이트는 비우고 부른다
-#   MAESTRO           Maestro 실행 파일. 기본은 PATH 의 maestro, 없으면 ~/.maestro/bin/maestro
+#   MAESTRO           Maestro 실행 파일. 기본은 PATH 의 maestro, 없으면 ~/.maestro/bin/maestro. 2.11.x 여야 한다
 #
 # ## 플로 머리말
 #
@@ -69,8 +69,14 @@ docker info >/dev/null 2>&1 || fail "Docker 데몬에 닿지 못한다 - Docker 
 readonly ADB="$ANDROID_HOME/platform-tools/adb"
 "$ADB" version >/dev/null 2>&1 || fail "adb 를 실행하지 못한다: $ADB"
 MAESTRO="${MAESTRO:-$(command -v maestro || printf '%s' "$HOME/.maestro/bin/maestro")}"
-"$MAESTRO" --version >/dev/null 2>&1 ||
+# 이 하네스와 플로가 기대는 Maestro 의 동작 - 사용 통계를 끄는 MAESTRO_CLI_NO_ANALYTICS, 글자마다 키 이벤트를
+# 보내는 inputText(아래 "입력기" 절) - 은 2.11.0 에서 쟀다. 다른 판이면 돌리지 않는다.
+maestro_version=$("$MAESTRO" --version 2>/dev/null | tr -d '\r' | tail -n 1) ||
   fail "Maestro 를 실행하지 못한다: $MAESTRO - cli-2.11.0 을 ~/.maestro 에 푼다(docs/superpowers/notes/2026-09-30-d1-measurements.md 의 M8 절)"
+case "$maestro_version" in
+  2.11.*) ;;
+  *) fail "Maestro 는 2.11.x 여야 한다 - $MAESTRO 는 ${maestro_version:-버전을 내지 않았다}. 사용 통계를 끄는 변수와 inputText 의 동작은 2.11.0 에서 쟀다(docs/superpowers/notes/2026-09-30-d1-measurements.md 의 M8 절)" ;;
+esac
 command -v unzip >/dev/null || fail "unzip 이 없다 - APK 의 앱 설정을 확인할 때 쓴다"
 command -v node >/dev/null || fail "node 가 없다"
 command -v curl >/dev/null || fail "curl 이 없다"
@@ -80,10 +86,10 @@ command -v curl >/dev/null || fail "curl 이 없다"
 # 언어를 따라 자판을 바꾸고(ko-KR 이면 두벌식), Maestro 의 inputText 는 글자마다 키 이벤트를 보낸다 - 그
 # 자판이 라틴 글자를 한글 자모로 조합해 이메일이 깨진다(docs/superpowers/notes/2026-09-30-d2-measurements.md
 # 의 H2). 자판이 없는 입력기(음성 입력)는 키 이벤트를 조합하지 않고 입력 칸으로 넘긴다. 입력기를 모두 끄는
-# 길은 쓰지 않는다 - Maestro 가 세션마다 기기에 드라이버 앱을 다시 설치하면 시스템이 켜진 입력기가 없는
-# 것을 보고 기본 키보드를 다시 켠다. 바꾸기 전의 설정 셋을 적어 두었다가 플로가 끝나면 그대로 되돌린다 -
-# 하네스가 도중에 끝나도 EXIT 에서 되돌린다. 다른 플로는 키보드를 둔 채 돈다(키보드가 떠 있어도 제출
-# 버튼이 한 번에 눌리는지를 함께 잰다).
+# 길은 쓰지 않는다 - 그렇게 끄고 돌린 플로에서 Maestro 세션이 앱을 띄운 직후 기본 키보드가 다시 켜졌다
+# (관찰이다. Maestro 는 세션마다 기기에 드라이버 앱을 설치하는데, 그것이 원인인지는 재지 않았다). 바꾸기
+# 전의 설정 셋을 적어 두었다가 플로가 끝나면 그대로 되돌린다 - 하네스가 도중에 끝나도 EXIT 에서 되돌린다.
+# 다른 플로는 키보드를 둔 채 돈다(키보드가 떠 있어도 제출 버튼이 한 번에 눌리는지를 함께 잰다).
 readonly -a IME_SETTINGS=(enabled_input_methods default_input_method selected_input_method_subtype)
 ime_saved=()
 
@@ -194,7 +200,7 @@ probe_email() {
 }
 
 run_flow() {
-  local flow=$1 name locale allowed email other_email out rc=0
+  local flow=$1 name locale allowed email other_email out rc=0 logcat_rc=0
   local device_args=()
   name=$(basename "$flow" .yaml)
   locale=$(header "$flow" e2e-app-locale)
@@ -205,7 +211,11 @@ run_flow() {
   mkdir -p "$out"
   [ -z "${ANDROID_SERIAL:-}" ] || device_args=(--device "$ANDROID_SERIAL")
 
-  "$ADB" logcat -c
+  # 기기 로그는 이 플로의 것만 담아야 한다 - 비우지 못하면 앞 플로의 줄이 섞여 가드가 엉뚱한 것을 잰다.
+  if ! "$ADB" logcat -c; then
+    echo "E2E: $name 앞에서 기기 로그를 비우지 못했다(adb logcat -c)" >&2
+    return 1
+  fi
   if [ -n "$locale" ]; then
     # 로캘 플로는 clearState 를 쓰지 않는다 - 상태 지우기가 앱별 언어까지 지운다(D1 실측 M3).
     # 그래서 여기서 먼저 지우고 언어를 정한다. 입력기는 자판이 없는 것으로 바꾼다(위 "입력기" 절).
@@ -220,7 +230,8 @@ run_flow() {
   echo "--- $name${locale:+ ($locale)}"
   "$MAESTRO" test --no-ansi ${device_args[@]+"${device_args[@]}"} --debug-output "$out/debug" \
     -e "EMAIL=$email" -e "OTHER_EMAIL=$other_email" -e "PASSWORD=$E2E_PASSWORD" "$flow" >"$out/maestro.log" 2>&1 || rc=$?
-  "$ADB" logcat -d -v brief -s ReactNativeJS:V AndroidRuntime:E >"$out/logcat.txt" 2>&1 || true
+  # adb 의 오류도 그 파일에 남긴다(2>&1) - 모으지 못한 까닭을 거기서 본다.
+  "$ADB" logcat -d -v brief -s ReactNativeJS:V AndroidRuntime:E >"$out/logcat.txt" 2>&1 || logcat_rc=$?
   if ! ime_restore; then
     echo "E2E: $name 뒤에 입력기 설정을 되돌리지 못했다 - adb shell ime list -s 로 확인한다" >&2
     return 1
@@ -229,6 +240,12 @@ run_flow() {
   if [ "$rc" -ne 0 ]; then
     tail -n 30 "$out/maestro.log" >&2
     echo "E2E: $name 플로가 실패했다(exit $rc) - 기록: $out" >&2
+    return 1
+  fi
+  # 기기 로그를 모으지 못했으면 가드가 잰 것이 없다 - 통과로 치지 않는다. adb 가 exit 0 이어도 앱의 줄이
+  # 하나도 없는 로그는 가드가 실패로 만든다(test/e2e/guard-log.sh).
+  if [ "$logcat_rc" -ne 0 ]; then
+    echo "E2E: $name 의 기기 로그를 모으지 못했다(adb logcat exit $logcat_rc) - $out/logcat.txt" >&2
     return 1
   fi
   # 허용 상태는 공백으로 나뉜 여러 인자로 넘긴다.

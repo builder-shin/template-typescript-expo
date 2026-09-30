@@ -1,6 +1,8 @@
 # 보호 경로 화면에서 로그아웃하면 홈에 닿는다 - 로그인 화면으로 튕기지 않는다(스펙 7.3·7.4). 로그아웃은
 # 기기 세션을 먼저 비우고 폐기 요청이 끝난 뒤에 홈으로 보낸다. 그 사이와 끝난 직후의 렌더에서 경로가 아직
 # 보호 경로여도 경로 가드가 돌지 않아야 한다(lib/auth/guard-latch.ts 의 래치).
+# 래치의 정본 검사는 test/unit/auth/guard-latch.test.ts 다 - 이 플로는 끝난 상태만 본다(렌더 순서는 타이밍에
+# 달려 있어 래치가 없어도 이 플로가 통과할 수 있다).
 appId: com.example.templateexpo.e2e
 ---
 - runFlow: ../subflows/start-signed-out.yaml
