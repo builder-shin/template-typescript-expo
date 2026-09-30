@@ -9,7 +9,8 @@
 
 다섯 파일은 `template-typescript-nextjs`에서 복사했다. 출처 커밋과 원본에서 달라진 곳은
 `docs/provenance/copied-core.json`이 전부 갖는다 - 여기서 무엇을 바꾸면 그 파일의
-`divergences`에 `what`·`why`를 더한다. 게이트가 기록의 형식과 경로를 검사한다.
+`divergences`에 `what`·`why`를 더하고, 그 파일이 `sourceBlobs`에 있으면 지운다. 게이트가 기록의
+형식과 경로, 그리고 이탈이 없는 사본의 내용이 원본과 같은지를 검사한다.
 
 주석에 나오는 "스펙 N장", "D2 Task N", `proxy.ts`, `app/error.tsx` 같은 자리는 **원본
 저장소의 것**이다. 원본과 비교하기 쉽게 주석을 고치지 않고 두었다.

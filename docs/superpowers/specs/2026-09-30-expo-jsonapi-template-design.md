@@ -297,6 +297,13 @@ docs/superpowers/specs/ · plans/ · notes/
 > 정정(2026-09-30, D1): 검사 스크립트는 `scripts/check-provenance.sh`가 아니라
 > `scripts/check-provenance.mjs`다 - JSON 을 읽어야 해서 node 로 썼다. 검사하는 네 가지는 같다.
 
+> 정정(2026-09-30, D2): 검사가 다섯이 됐다. 5. `divergences`가 없는 경로는 기록의 `sourceBlobs`에 원본
+> 파일의 git blob SHA-1(`git rev-parse <commit>:<경로>`)을 적고, 작업 트리의 파일이 그 값과 같아야 한다.
+> 이탈이 있는 경로는 `sourceBlobs`에 두지 않는다. 형식만 보는 네 검사로는 그대로 복사한 파일을 고치고
+> 이탈을 적지 않아도 게이트가 통과했다. 값은 작업 트리의 바이트로 잰다 - `.gitattributes`의
+> `* text=auto eol=lf`가 체크아웃을 LF로 두므로 `git hash-object`와 같다. 3의 "실재한다"는 저장소 안의
+> 일반 파일이라는 뜻이다 - 절대 경로, 드라이브 문자로 시작하는 경로, `..` 구간이 있는 경로는 거절한다.
+
 ## 7. 인증과 세션
 
 백엔드 계약은 Next.js 스펙 2.1과 같다 — `POST /api/v1/auth/register`(201, 토큰

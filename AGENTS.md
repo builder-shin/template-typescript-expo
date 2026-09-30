@@ -54,7 +54,8 @@
 `lib/`의 상당 부분은 `template-typescript-nextjs`에서 복사했다(스펙 6장). 어떤 파일을
 복사했고 원본과 무엇이 다른지는 `docs/provenance/copied-core.json`이 정본이다. 복사한
 파일을 고치면 그 파일의 `divergences`에 `what`·`why`를 더한다 -
-`node scripts/check-provenance.mjs`가 기록의 형식과 경로를 검사한다.
+`node scripts/check-provenance.mjs`가 기록의 형식과 경로를 검사하고, 이탈이 없는 사본은 내용이
+원본과 같은지(`sourceBlobs`의 blob SHA-1)까지 잰다. 이탈을 처음 적는 파일은 `sourceBlobs`에서 지운다.
 
 ## `app/`에는 라우트 파일만 둔다
 

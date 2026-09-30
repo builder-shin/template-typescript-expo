@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -55,6 +55,14 @@ function runRaw(body: string): Result {
 
 function run(record: unknown): Result {
   return runRaw(JSON.stringify(record))
+}
+
+/** git 이 content 에 매기는 blob SHA-1. 검사기의 계산을 되풀이하지 않고 git 에게 묻는다. */
+function blobOf(content: string): string {
+  return execFileSync('git', ['hash-object', '--stdin'], {
+    input: content,
+    encoding: 'utf8',
+  }).trim()
 }
 
 describe('check-provenance', () => {
@@ -190,16 +198,26 @@ describe('check-provenance: 잘못된 입력도 문제 목록으로 답한다', 
       /lib\/absent\.ts/,
       /divergences\[0\]\.path/,
       /divergences\[0\]\.what/,
+      // 이탈이 lib/other.ts 를 가리키므로 lib/copied.ts 는 원본 그대로여야 하는 경로다.
+      /원본 blob 이 없다.*lib\/copied\.ts/,
     ])
   })
 
-  it('통과하면 경로와 이탈의 개수를 stdout 에 적고 stderr 는 비운다', () => {
-    // 경로 수와 이탈 수가 달라야 둘을 바꿔 쓰는 실수가 드러난다.
+  it('통과하면 경로·이탈·원본 그대로인 사본의 개수를 stdout 에 적고 stderr 는 비운다', () => {
+    // 세 수가 서로 달라야 둘을 바꿔 쓰는 실수가 드러난다.
     writeFileSync(join(dir, 'lib', 'second.ts'), 'export {}\n')
-    const result = run({ ...VALID, paths: ['lib/copied.ts', 'lib/second.ts'] })
+    writeFileSync(join(dir, 'lib', 'third.ts'), 'export const third = 3\n')
+    const result = run({
+      ...VALID,
+      paths: ['lib/copied.ts', 'lib/second.ts', 'lib/third.ts'],
+      sourceBlobs: {
+        'lib/second.ts': blobOf('export {}\n'),
+        'lib/third.ts': blobOf('export const third = 3\n'),
+      },
+    })
     expect(result.status).toBe(0)
     expect(result.stderr).toBe('')
-    expect(result.stdout).toMatch(/경로 2개, 이탈 1건/)
+    expect(result.stdout).toMatch(/경로 3개, 이탈 1건, 원본 그대로 2개/)
   })
 })
 
@@ -264,6 +282,16 @@ describe('check-provenance: paths', () => {
     expectListed(result, [/절대 경로/])
   })
 
+  // Windows 에서 C:..\x 는 절대 경로가 아니고 첫 구간이 'C:..' 라 '..' 검사도 지난다. 존재 검사보다
+  // 먼저 거절하므로 Linux 에서도 같은 문구가 나온다.
+  it.each([
+    ['드라이브 상대 경로', 'C:..\\outside.txt'],
+    ['드라이브를 붙인 저장소 경로', 'C:lib/copied.ts'],
+  ])('paths 의 %s 는 드라이브 문자로 시작한다고 실패한다', (_label, path) => {
+    const result = run({ ...VALID, paths: ['lib/copied.ts', path] })
+    expectListed(result, [/드라이브 문자/])
+  })
+
   it('paths 의 경로가 디렉터리면 실패한다', () => {
     const result = run({ ...VALID, paths: ['lib/copied.ts', 'lib'] })
     expectListed(result, [/파일이 아니다/])
@@ -307,5 +335,81 @@ describe('check-provenance: divergences', () => {
     expect(result.status).toBe(1)
     expect(result.stderr).not.toMatch(STACK_TRACE)
     expect(result.stderr).toMatch(/divergences\[0\]/)
+  })
+})
+
+/*
+ * 형식만 보면 그대로 복사한 파일을 고치고 이탈을 적지 않아도 통과한다. 이탈이 없는 경로는
+ * sourceBlobs 에 원본의 blob SHA-1 을 적고, 검사기가 작업 트리의 내용과 맞댄다.
+ */
+describe('check-provenance: sourceBlobs', () => {
+  // lib/copied.ts 는 이탈이 있고(VALID), lib/second.ts 는 원본 그대로인 사본이다.
+  const SECOND = 'export const second = 2\n'
+
+  beforeEach(() => {
+    writeFileSync(join(dir, 'lib', 'second.ts'), SECOND)
+  })
+
+  function withSecond(sourceBlobs: unknown): unknown {
+    return { ...VALID, paths: ['lib/copied.ts', 'lib/second.ts'], sourceBlobs }
+  }
+
+  it('원본 그대로인 사본의 내용이 원본 blob 과 같으면 통과한다', () => {
+    const result = run(withSecond({ 'lib/second.ts': blobOf(SECOND) }))
+    expect(result.stderr).toBe('')
+    expect(result.status).toBe(0)
+    expect(result.stdout).toMatch(/원본 그대로 1개/)
+  })
+
+  it('내용이 원본과 다르면 두 SHA 를 적고 실패한다 - 이탈을 적지 않은 수정', () => {
+    const original = blobOf('export const second = 1\n')
+    const result = run(withSecond({ 'lib/second.ts': original }))
+    expectListed(result, [/원본과 다르다.*lib\/second\.ts/])
+    expect(result.stderr).toContain(`원본 ${original}, 작업 트리 ${blobOf(SECOND)}`)
+  })
+
+  it.each([
+    ['항목이 없는', {}],
+    ['표 자체가 없는', undefined],
+  ])('이탈이 없는 경로의 원본 blob 이 %s 기록은 실패한다', (_label, sourceBlobs) => {
+    expectListed(run(withSecond(sourceBlobs)), [/원본 blob 이 없다.*lib\/second\.ts/])
+  })
+
+  it('이탈이 있는 경로가 sourceBlobs 에 있으면 실패한다', () => {
+    const result = run({ ...VALID, sourceBlobs: { 'lib/copied.ts': blobOf('export {}\n') } })
+    expectListed(result, [/이탈이 있는 경로가 sourceBlobs 에 있다.*lib\/copied\.ts/])
+  })
+
+  it('sourceBlobs 의 경로가 paths 에 없으면 실패한다', () => {
+    const result = run({ ...VALID, sourceBlobs: { 'lib/absent.ts': 'a'.repeat(40) } })
+    expectListed(result, [/sourceBlobs 의 경로가 paths 에 없다.*lib\/absent\.ts/])
+  })
+
+  it.each([
+    ['39자리', 'a'.repeat(39)],
+    ['대문자', 'A'.repeat(40)],
+    ['숫자', 42],
+    ['null', null],
+  ])('sourceBlobs 의 값이 %s 이면 형식 위반 하나로 실패한다', (_label, sha) => {
+    expectListed(run(withSecond({ 'lib/second.ts': sha })), [
+      /sourceBlobs\["lib\/second\.ts"\] 가 40자리 16진수가 아니다/,
+    ])
+  })
+
+  it.each([
+    ['배열', []],
+    ['문자열', 'a'.repeat(40)],
+    ['null', null],
+  ])('sourceBlobs 가 %s 이면 객체가 아니라고 실패한다', (_label, sourceBlobs) => {
+    expectListed(run({ ...VALID, sourceBlobs }), [/sourceBlobs 가 객체가 아니다/])
+  })
+
+  it('작업 트리의 blob 계산이 git hash-object 와 같다 - 한글과 여러 줄', () => {
+    const content = '// 한글 주석\nexport const second = 2\n'
+    writeFileSync(join(dir, 'lib', 'second.ts'), content)
+    const sha = execFileSync('git', ['hash-object', join(dir, 'lib', 'second.ts')], {
+      encoding: 'utf8',
+    }).trim()
+    expect(run(withSecond({ 'lib/second.ts': sha })).status).toBe(0)
   })
 })

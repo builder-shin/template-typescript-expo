@@ -11,8 +11,9 @@ import { describe, expect, it } from 'vitest'
  * 설정으로 가상 파일을 lint 하면 타입 인식 규칙의 projectService 가 "프로젝트에 없는
  * 파일"로 죽으므로 두 축을 나눈다.
  *
- * no-restricted-imports 는 import 선언과 export ... from 만 본다. 동적 import() 와
- * require() 는 대상이 아니라서 .cjs 행은 규칙 항목이 걸려 있는지만 잰다.
+ * no-restricted-imports 는 import 선언, export ... from, TypeScript 의 import x = require(...)
+ * 를 본다(ESLint 9.39.5 의 no-restricted-imports.js 가 TSImportEqualsDeclaration 도 잰다). 동적
+ * import() 와 require() 호출은 대상이 아니라서 .cjs 행은 규칙 항목이 걸려 있는지만 잰다.
  */
 const eslint = new ESLint()
 
@@ -60,13 +61,31 @@ const FORBIDDEN = [
   '@react-native/assets-registry',
   '@react-native-community/netinfo',
   '@react-native-async-storage/async-storage',
+  '@react-navigation/native',
   '@rn-primitives/portal',
   '@tanstack/react-query',
   'uniwind',
   'lucide-react-native',
 ]
 
-const ALLOWED = ['@/lib/jsonapi/query', './define', 'clsx', 'tailwind-merge']
+// 위 계층은 별칭과 상대 경로 둘 다 막는다. 깊이가 다른 경로도 하나 둔다.
+const UPPER_LAYER = [
+  '@/platform/api',
+  '@/queries/auth',
+  '@/components/ui/button',
+  '@/app/_layout',
+  '@/platform/deep/probe',
+  '../../platform/api',
+]
+
+const ALLOWED = [
+  '@/lib/jsonapi/query',
+  '@/lib/config/app-variant',
+  './define',
+  '../jsonapi/client',
+  'clsx',
+  'tailwind-merge',
+]
 
 // 계약의 lib/** 는 깊이·디렉터리·확장자를 가리지 않는다. 표본이 세 축을 모두 걸쳐야
 // files 패턴이 좁아지는 후퇴를 잡는다. 깊이 0(lib/x.ts), 소유 표의 디렉터리
@@ -90,8 +109,11 @@ const LIB_FILES = [
  * 나머지 테스트는 곧바로 끝난다.
  */
 describe('lib/ 경계 - 스펙 5장', { timeout: 60_000 }, () => {
-  it.each(LIB_FILES)('%s 에는 no-restricted-imports 가 오류로 걸린다', async (filePath) => {
-    expect(severityOf(await restrictionFor(filePath))).toBe(2)
+  it.each(LIB_FILES)('%s 에는 lib/ 의 no-restricted-imports 가 그대로 걸린다', async (filePath) => {
+    const entry = await restrictionFor(filePath)
+    expect(severityOf(entry)).toBe(2)
+    // 심각도만 보면 뒤의 설정 블록이 어떤 디렉터리에서 패턴을 줄여 덮어써도 통과한다.
+    expect(entry).toEqual(await libRule())
   })
 
   it.each(FORBIDDEN)('lib/ 에서 %s 를 import 하면 막힌다', async (moduleName) => {
@@ -101,6 +123,18 @@ describe('lib/ 경계 - 스펙 5장', { timeout: 60_000 }, () => {
     )
     expect(messages.map((message) => message.ruleId)).toEqual(['no-restricted-imports'])
   })
+
+  it.each(UPPER_LAYER)(
+    'lib/ 에서 위 계층 %s 를 import 하면 계층 메시지로 막힌다',
+    async (moduleName) => {
+      const messages = messagesFor(
+        await libRule(),
+        `import probe from '${moduleName}'\nexport default probe\n`,
+      )
+      expect(messages.map((message) => message.ruleId)).toEqual(['no-restricted-imports'])
+      expect(messages[0]?.message).toMatch(/위 계층/)
+    },
+  )
 
   it.each(ALLOWED)('lib/ 에서 %s 는 허용된다', async (moduleName) => {
     const messages = messagesFor(

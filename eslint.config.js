@@ -39,11 +39,19 @@ const PLATFORM_MODULE_PATTERNS = [
   'expo-*',
   '@expo/*',
   '@react-native*',
+  '@react-navigation/*',
   '@rn-primitives/*',
   '@tanstack/*',
   'uniwind',
   'lucide-react-native',
 ]
+
+/**
+ * lib/ 위의 계층(스펙 5장의 소유 표) - lib/ 는 맨 아래 계층이다. 위를 import 하면 시험이 그
+ * 모듈을 vi.mock 해서 vitest 까지 통과해도 경계가 무너진다. 앞의 ** 가 별칭(@/platform/…)과
+ * 상대 경로(../../platform/…)를 함께 잡는다. test/unit/lint/lib-boundary.test.ts 가 잰다.
+ */
+const UPPER_LAYER_PATTERNS = ['**/platform/*', '**/queries/*', '**/components/*', '**/app/*']
 
 module.exports = defineConfig([
   {
@@ -67,6 +75,13 @@ module.exports = defineConfig([
     rules: typeCheckedRules,
   },
   {
+    // nodeLinker: hoisted 라서 선언하지 않은 전이 의존성(expo-modules-core 등)도 node_modules
+    // 꼭대기에서 풀린다. package.json 에 없는 패키지의 import 를 막는다 -
+    // test/unit/lint/dependencies.test.ts 가 잰다.
+    files: ['**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+    rules: { 'import/no-extraneous-dependencies': 'error' },
+  },
+  {
     files: ['lib/**/*.{ts,tsx,js,jsx,mjs,cjs}'],
     rules: {
       'no-restricted-imports': [
@@ -77,6 +92,11 @@ module.exports = defineConfig([
               group: PLATFORM_MODULE_PATTERNS,
               message:
                 'lib/ 는 순수 TypeScript 다(스펙 5장). 네이티브·React 모듈은 platform/ 이나 queries/ 에서 쓴다.',
+            },
+            {
+              group: UPPER_LAYER_PATTERNS,
+              message:
+                'lib/ 는 위 계층(platform·queries·components·app)을 import 하지 않는다(스펙 5장). 위 계층이 lib/ 를 부른다.',
             },
           ],
         },

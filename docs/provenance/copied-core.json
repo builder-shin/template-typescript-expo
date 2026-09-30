@@ -37,7 +37,7 @@
     "scripts/check-citations.sh",
     "test/unit/scripts/check-citations.test.ts"
   ],
-  "note": "복사본이다. 원본에서 계약 버그가 고쳐지면 이 커밋과 원본을 비교해 반영 여부를 판단한다. 개별 이탈은 divergences 배열에 기록한다(스펙 6.3). 복사본의 주석이 말하는 '스펙'·'D2 Task N'·'proxy.ts' 같은 자리는 원본 저장소의 것이다. scripts/check-citations.sh 머리말의 게이트 단계 번호 '[5/9]' 도 원본 게이트의 번호다(이 저장소의 게이트에서는 [5/11]). 같은 머리말이 계약이 적혀 있다고 가리키는 '루트 AGENTS.md 의 R21 절'도 원본 저장소의 것이고 이 저장소의 루트 AGENTS.md 에는 없다(이 저장소에서 그 계약은 '사라질 자리를 인용하지 마라' 절이다). test/unit/scripts/check-citations.test.ts 의 toPosix 주석은 원본의 실측 문장(계정 이름이 든 예시 경로)을 그대로 둔 것이다. 복사한 시드 파일과 시드 시험도 원본 저장소의 것을 가리킨다 - 원본의 web 서비스와 TZ, test/e2e/*.spec.ts, lib/resources/view.ts, 원본 루트 AGENTS.md 의 문장은 이 저장소에 없다.",
+  "note": "복사본이다. 원본에서 계약 버그가 고쳐지면 이 커밋과 원본을 비교해 반영 여부를 판단한다. 개별 이탈은 divergences 배열에 기록한다(스펙 6.3). 복사본의 주석이 말하는 '스펙'·'D2 Task N'·'proxy.ts' 같은 자리는 원본 저장소의 것이다. scripts/check-citations.sh 머리말의 게이트 단계 번호 '[5/9]' 도 원본 게이트의 번호다(이 저장소의 게이트에서는 [5/11]). 같은 머리말이 계약이 적혀 있다고 가리키는 '루트 AGENTS.md 의 R21 절'도 원본 저장소의 것이고 이 저장소의 루트 AGENTS.md 에는 없다(이 저장소에서 그 계약은 '사라질 자리를 인용하지 마라' 절이다). test/unit/scripts/check-citations.test.ts 의 toPosix 주석은 원본의 실측 문장(계정 이름이 든 예시 경로)을 그대로 둔 것이다. 복사한 시드 파일과 시드 시험도 원본 저장소의 것을 가리킨다 - 원본의 web 서비스와 TZ, test/e2e/*.spec.ts, lib/resources/view.ts, 원본 루트 AGENTS.md 의 문장은 이 저장소에 없다. sourceBlobs 는 원본 그대로인 경로마다 원본 커밋의 blob SHA-1 이다(git -C <원본> rev-parse <commit>:<경로>) - 그 파일을 고치면 divergences 에 적고 sourceBlobs 에서 항목을 지운다.",
   "divergences": [
     {
       "path": "lib/config/settings.ts",
@@ -89,5 +89,34 @@
       "what": "GATE_TARGETS 를 app·components·lib·platform·test 로 바꿨고, 주석의 원본 게이트 단계 번호 [5/9] 를 이 저장소의 [5/11] 로 바꿨다.",
       "why": "이 저장소에는 proxy.ts 가 없고 platform/ 이 있다. 테스트는 check.sh 의 호출 인자와 이 목록을 맞대므로 둘이 같아야 한다. queries/ 는 첫 파일이 생길 때 두 자리에 함께 더한다."
     }
-  ]
+  ],
+  "sourceBlobs": {
+    "lib/jsonapi/document.ts": "0cb1d5f831455fead9ac4a615f8846979ae5ce8e",
+    "lib/jsonapi/normalize.ts": "971f7fec8a0a69968d0ca1bc067be3a97b317762",
+    "lib/jsonapi/query.ts": "2084a5fe0911e47abb05cc53e8f0fbc581c25bb7",
+    "lib/jsonapi/errors.ts": "3e91bb7804980f49babbf0d4d69eedd5acb489af",
+    "lib/resources/define.ts": "561322b3228355c6baf8602a189469f010482c92",
+    "lib/resources/example.ts": "4e067036ca5620f4cd7fc8149fa4eca2569a9983",
+    "lib/resources/category.ts": "65cc44e63bfa89f74dab92f538a3d8453ee8139e",
+    "lib/resources/tag.ts": "11cc96f738264779fd01ddfd5b7d44f1a88a3d18",
+    "lib/resources/index.ts": "e769c06e2f874223d01f00fabea7b39e185eb14c",
+    "lib/resources/mirror.ts": "69f4d7e18ab8a084574a363bfab28ee1961259a0",
+    "lib/auth/tokens.ts": "6133c491ebcf76b1d1e476f6ef2f70d409380a38",
+    "test/fixtures/documents.ts": "b957502df656bae83fa3b468e447db72bc9ba369",
+    "test/unit/jsonapi/document.test.ts": "768258f20c89c077c766ad5c5e9f79a61afada4e",
+    "test/unit/jsonapi/normalize.test.ts": "7a4bd2269d80ea3c708a6daec17f12092ee56cde",
+    "test/unit/jsonapi/query.test.ts": "2421d2afb11179b6bf8d2da4f6098abb67b3238e",
+    "test/unit/jsonapi/errors.test.ts": "2cd20480ae76275fcc87c982772935a8192b41b5",
+    "test/unit/jsonapi/error-routing.test.ts": "9afa4828fdb734ec71d315587fa6ab4702359853",
+    "test/unit/resources/define.test.ts": "cbfb330d3c6d36e4400b981a3384823998d0f602",
+    "test/unit/resources/mirror.test.ts": "4ec4620aa9415b12ca0f17f48838e6b488202948",
+    "test/unit/resources/resources.test.ts": "b4c4e6ffcf691c7acd25883797260a1f723f8a49",
+    "test/unit/resources/invariants.ts": "ba3d9fc54f4a0150c60c45457332602a3f4bdb09",
+    "test/unit/auth/tokens.test.ts": "f79143a2b00fbdf3fa10d81affa4467bac58767f",
+    "test/e2e/seed/README.md": "a871027190642141011e055d22f5ae8e4bde72f8",
+    "test/e2e/seed/examples.sql": "fec8529213bdb0f4b041c2da580ad2651a367969",
+    "test/e2e/seed/examples.rails.sql": "db8808f8a1a3e928bb55d2bdddb8afcff69dd717",
+    "test/unit/e2e/seed-mirror.test.ts": "523003330904a4d411be0f656607775618566033",
+    "scripts/check-citations.sh": "d1368852d42de3db315ab78b12cebc943ed07b11"
+  }
 }
