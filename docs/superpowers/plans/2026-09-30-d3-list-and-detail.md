@@ -36,6 +36,7 @@
 - **Maestro 플로 규칙(D1 실측 M8·M3, 이 계획의 사실 절):** 요소는 testID(`id:`)로 찾는다 — 목록의 행은 testID 와 데이터 문구(제목)를 함께 준다(`id: resource-row-title` + `text:`). `launchApp` 뒤에는 화면 요소를 기다린 다음 `openLink`를 보낸다. 딥링크의 대괄호는 퍼센트 인코딩한다(`filter%5Btitle%5D%5Bcontains%5D=…`). 로캘 플로에는 `clearState`를 쓰지 않는다. **`hideKeyboard` 를 쓰지 않는다** — Maestro 2.11.0 의 Android 구현은 뒤로 가기(`input keyevent 4`)라 키보드가 없으면 시트를 닫는다. 정규식 값은 작은따옴표로 감싼다. 중첩 `runFlow` 의 env 범위에 기대지 않는다 — 공통 단계를 다른 값으로 돌려야 하면 풀어 쓴다(D2 의 `register-restore-logout.yaml` 관례).
 - **E2E 가드(D2 의 끝, `test/e2e/guard-log.sh`):** 머리말 `# e2e-allow-http:` 에 적은 상태는 그 플로의 기기 로그에 한 번 이상 나와야 한다 — 선언만 하고 일으키지 않으면 실패다. 앱의 줄(`ReactNativeJS`)이 하나도 없는 기기 로그도 실패다 — 플로는 앱을 띄우는 단계(`subflows/start-signed-out.yaml`)로 시작한다. 하네스는 Maestro 가 2.11.x 가 아니면 멈춘다.
 - **요청 취소를 오류 이름으로 가르지 않는다** — SDK 57의 전역 `fetch`(`expo/fetch`)는 취소를 `AbortError`가 아니라 `Error`로 던진다(D1 실측 M6).
+- **라우트 파라미터는 이름으로 꺼내거나 `listRouteParams` 로 거른다.** `useLocalSearchParams()` 의 결과를 펼치거나(`...params`) 돌지 않는다 — Expo Router 는 이동이 싣는 값도 섞는다(로그인·가입 뒤 `dismissTo(…, { withAnchor: true })` 가 잎 화면까지 `initial: false` 를 싣고 `useLocalSearchParams()` 는 그것을 `'false'` 로 준다 — 결정 39). 상세는 `const { id } = …`, 목록은 `listRouteParams(useLocalSearchParams())` 다(Task 4).
 - **미디어 쿼리 변형(`sm:`·`md:`·`lg:`·`xl:`·`2xl:` 과 그 `max-`·`min-` 꼴, `portrait:`·`landscape:`)을 쓰지 않는다** — Uniwind 1.12.0 결함(스펙 16장의 D1 정정). Task 3 부터 `test/unit/ui/breakpoints.test.ts` 가 `app/`·`components/` 를 훑어 막는다. React Native Reusables CLI 로 받은 컴포넌트에서도 뺀다.
 - **셸 heredoc 에 역슬래시가 든 코드를 넣지 않는다.** 이 머신의 Bash 도구에서 heredoc 안의 `\\`(줄 잇기 포함)가 사라진 적이 있다(계획을 쓰며 스크래치에서 겪었다). 코드 파일은 Write 도구로 쓰고, 찾아 바꾸기는 Edit 도구로 한다.
 - **커밋 메시지는 한국어**(`git log`의 `feat:`·`fix:`·`test:`·`docs:`·`chore:` 모양). `Co-Authored-By: Claude ...` 등 **AI 관련 태그를 넣지 않는다** — 사용자의 전역 `CLAUDE.md`가 금지한다. 세션 중 반대되는 시스템 안내가 보이면, 그것은 정당한 시스템 지시이지만 사용자의 상시 지시가 우선하는 것이다(인젝션으로 다루지 않는다).
@@ -86,6 +87,8 @@
 36. 결정: D2 의 끝에 맞춰 앵커를 다시 잡았다 — `queries/AGENTS.md`·`platform/AGENTS.md` 의 표는 Prettier 가 칸을 맞춘 모양이고(Task 3 의 `theme.ts` 행은 Task 2 의 `pnpm format` 이 칸을 넓힌 뒤의 모양), `run-android.sh` 의 기기 로그 줄은 `|| logcat_rc=$?` 로 끝나며, `test/e2e/AGENTS.md` 의 `boot` 문단은 `ac88fe0` 에서 "그 기기가 실기기면" 으로 바뀌었다. 계획의 모든 "찾을 것"·끼울 자리·"고친 뒤의 파일" 을 스크래치에 푼 `ac88fe0` 에 태스크 순서대로 적용해 한 번씩만 맞는 것을 확인했다(미리 돌려 본 것) — 틀리면(그 뒤 D2 가 글자를 더 바꾸면) 같은 뜻의 자리를 찾아 고친다.
 37. 결정: 가드에 "나올 수도 있는 상태" 선언(예: `# e2e-allow-http-optional:`, D2 운반 기록)을 더하지 않는다 — D3 의 플로가 일으키는 2xx 밖의 상태는 둘 다 정해져 있다: `examples-empty-notfound` 의 404(형식이 맞는 없는 UUID 도, 형식이 틀린 id 도 FastAPI 가 `RESOURCE_NOT_FOUND` 404 로 준다 — 정본의 `coerce_model_id`)와 `examples-invalid-filter-en` 의 400. 타이밍에 따라 나오는 상태의 대표인 재조회 도중의 취소는 D3 가 `signal` 을 넘기지 않아(결정 14) 생기지 않는다 — 틀리면(기기에서 선언하지 않은 상태가 가끔 나오면) 그 상태가 왜 나오는지부터 고치고, 고칠 수 없는 것만 그 선언을 `guard-log.sh`·시험·`test/e2e/AGENTS.md` 에 더한다.
 38. 결정: `run_flow` 의 로캘 앞 단계 둘(`pm clear`·`set-app-locales`)이 실패하면 그 플로를 실패로 친다(D2 운반 기록 — "`run-android.sh` 를 만질 때 두 줄에 `|| return 1`"). D3 가 이 파일을 어차피 고치고, D3 의 `examples-invalid-filter-en` 도 로캘 플로다 — `set -e` 가 꺼진 `||` 문맥이라 지금은 실패가 넘어가고 en·ko 단언이 늦게 드러낸다 — 틀리면(성공인데 0 이 아닌 값을 주는 기기면) 그 `if` 를 원래 두 줄로 되돌린다.
+39. 결정: 목록 화면은 라우트 파라미터를 새 판단 `lib/resources/route-params.ts` 의 `listRouteParams` 로 걸러 JSON:API 쿼리 파라미터(`toBackendQuery` 가 고르는 `sort`·`include`·`filter[…]`·`page[…]`)만 판단 함수에 넘기고, 상세는 `id` 를 이름으로 꺼낸다(D2 최종 재검토). D2 의 끝(`ac88fe0`)은 로그인·가입 뒤 복귀에 `withAnchor: true` 를 주는데, expo-router 57 은 그때 잎 화면까지 `initial: false` 를 싣고 걸러 내는 곳이 없어 `useLocalSearchParams()` 가 `initial: 'false'` 를 준다(사실 절). 백엔드로는 가지 않지만(`listQuery` 가 JSON:API 문법만 고른다) 원본의 `carriedParams` 가 남의 파라미터를 정렬·필터·필터 지우기 주소로 옮겨 다음 목록 화면까지 따라간다. `view.ts`(복사본)의 `carriedParams` 를 고치지 않고 화면 입구에서 거른다 — 원본 시험과 이탈 기록이 그대로이고, 거르는 규칙은 이 앱의 라우트 파라미터 사정이라 원본의 판단과 나눈다. 딥링크에 붙은 남의 파라미터(예: `ref`)도 함께 버려진다 — 원본은 손으로 친 남의 파라미터를 주소에 남기지만 모바일 앱의 목록 주소에서 그것이 쓸모 있는 자리가 없다. `listRouteParams` 를 두는 자리가 Task 4 인 것은 그 소비자(목록 화면)와 함께 두기 위해서다 — 틀리면(남의 파라미터를 남겨야 하면) 버릴 이름 목록(`initial`·`screen`·`params`)을 두는 쪽으로 바꾼다.
+40. 결정: D2 최종 재검토의 문서 손질 둘은 D3 의 첫 문서 단계(Task 1 Step 7)에서 한다 — `lib/auth/AGENTS.md` 머리 문장에 "경로 가드 판단(`guard-latch.ts`)" 을 더해 루트 `AGENTS.md` 의 `lib/auth/` 행과 맞추고, `run-android.sh` 가 입력기를 되돌리지 못했을 때 권하는 확인을 `test/e2e/AGENTS.md` 와 같은 `adb shell settings get secure default_input_method` 로 바꾼다. 자판 없는 입력기가 켜져 있지 않을 때의 `adb shell ime list -s` 는 그대로 둔다 — 그때 볼 것은 켜진 입력기 목록이다 — 틀리면 안내 문구 두 줄.
 
 ---
 
@@ -99,6 +102,8 @@
 - `global-state/router.js` 의 `setParams` 는 `navigationRef.current.setParams(params)` 다(기록을 남기지 않는다). `push` 는 `PUSH`, `dismissTo` 는 `POP_TO` 다.
 - `react-navigation/routers/StackRouter.js` — `PUSH` 는 이름이 같아도 새 라우트를 쌓는다. `NAVIGATE` 는 지금 라우트와 이름이 같으면 그 라우트를 쓴다. `POP_TO` 는 이름으로 찾고(없으면 지금 화면을 바꾼다) 파라미터를 덮는다.
 - 타입드 라우트(`pnpm types:routes` → `.expo/types/router.d.ts`)의 `Href` 는 `/examples${'?'…}` 같은 템플릿 리터럴이다 — 런타임에 만든 문자열은 단언이 필요하고, 리터럴 `'/examples'` 는 `satisfies Href` 로 잰다.
+- `global-state/getNavigationAction.js` 60–81행 — `withAnchor` 가 참이면 이동 페이로드의 모든 층 `params` 에 `initial = !withAnchor`(곧 `false`)를 싣는다(잎 화면 포함). `useScreens.js` 277행은 `route.params` 를 걸러 내지 않고 `Route` 에 넘기고, `hooks/useLocalSearchParams.js` 는 값마다 `decodeURIComponent` 를 부르므로 불 `false` 가 문자열 `'false'` 로 나온다. D2 의 끝(`ac88fe0`)이 로그인·가입 뒤 복귀를 `dismissTo(…, { withAnchor: true })` 로 바꿨으므로, `next` 로 닿은 화면은 `initial` 을 라우트 파라미터로 받는다.
+- 원본에서 온 판단 쪽: `lib/jsonapi/query.ts` 의 `toBackendQuery` 는 `sort`·`include`·`filter[…]`·`page[…]` 만 고른다 — `initial` 은 백엔드로 가지 않는다. `lib/resources/view.ts` 의 `carriedParams`(정렬·필터 지우기·필터 적용 주소)는 남의 파라미터를 그대로 옮긴다 — 걸러지지 않은 라우트 파라미터로 만든 정렬 주소에 `initial=false` 가 실리는 것을 스크래치의 시험이 보였다(`route-params.test.ts` 의 넷째 시험).
 
 **react-native-screens 4.26.2**(`android/.../ScreenStack.kt`): 맨 위 화면이 반투명이 아니면 그 아래 화면의 fragment 를 `transaction.remove` 로 뗀다 — 쌓인 옛 목록 화면의 뷰는 UI 계층에 남지 않는다(Maestro 의 `assertNotVisible` 이 아래 화면에 속지 않는다).
 
@@ -136,14 +141,14 @@
 
 스크래치 사본에서 돌렸다 — 저장소에는 쓰지 않았다(저장소는 `git archive`·`git show` 로 읽기만 했다).
 
-**D2 의 끝 위에서 계획 전체를 흉내 냈다(2026-09-30T17Z 무렵).** `git archive ac88fe0` 을 스크래치에 풀고 `pnpm install --frozen-lockfile` 한 뒤 태스크 순서대로 돌렸다. 파일 조작은 이 계획 파일에서 모든 "찾을 것/바꿀 것"·파일 쓰기·끼울 자리·덧붙이기·"고친 뒤의 파일" 을 뽑아 적용하는 스크립트로 했다 — 찾을 것이 정확히 한 번 맞지 않거나 고친 파일이 "고친 뒤의 파일" 과 다르면 실패다. 셸 단계(원본 복사, 패치 둘, 출처 스크립트, `expo install`, React Native Reusables CLI, `pnpm format`, 검사)는 계획의 명령 그대로다. 같은 흉내를 `94be9bb` 에서 먼저 돌려 어긋난 앵커 넷(`queries/AGENTS.md` 의 표·로그아웃 문단, `run-android.sh` 의 기기 로그 줄, Task 3 의 `theme.ts` 행)을 고쳤고, `ac88fe0` 에서 `test/e2e/AGENTS.md` 의 `boot` 문단을 고쳤다.
+**D2 의 끝 위에서 계획 전체를 흉내 냈다(2026-09-30T17Z 무렵).** `git archive ac88fe0` 을 스크래치에 풀고 `pnpm install --frozen-lockfile` 한 뒤 태스크 순서대로 돌렸다. 파일 조작은 이 계획 파일에서 모든 "찾을 것/바꿀 것"·파일 쓰기·끼울 자리·덧붙이기·"고친 뒤의 파일" 을 뽑아 적용하는 스크립트로 했다 — 찾을 것이 정확히 한 번 맞지 않거나 고친 파일이 "고친 뒤의 파일" 과 다르면 실패다. 셸 단계(원본 복사, 패치 둘, 출처 스크립트, `expo install`, React Native Reusables CLI, `pnpm format`, 검사)는 계획의 명령 그대로다. 같은 흉내를 `94be9bb` 에서 먼저 돌려 어긋난 앵커 넷(`queries/AGENTS.md` 의 표·로그아웃 문단, `run-android.sh` 의 기기 로그 줄, Task 3 의 `theme.ts` 행)을 고쳤고, `ac88fe0` 에서 `test/e2e/AGENTS.md` 의 `boot` 문단을 고쳤다. D2 최종 재검토의 두 항목(결정 39·40)을 더한 뒤 `ac88fe0` 에서 처음부터 다시 돌렸다.
 
 - 기준: 단위 시험 768, 출처 기록 44·19·31, 플로 7.
-- Task 1: 원본 시험 176 통과 → 새 시험 21 실패·3 통과 → view 패치 뒤 원본 시험 46 실패 → 두 패치 뒤 182 통과. 출처 46·28·31. 정적 검사 통과, 시험 950.
+- Task 1: 원본 시험 176 통과 → 새 시험 21 실패·3 통과 → view 패치 뒤 원본 시험 46 실패 → 두 패치 뒤 182 통과. 출처 46·28·31. D2 문서 손질 둘의 Edit 셋도 맞았고 `run-android.sh` 에 `ime list -s` 는 한 곳만 남는다. 정적 검사 통과, 시험 950.
 - Task 2: `expo install` 이 `"@react-native-community/netinfo": "12.0.1"` 을 적고 락파일에 NetInfo 항목만 더했다. 예외를 뺀 `pnpm-workspace.yaml` 은 Edit 가 맞고 YAML 로 읽히지만, 아직 24시간 전이라 `pnpm install --frozen-lockfile` 이 `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` 으로 막혔다(되돌리고 진행 — 결정 34 의 `아직` 갈래). 정적 검사·`expo-doctor`(21/21) 통과, 시험 960.
 - Task 3: 변형 시험 1 실패 → 뺀 뒤 통과. CLI 가 두 파일을 만들고 `text.tsx` 를 건너뛰었다(받은 `badge.tsx` 는 이 계획의 것과 같다). 스켈레톤 Edit 뒤 "고친 뒤의 파일" 과 같다. `doctor` 두 건. 정적 검사 통과, 시험 966.
-- Task 4: 파일 쓰기와 홈의 Edit 셋 뒤 "고친 뒤의 파일" 과 같다. 정적 검사 통과, `expo export --clear` 두 플랫폼 번들 성공(`Unable to resolve` 0, 따로 둔 TMP 로 — 저장소의 Metro 캐시를 건드리지 않으려고).
-- Task 5: 하네스 Edit 전부 맞았고 `bash -n` 통과. 지문 시험 — 레시피를 고치면 바뀐다 `yes`, 플로만 고치면 `no`(D2 의 원래 `build_fingerprint` 로는 레시피를 고쳐도 `no` — M10 을 재현한다). 플로 여섯 `maestro check-syntax` 통과, 플로 13. 정적 검사·`expo config` 네 변형 통과, 시험 966, 출처 46·28·31.
+- Task 4: 라우트 파라미터 시험이 모듈이 없어 실패 → `route-params.ts` 뒤 4 통과(받은 것을 그대로 돌려주는 뮤턴트는 넷 가운데 셋을 죽였다). 파일 쓰기와 홈의 Edit 셋 뒤 "고친 뒤의 파일" 과 같다. 정적 검사 통과, 시험 970, `expo export --clear` 두 플랫폼 번들 성공(`Unable to resolve` 0, 따로 둔 TMP 로 — 저장소의 Metro 캐시를 건드리지 않으려고).
+- Task 5: 하네스 Edit 전부 맞았고 `bash -n` 통과. 지문 시험 — 레시피를 고치면 바뀐다 `yes`, 플로만 고치면 `no`(D2 의 원래 `build_fingerprint` 로는 레시피를 고쳐도 `no` — M10 을 재현한다). 플로 여섯 `maestro check-syntax` 통과, 플로 13. 정적 검사·`expo config` 네 변형 통과, 시험 970, 출처 46·28·31. 태스크마다 계획의 `git add` 뒤에 남은 파일이 없다.
 - 앞 판(`2c9c853` 위의 사본)에서: 뮤턴트 넷(빈 쪽 판정·중복 제거·위치 버리기·커서 입구)이 각각 시험을 죽였다(view 코드는 그 뒤 바뀌지 않았다). CLI 명령을 두 번 돌려 같은 결과를 보았다.
 - 돌리지 않은 것: 에뮬레이터·Docker(`compose:verify` 포함)·`maestro test`·게이트 [11]·[12]. `runScript` 가 백엔드에 실제로 행을 만드는지, 시트 안의 요소를 Maestro 가 찾는지, `logcat -G 16M` 이 먹는지, 가입 쪽 복귀의 앵커, 앱 안 링크의 탭은 Task 5 가 처음 잰다. 릴리스 대기 예외를 뺀 설치가 통과하는 것은 2026-09-30T22:27Z 뒤에만 잴 수 있다.
 
@@ -165,6 +170,7 @@ Task 1 Step 1 이 확인한다. 하나라도 없으면 멈추고 컨트롤러에
 | `components/form/form-banner.tsx` | `FormBanner({ messages })`, testID `form-banner`·`form-banner-message` |
 | `components/ui/input.tsx` | CLI 판에 `placeholderClassName` 한 곳만 고친 것(클래스에 `sm:h-9`, web 갈래에 `md:text-sm`) |
 | `lib/auth/form-state.ts` | `UNUSABLE_RESPONSE_MESSAGE` |
+| `lib/auth/AGENTS.md`·`run-android.sh` 의 입력기 안내 | 머리 문장 "…자격증명 문서, 보호 경로 목록을 소유한다(스펙 5장).", 입력기 복구 실패 안내 두 줄(`… - adb shell ime list -s 로 확인한다`) — Task 1 Step 7 이 고친다 |
 | E2E 하네스 | `test/e2e/run-android.sh`(`flows/*.yaml` 전부, 머리말 `# e2e-allow-http:`·`# e2e-app-locale:`, env `EMAIL`·`OTHER_EMAIL`·`PASSWORD`, `local … out rc=0 logcat_rc=0`, 로캘 앞 단계 두 줄 `pm clear`·`set-app-locales`, 기기 로그 줄 `… || logcat_rc=$?`, `build_fingerprint` 의 `':!test'`), `test/e2e/android.sh`(`boot` 끝의 `autofill_service null`), `test/e2e/subflows/start-signed-out.yaml`·`submit-credentials.yaml`, `test/e2e/guard-log.sh`(`ReactNativeJS` 줄과 선언한 상태가 필수), `test/e2e/AGENTS.md`(`## 돌리기` 절, 빌드 입력 문단, `ac88fe0` 의 `boot` 문단 "그 기기가 실기기면"), 플로 일곱, 게이트 `[12/12] E2E` |
 | 로그인·가입·보호 경로 | testID `login-screen`·`register-screen`·`register-link`·`login-link`·`email-input`·`password-input`·`submit-button`·`logout-button`·`home-screen`, 보호 경로 `/examples/new` 의 `new-example-screen`, 로그인·가입 뒤 `dismissTo(…, { withAnchor: true })`(`ac88fe0`) — Task 5 의 `auth-links.yaml` 이 쓴다 |
 | D2 실측 기록 H1 | `docs/superpowers/notes/2026-09-30-d2-measurements.md` 의 판정 문장(세 백엔드의 캐시 머리글) |
@@ -195,6 +201,8 @@ D2 가 실행 중에 위 파일의 글자를 바꿨으면, 이 계획의 Edit �
 | 가드의 HTTP 선언은 정확한 집합 — "나올 수 있음" 선언을 더할지(D2 운반 기록) | 더하지 않는다(결정 37) |
 | `run_flow` 의 `pm clear`·`set-app-locales` 에 `\|\| return 1`(D2 최종 검토 T18c, D2 운반 기록) | Task 5 Step 1 (6)(결정 38) |
 | 로그인·가입 뒤 복귀의 `withAnchor`(D2 의 끝 `ac88fe0`) — 가입 쪽은 기기에서 재지 않았다 | Task 5 Step 2 — `auth-links.yaml` 의 뒤로 가기 → 홈(결정 33) |
+| `withAnchor` 가 잎 화면 파라미터에 싣는 `initial`(D2 최종 재검토) — 이름으로 읽고, 목록이 필터로 넘기지 않게 | Task 4 Step 3·4 — `listRouteParams`, 상세의 `const { id }`(결정 39), 전역 제약 |
+| 문서 손질 — `run-android.sh` 의 입력기 확인 안내와 `test/e2e/AGENTS.md` 의 불일치, `lib/auth/AGENTS.md` 머리 문장의 경로 가드 판단(D2 최종 재검토) | Task 1 Step 7(결정 40) |
 | 조회 화면의 "다시 시도"(D2 결정 23) | Task 1(결정 6)·Task 4 |
 | 대괄호 키의 인코딩 규칙(스펙 8.2, D1 M2) | Task 1(결정 10), 기록 L1 |
 
@@ -204,10 +212,10 @@ D2 가 실행 중에 위 파일의 글자를 바꿨으면, 이 계획의 Edit �
 
 | 태스크 | 산출 | 시험 | 기기 |
 | --- | --- | --- | --- |
-| 1 목록·상세 판단 | `lib/resources/view.ts`(복사·고침), 원본 시험(고침), `view-expo.test.ts`, 출처 기록, 실측 기록 L1, 스펙 8.2·8.3·9.3 정정 | 원본 시험 158 + 새 시험 24, 뮤턴트 넷 | 없음 |
+| 1 목록·상세 판단 | `lib/resources/view.ts`(복사·고침), 원본 시험(고침), `view-expo.test.ts`, 출처 기록, 실측 기록 L1, 스펙 8.2·8.3·9.3 정정, D2 문서 손질 둘(`lib/auth/AGENTS.md`·입력기 안내) | 원본 시험 158 + 새 시험 24, 뮤턴트 넷 | 없음 |
 | 2 queries 와 재조회 | `queries/keys.ts`·`resources.ts`, 로그아웃의 표, `platform/query-client.ts`(offlineFirst·재조회), NetInfo, 릴리스 대기 예외 빼기(T10), 스펙 8.5 정정 | 표 시험 10(실제 QueryClient), `pnpm install --frozen-lockfile` | 없음 |
 | 3 UI 기반 | 미디어 변형 제거와 시험, `badge`·`skeleton`, 테마 색 표와 시험, `components.json`, 소음 판정(L2–L4), 스펙 16장 정정 | 변형 시험 3, 색 시험 3 | 없음 |
-| 4 목록·상세 화면 | `components/app` 셋, `components/resource` 여섯, 목록·상세·not-found 라우트, 홈의 진입 버튼 | 정적 검사 + 번들 | 없음 |
+| 4 목록·상세 화면 | `components/app` 셋, `components/resource` 여섯, 라우트 파라미터 거르기(`listRouteParams`), 목록·상세·not-found 라우트, 홈의 진입 버튼 | 거르기 시험 4 + 정적 검사 + 번들 | 없음 |
 | 5 E2E 와 신선도 | 하네스 `API_URL`·플로마다 `api.log`·링 버퍼 16M(M9)·지문의 빌드 레시피(M10), `examples-api.js`, 플로 여섯(목록·상세 다섯 + `auth-links`, M11), 기기 실행, 기록 L5·L6, 스펙 11.3 정정, 게이트 | 지문 시험(클론), 기기 E2E 13 플로 + 게이트 | **여기서만** |
 
 ## File Structure
@@ -232,6 +240,8 @@ test/unit/ui/breakpoints.test.ts·nav-colors.test.ts (신규)                   
 components.json                            (수정) hooks 별칭                                                     — Task 3
 components/app/request-failed.tsx·not-found-view.tsx·sheet.tsx (신규)                                            — Task 4
 components/resource/values.tsx·resource-row.tsx·resource-list.tsx·resource-detail.tsx·filter-sheet.tsx·sort-sheet.tsx·AGENTS.md (신규) — Task 4
+lib/resources/route-params.ts              (신규) 목록 화면의 라우트 파라미터에서 JSON:API 파라미터만(initial 등을 버린다) — Task 4
+test/unit/resources/route-params.test.ts   (신규)                                                                — Task 4
 app/(app)/examples/index.tsx               (신규) 목록                                                           — Task 4
 app/(app)/examples/[id]/index.tsx          (신규) 상세                                                           — Task 4
 app/+not-found.tsx                         (신규) 없는 경로                                                      — Task 4
@@ -243,7 +253,7 @@ test/e2e/flows/examples-*.yaml             (신규) 목록·상세 플로 다섯
 test/e2e/flows/auth-links.yaml             (신규) 앱 안의 로그인·가입 링크(M11)                                   — Task 5
 docs/superpowers/notes/2026-09-30-d3-measurements.md (신규) L1(Task 1)·L2–L4(Task 3)·L5–L6(Task 5)
 docs/provenance/copied-core.json           (수정) Task 1
-AGENTS.md · lib/resources/AGENTS.md · queries/AGENTS.md · platform/AGENTS.md · test/e2e/AGENTS.md (수정)
+AGENTS.md · lib/resources/AGENTS.md · lib/auth/AGENTS.md · queries/AGENTS.md · platform/AGENTS.md · test/e2e/AGENTS.md (수정)
 docs/superpowers/specs/2026-09-30-expo-jsonapi-template-design.md (정정) 8.2·8.3·9.3(Task 1), 8.5(Task 2), 16장(Task 3), 11.3(Task 5)
 ```
 
@@ -253,7 +263,7 @@ docs/superpowers/specs/2026-09-30-expo-jsonapi-template-design.md (정정) 8.2·
 
 **Files:**
 - Create: `lib/resources/view.ts`(원본 복사 + 패치), `test/unit/resources/view.test.ts`(원본 복사 + 패치), `test/unit/resources/view-expo.test.ts`, `docs/superpowers/notes/2026-09-30-d3-measurements.md`
-- Modify: `docs/provenance/copied-core.json`, `lib/resources/AGENTS.md`, `AGENTS.md`, `docs/superpowers/specs/2026-09-30-expo-jsonapi-template-design.md`(8.2·8.3·9.3 정정)
+- Modify: `docs/provenance/copied-core.json`, `lib/resources/AGENTS.md`, `AGENTS.md`, `docs/superpowers/specs/2026-09-30-expo-jsonapi-template-design.md`(8.2·8.3·9.3 정정), D2 최종 재검토의 문서 손질 둘 — `lib/auth/AGENTS.md`(머리 문장), `test/e2e/run-android.sh`(입력기 복구 안내 두 줄)
 
 **Interfaces:**
 - Consumes: D1 의 `lib/jsonapi/query.ts`(`toBackendQuery`·`isPagePositionParameter`·`pageParameter`·`linkQuery`·`buildQuery`·`INCLUDE_PARAMETER`), `lib/jsonapi/errors.ts`(`actionForErrors`·`groupErrors`), `lib/jsonapi/client.ts` 의 `JsonApiResult`·`RequestOptions`(타입만), `lib/resources/define.ts`·`index.ts`
@@ -2043,6 +2053,43 @@ Accept-Language 를 싣지 않는다 - 싣는 자리는 `platform/api.ts` 하나
   `listRequest()`·`detailRequest()`·`referenceRequest()`(`lib/resources/view.ts`)가 한다.
 ```
 
+D2 최종 재검토가 D3 의 첫 문서 단계로 넘긴 손질 둘(결정 40)도 여기서 한다. 첫째, `lib/auth/AGENTS.md` 의 머리 문장이 경로 가드의 판단(`guard-latch.ts`)을 빠뜨렸다 — 루트 `AGENTS.md` 의 `lib/auth/` 행과 맞춘다. `lib/auth/AGENTS.md` — Edit, 찾을 것:
+
+```markdown
+세션 모델과 직렬화, 만료 판정, 회전 결정, 자격증명 문서, 보호 경로 목록을 소유한다(스펙 5장).
+```
+
+바꿀 것:
+
+```markdown
+세션 모델과 직렬화, 만료 판정, 회전 결정, 자격증명 문서, 보호 경로 목록과 경로 가드 판단(`guard-latch.ts`)을
+소유한다(스펙 5장).
+```
+
+둘째, 하네스가 입력기를 되돌리지 못했을 때 권하는 확인 명령이 `test/e2e/AGENTS.md`(`adb shell settings get secure default_input_method` 로 확인하고 `ime set` 으로 되돌린다)와 다르다(`ime list -s`). 되돌리기의 대상은 기본 입력기이므로 문서 쪽에 맞춘다. 켜진 입력기 목록을 보라는 곳(자판 없는 입력기가 없을 때의 `ime list -s`)은 그대로 둔다. `test/e2e/run-android.sh` — Edit, 찾을 것:
+
+```bash
+    echo "E2E: $name 뒤에 입력기 설정을 되돌리지 못했다 - adb shell ime list -s 로 확인한다" >&2
+```
+
+바꿀 것:
+
+```bash
+    echo "E2E: $name 뒤에 입력기 설정을 되돌리지 못했다 - adb shell settings get secure default_input_method 로 확인한다(되돌리는 법은 test/e2e/AGENTS.md)" >&2
+```
+
+`test/e2e/run-android.sh` — Edit, 찾을 것:
+
+```bash
+  ime_restore || echo "E2E: 입력기 설정을 되돌리지 못했다 - adb shell ime list -s 로 확인한다" >&2
+```
+
+바꿀 것:
+
+```bash
+  ime_restore || echo "E2E: 입력기 설정을 되돌리지 못했다 - adb shell settings get secure default_input_method 로 확인한다(되돌리는 법은 test/e2e/AGENTS.md)" >&2
+```
+
 `docs/superpowers/notes/2026-09-30-d3-measurements.md` 를 만든다:
 
 ````markdown
@@ -2126,15 +2173,16 @@ pnpm exec prettier --write test/unit/resources/view-expo.test.ts docs/provenance
 pnpm typecheck && pnpm lint && pnpm format:check && pnpm lint:secrets
 ./scripts/check-citations.sh app components lib platform queries test
 node scripts/check-provenance.mjs
+bash -n test/e2e/run-android.sh && grep -c "ime list -s" test/e2e/run-android.sh
 pnpm test 2>&1 | tail -4
 ```
 
-Expected: 전부 exit 0. `pnpm test` 는 Step 1 때의 수에서 182 가 늘어난다(원본 시험 158, 새 시험 24 — 768 이면 950).
+Expected: 전부 exit 0. `ime list -s` 는 `1`(자판 없는 입력기가 없을 때의 안내만 남는다). `pnpm test` 는 Step 1 때의 수에서 182 가 늘어난다(원본 시험 158, 새 시험 24 — 768 이면 950).
 
 - [ ] **Step 9: 커밋한다**
 
 ```bash
-git add lib/resources/view.ts lib/resources/AGENTS.md test/unit/resources docs/provenance/copied-core.json docs/superpowers/notes/2026-09-30-d3-measurements.md docs/superpowers/specs AGENTS.md
+git add lib/resources/view.ts lib/resources/AGENTS.md test/unit/resources docs/provenance/copied-core.json docs/superpowers/notes/2026-09-30-d3-measurements.md docs/superpowers/specs AGENTS.md lib/auth/AGENTS.md test/e2e/run-android.sh
 git status --short
 git commit -m "feat: Next.js 템플릿의 목록·상세 판단을 복사하고 커서 목록·폼 상태·닿지 못함으로 고친다"
 ```
@@ -3379,15 +3427,16 @@ git commit -m "feat: 미디어 쿼리 변형을 빼 Uniwind 결함을 피하고 
 ### Task 4: 목록·상세 화면
 
 **Files:**
-- Create: `components/app/request-failed.tsx`, `components/app/not-found-view.tsx`, `components/app/sheet.tsx`, `components/resource/values.tsx`, `components/resource/resource-row.tsx`, `components/resource/resource-list.tsx`, `components/resource/resource-detail.tsx`, `components/resource/filter-sheet.tsx`, `components/resource/sort-sheet.tsx`, `components/resource/AGENTS.md`, `app/(app)/examples/index.tsx`, `app/(app)/examples/[id]/index.tsx`, `app/+not-found.tsx`
-- Modify: `app/(app)/index.tsx`
+- Create: `components/app/request-failed.tsx`, `components/app/not-found-view.tsx`, `components/app/sheet.tsx`, `components/resource/values.tsx`, `components/resource/resource-row.tsx`, `components/resource/resource-list.tsx`, `components/resource/resource-detail.tsx`, `components/resource/filter-sheet.tsx`, `components/resource/sort-sheet.tsx`, `components/resource/AGENTS.md`, `lib/resources/route-params.ts`, `test/unit/resources/route-params.test.ts`, `app/(app)/examples/index.tsx`, `app/(app)/examples/[id]/index.tsx`, `app/+not-found.tsx`
+- Modify: `app/(app)/index.tsx`, `lib/resources/AGENTS.md`(라우트 파라미터 절)
 
 **Interfaces:**
-- Consumes: Task 1 의 view 함수·타입, Task 2 의 `useResourceList`·`useResourceDetail`·`ResourceListState`·`ResourceDetailState`, Task 3 의 `Badge`·`Skeleton`, D2 의 `FormBanner`·`Input`·`UNUSABLE_RESPONSE_MESSAGE`, D1 의 `Button`·`Text`·`Icon`, `EXAMPLE`(`@/lib/resources`)
+- Consumes: Task 1 의 view 함수·타입, Task 2 의 `useResourceList`·`useResourceDetail`·`ResourceListState`·`ResourceDetailState`, Task 3 의 `Badge`·`Skeleton`, D2 의 `FormBanner`·`Input`·`UNUSABLE_RESPONSE_MESSAGE`, D1 의 `Button`·`Text`·`Icon`·`toBackendQuery`(`lib/jsonapi/query.ts` — `sort`·`include`·`filter[…]`·`page[…]` 만 고른다), `EXAMPLE`(`@/lib/resources`)
 - Produces:
   - 라우트: `/examples`(목록, 라우트 파라미터가 곧 쿼리), `/examples/[id]`(상세), `+not-found`
   - testID(Task 5 의 플로가 찾는다): `home-examples-link`, `examples-screen`, `resource-list`, `resource-row`, `resource-row-title`, `list-skeleton`, `list-empty`, `empty-clear-filters`, `list-footer-spinner`, `request-failed`, `retry-button`, `filter-button`, `sort-button`, `filter-sheet`, `filter-apply`, `filter-clear`, `filter-option-<키>-<연산자>-<값|any>`, `filter-input-<키>-<연산자>`, `sort-sheet`, `sort-option-<정렬 키>`, `detail-screen`, `detail-heading`, `detail-value-<항목 키>`, `detail-skeleton`, `not-found-screen`, `not-found-home`
   - `Sheet({ open, onClose, testID, children })`(`components/app/sheet.tsx`), `RequestFailed({ retrying, onRetry, compact? })`, `NotFoundView()`
+  - `listRouteParams(params: Readonly<Record<string, string | string[] | undefined>>): 같은 모양`(`lib/resources/route-params.ts`) — 라우트 파라미터에서 JSON:API 쿼리 파라미터만 남긴다. 목록 화면이 `useLocalSearchParams()` 를 이것에 먼저 통과시킨다
 
 - [ ] **Step 1: 앱 전체의 조각 셋을 쓴다**
 
@@ -4180,7 +4229,142 @@ export function SortSheet({
 - 클래스에 미디어 쿼리 변형(`sm:` 등)을 쓰지 않는다 - 루트 `AGENTS.md` 의 "React Native Reusables 컴포넌트".
 ````
 
-- [ ] **Step 3: 화면을 쓴다**
+- [ ] **Step 3: 목록 화면의 라우트 파라미터를 거르는 판단을 쓴다**
+
+로그인·가입 뒤 복귀(`dismissTo(…, { withAnchor: true })`)는 잎 화면의 라우트 파라미터에 `initial` 을 싣는다(결정 39, 사실 절). 목록 화면은 라우트 파라미터를 판단 함수에 통째로 넘기므로, 먼저 JSON:API 쿼리 파라미터만 남긴다. 시험부터 쓴다 — `test/unit/resources/route-params.test.ts`:
+
+```ts
+import { describe, expect, it } from 'vitest'
+
+import { EXAMPLE } from '@/lib/resources'
+import { listRouteParams } from '@/lib/resources/route-params'
+import {
+  clearFiltersHref,
+  filterFields,
+  filterFormValues,
+  filterHref,
+  listRequest,
+  sortOptions,
+} from '@/lib/resources/view'
+
+// 로그인·가입 뒤 복귀(dismissTo 의 withAnchor)로 목록에 닿은 화면이 받는 라우트 파라미터의 모양이다 -
+// expo-router 57 이 잎 화면까지 initial: false 를 싣고 useLocalSearchParams 가 문자열로 돌려준다.
+// ref 는 딥링크에 붙어 온 남의 파라미터다.
+const ROUTE = {
+  initial: 'false',
+  'filter[status][in]': 'active',
+  sort: 'title',
+  'page[size]': '10',
+  ref: 'probe-campaign',
+}
+
+describe('listRouteParams', () => {
+  it('JSON:API 쿼리 파라미터만 남긴다 - 이동이 실은 initial 과 남의 파라미터는 버린다', () => {
+    expect(listRouteParams(ROUTE)).toEqual({
+      'filter[status][in]': 'active',
+      sort: 'title',
+      'page[size]': '10',
+    })
+  })
+
+  it('여러 값은 배열로 두고 값이 없는 키는 버린다', () => {
+    expect(
+      listRouteParams({
+        'filter[status][in]': ['active', 'draft'],
+        sort: undefined,
+        initial: 'false',
+      }),
+    ).toEqual({ 'filter[status][in]': ['active', 'draft'] })
+  })
+
+  it('거른 파라미터로 만든 목록 주소와 요청에 initial 이 없다', () => {
+    const params = listRouteParams(ROUTE)
+    const fields = filterFields(EXAMPLE, params)
+    const hrefs = [
+      ...sortOptions(EXAMPLE, '/examples', params).map((option) => option.href),
+      clearFiltersHref('/examples', params),
+      filterHref('/examples', fields, params, filterFormValues(fields)),
+    ]
+    for (const href of hrefs) {
+      expect(href).not.toContain('initial')
+      expect(href).not.toContain('ref=')
+    }
+    expect(listRequest(EXAMPLE, params).query.has('initial')).toBe(false)
+  })
+
+  it('거르지 않으면 정렬 주소가 initial 을 다음 목록으로 옮긴다 - 이 함수를 두는 까닭', () => {
+    expect(sortOptions(EXAMPLE, '/examples', ROUTE)[0]?.href).toContain('initial=false')
+  })
+})
+```
+
+```bash
+pnpm exec vitest run test/unit/resources/route-params.test.ts 2>&1 | tail -4
+```
+
+Expected: FAIL — `Cannot find package '@/lib/resources/route-params'`.
+
+`lib/resources/route-params.ts`:
+
+```ts
+/**
+ * 목록 화면의 라우트 파라미터에서 목록이 읽는 것만 고른다 - 이 저장소가 더한 판단(원본에 없다).
+ *
+ * Expo Router 는 이동이 싣는 값도 라우트 파라미터에 섞는다. `router.dismissTo(주소, { withAnchor: true })`
+ * (로그인·가입 뒤 복귀)는 잎 화면까지 `initial: false` 를 싣고, 그 값을 거르는 곳이 없어
+ * `useLocalSearchParams()` 가 문자열 `'false'` 로 돌려준다(expo-router 57 의 `global-state/getNavigationAction.js`
+ * 가 싣고 `useScreens.js` 가 그대로 넘긴다). 백엔드로는 가지 않지만(`view.ts` 의 `listQuery` 도 JSON:API 문법만
+ * 고른다), 정렬·필터 적용·필터 지우기 주소는 남의 파라미터를 그대로 옮기므로(`view.ts` 의 `carriedParams`) 그
+ * 값이 다음 목록 화면으로 따라간다. 원본(Next.js)은 손으로 친 남의 파라미터를 주소에 남기지만, 이 앱의 라우트
+ * 파라미터에는 사용자가 친 것만 있지 않다.
+ *
+ * 이름이 정해진 파라미터만 읽는 화면(상세의 `id`)은 이 함수 없이 이름으로 꺼낸다 - 파라미터 전체를 펼치거나
+ * 돌지 않는다.
+ */
+
+import { toBackendQuery } from '@/lib/jsonapi/query'
+
+/** 라우트 파라미터 - `useLocalSearchParams()` 가 주는 모양. 값이 없는 키가 올 수 있다. */
+type RouteParams = Readonly<Record<string, string | string[] | undefined>>
+
+/**
+ * 라우트 파라미터 가운데 JSON:API 쿼리 파라미터(`filter[…]`·`sort`·`page[…]`·`include` - `toBackendQuery` 가
+ * 고르는 것)만 남긴다. 목록 화면은 라우트 파라미터를 이 함수에 먼저 통과시키고 `view.ts` 의 판단 함수에 넘긴다.
+ * 값이 여럿이면 배열로, 하나면 문자열로 둔다(`useLocalSearchParams()` 와 같은 모양).
+ */
+export function listRouteParams(params: RouteParams): RouteParams {
+  const defined: Record<string, string | string[]> = {}
+  for (const [name, value] of Object.entries(params)) {
+    if (value !== undefined) defined[name] = value
+  }
+  const kept = toBackendQuery(defined)
+  const picked: Record<string, string | string[]> = {}
+  for (const name of new Set(kept.keys())) {
+    const values = kept.getAll(name)
+    picked[name] = values.length === 1 ? (values[0] ?? '') : values
+  }
+  return picked
+}
+```
+
+```bash
+pnpm exec vitest run test/unit/resources/route-params.test.ts 2>&1 | tail -4
+```
+
+Expected: PASS 4. (스크래치에서 `listRouteParams` 가 받은 것을 그대로 돌려주게 한 뮤턴트는 넷 가운데 셋을 죽였다 — 남은 하나는 거르지 않을 때의 위험을 적은 시험이다.)
+
+`lib/resources/AGENTS.md` — `## 선언은 데이터다` 절 바로 앞에 더한다:
+
+```markdown
+## 라우트 파라미터
+
+목록 화면은 라우트 파라미터를 `route-params.ts` 의 `listRouteParams` 로 거른 뒤 판단 함수에 넘긴다 - Expo
+Router 는 이동이 싣는 값(로그인·가입 뒤 복귀의 `withAnchor` 가 싣는 `initial`)도 라우트 파라미터에 섞고,
+정렬·필터 주소는 남의 파라미터를 그대로 옮긴다(`view.ts` 의 `carriedParams`). 이름이 정해진 파라미터(상세의
+`id`)는 이름으로 꺼낸다. 어느 화면도 라우트 파라미터 전체를 펼치거나 돌지 않는다.
+```
+
+- [ ] **Step 4: 화면을 쓴다**
 
 `app/(app)/examples/index.tsx`:
 
@@ -4193,6 +4377,7 @@ import { FilterSheet } from '@/components/resource/filter-sheet'
 import { ResourceListView } from '@/components/resource/resource-list'
 import { ListToolbar, SortSheet } from '@/components/resource/sort-sheet'
 import { EXAMPLE } from '@/lib/resources'
+import { listRouteParams } from '@/lib/resources/route-params'
 import { clearFiltersHref, filterFields, filterHref, sortOptions } from '@/lib/resources/view'
 import { useResourceList } from '@/queries/resources'
 
@@ -4208,7 +4393,8 @@ import { useResourceList } from '@/queries/resources'
 const LIST_PATH = '/examples' satisfies Href
 
 export default function ExamplesScreen() {
-  const params = useLocalSearchParams()
+  // 목록이 읽는 JSON:API 파라미터만 남긴다 - 이동이 싣는 값(로그인 뒤 복귀의 initial 등)이 섞여 온다.
+  const params = listRouteParams(useLocalSearchParams())
   const list = useResourceList(EXAMPLE, params)
   const [sheet, setSheet] = useState<'filter' | 'sort' | null>(null)
   const fields = filterFields(EXAMPLE, params)
@@ -4283,6 +4469,8 @@ import { useResourceDetail } from '@/queries/resources'
  * 이 파일에는 훅 호출과 JSX 만 있다(스펙 8.4).
  */
 export default function ExampleDetailScreen() {
+  // id 만 이름으로 꺼낸다 - 이동이 싣는 값(로그인 뒤 복귀의 initial 등)도 라우트 파라미터에 섞여 온다
+  // (lib/resources/route-params.ts). 파라미터 전체를 펼치거나 돌지 않는다.
   const { id } = useLocalSearchParams<{ id: string }>()
   const detail = useResourceDetail(EXAMPLE, id)
 
@@ -4366,7 +4554,7 @@ export default function HomeScreen() {
 }
 ```
 
-- [ ] **Step 4: 정적 검사와 번들을 돌린다**
+- [ ] **Step 5: 정적 검사와 번들을 돌린다**
 
 이 저장소의 `expo start` 를 끄고 돈다(`--clear`).
 
@@ -4379,14 +4567,14 @@ pnpm test 2>&1 | tail -4
 APP_VARIANT=production BACKEND_URL=https://gate-check.invalid pnpm exec expo export --clear --platform android --platform ios --output-dir dist 2>&1 | tail -8
 ```
 
-Expected: 전부 exit 0. 타입드 라우트에 `/examples`·`/examples/[id]` 가 생겨 `LIST_PATH satisfies Href` 와 `router.push({ pathname: '/examples/[id]', … })` 가 검사된다. 타입 오류가 `Href` 에서 나면 런타임에 만든 문자열의 단언이 빠진 자리다 — 단언은 변수에 담는다(D2 의 login.tsx 와 같은 이유). 번들에 `Unable to resolve module` 이 없다(NetInfo·reanimated·lucide 아이콘까지 끌어온다). `web bundles (1)` 의 0 B CSS 는 L4 의 판정대로 둔다.
+Expected: 전부 exit 0. 시험은 4 늘어난다(970). 타입드 라우트에 `/examples`·`/examples/[id]` 가 생겨 `LIST_PATH satisfies Href` 와 `router.push({ pathname: '/examples/[id]', … })` 가 검사된다. 타입 오류가 `Href` 에서 나면 런타임에 만든 문자열의 단언이 빠진 자리다 — 단언은 변수에 담는다(D2 의 login.tsx 와 같은 이유). 번들에 `Unable to resolve module` 이 없다(NetInfo·reanimated·lucide 아이콘까지 끌어온다). `web bundles (1)` 의 0 B CSS 는 L4 의 판정대로 둔다.
 
-- [ ] **Step 5: 커밋한다**
+- [ ] **Step 6: 커밋한다**
 
 화면의 기기 동작은 Task 5 의 E2E 가 잰다(스펙 11.1 — 컴포넌트 단위 시험을 두지 않는다).
 
 ```bash
-git add components app
+git add components app lib/resources/route-params.ts lib/resources/AGENTS.md test/unit/resources/route-params.test.ts
 git status --short
 git commit -m "feat: 무한 스크롤·필터 시트·정렬 메뉴의 목록과 관계 배지·not-found 의 상세 화면을 더한다"
 ```
@@ -5356,7 +5544,7 @@ Expected: `test/e2e/android.sh`·`guard-log.sh`·`run-android.sh` 가 모두 `10
 
 - `lib/resources/view.ts` 가 원본에서 복사돼 목록을 커서로 읽는다 — 첫 요청은 커서의 입구, 다음은 `links.next` 그대로, 빈 쪽이나 실패한 쪽에서 멈춘다. 필터 입력은 폼 상태 객체이고, 백엔드에 닿지 못하면 던지지 않고 `unreachable` 을 돌려준다. 원본 시험 158 과 이 저장소의 시험 24 가 지킨다. 출처 기록에 두 파일과 이탈 아홉이 있다.
 - `queries/` 에 캐시 키·무효화 표(실제 `QueryClient` 로 잰다)와 목록·상세 조회 훅이 있고, 로그아웃이 표를 지난다. Query 캐시는 `offlineFirst` 이고 앱 복귀(AppState)·네트워크 복귀(NetInfo)에 다시 부른다.
-- 목록(`/examples`)은 라우트 파라미터가 곧 쿼리다 — 딥링크가 조건을 재현하고, 필터 시트·정렬 메뉴·필터 지우기가 새 목록 화면을 쌓아 뒤로 가기가 이전 조건을 되살린다. 무한 스크롤·당겨서 새로고침·빈 결과·닿지 못함의 다시 시도가 있다. 상세(`/examples/[id]`)는 관계 배지·UTC 시각·여러 줄 설명을 그리고, 없는 id 와 없는 경로는 not-found 다.
+- 목록(`/examples`)은 라우트 파라미터가 곧 쿼리다 — 이동이 싣는 값(`initial`)은 `listRouteParams` 가 거르고 상세는 `id` 를 이름으로 꺼낸다. 딥링크가 조건을 재현하고, 필터 시트·정렬 메뉴·필터 지우기가 새 목록 화면을 쌓아 뒤로 가기가 이전 조건을 되살린다. 무한 스크롤·당겨서 새로고침·빈 결과·닿지 못함의 다시 시도가 있다. 상세(`/examples/[id]`)는 관계 배지·UTC 시각·여러 줄 설명을 그리고, 없는 id 와 없는 경로는 not-found 다.
 - `app/`·`components/` 에 미디어 쿼리 변형이 없고 시험이 막는다. 버튼·입력이 폰에서 40dp 다. 내비게이션 테마의 색이 `global.css` 토큰과 같고 시험이 맞댄다.
 - `./scripts/check.sh` 가 12단계를 통과한다. E2E 는 D2 의 일곱과 D3 의 여섯 — 목록·상세, 정렬·필터·뒤로 가기, 빈 결과·not-found, 무한 스크롤·새로고침·앱 복귀·상세 재진입의 신선도, 잘못된 필터의 영어 배너, 앱 안의 로그인·가입 링크 — 을 한 에뮬레이터·한 스택에서 돈다.
 - 하네스는 기기 로그의 링 버퍼를 16MiB 로 넓히고(`android.sh boot`), 빌드 레시피(`test/e2e/android.sh`)를 APK 지문에 넣는다. 플로마다 백엔드 접근 로그(`api.log`)를 남긴다.
@@ -5370,6 +5558,7 @@ D4(생성·수정·삭제)가 넘겨받는 것:
 - 쓰기 훅은 `queries/keys.ts` 의 표를 부른다 — 생성 `cacheEffects({ kind: 'create', type })`, 수정 `{ kind: 'update', type, id }`, 삭제 `{ kind: 'delete', type, id }`. 키를 손으로 적지 않는다.
 - 인증 오류 처리(스펙 9.2, D2 결정 4·이 계획 결정 16)와 쓰기 가드(스펙 7.3 둘째 겹)는 D4 의 첫 인증 요청과 함께 붙인다.
 - `lib/resources/view.ts` 의 `referenceRequest`·`referenceList` 가 관계 선택기의 첫 소비자를 기다린다(결정 1). `lib/resources/form.ts` 를 같은 방식(복사 + 패치 + 출처 기록)으로 가져온다.
+- 쓰기 화면(`/examples/new`·`/examples/[id]/edit`)은 경로 가드 뒤 로그인 복귀(`withAnchor`)로 닿으므로 라우트 파라미터에 `initial` 이 섞여 온다 — 이름으로 꺼낸다(전역 제약, 결정 39, `lib/resources/AGENTS.md` 의 "라우트 파라미터" 절).
 - 목록 화면의 "새로 만들기" 와 상세의 "수정"·삭제는 D4 가 더한다. 쓰기 뒤 이동은 D3 의 조건 변경과 같은 이유로 기록을 생각해서 고른다.
 - E2E 의 쓰기 플로는 제목에 D3 의 접두사(`probe-seed`·`probe-d3-`)를 쓰지 않는다.
 - `queries/` 의 첫 단위 시험(`test/unit/queries/keys.test.ts`, 실제 `QueryClient`)이 생겼다 — D2 최종 검토가 D4 에 넘긴 `establishIfSignedIn` 의 거절 처리 시험(T16)을 그 옆에 둘 수 있다.
