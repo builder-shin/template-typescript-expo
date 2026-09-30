@@ -50,6 +50,55 @@ function headerOf(init: RequestInit, name: string): string | null {
   return new Headers(init.headers).get(name)
 }
 
+/** fetch 가 받은 요청 signal - 타임아웃과 호출자 signal 을 합친 컨트롤러의 것이다. */
+function requestSignal(): AbortSignal {
+  const signal = lastCall()[1].signal
+  if (signal == null) throw new Error('fetch 가 signal 을 받지 못했다')
+  return signal
+}
+
+/**
+ * json() 이 끝나지 않고 취소에도 반응하지 않는 응답. 취소가 json() 을 거절시켜 주지 않는
+ * 런타임(iOS 의 expo/fetch - 실측 기록 M6 의 소스 확인)을 흉내 낸다.
+ */
+function stalledBodyResponse(status = 200): Response {
+  return {
+    status,
+    ok: status >= 200 && status < 300,
+    json: () => new Promise<never>(() => undefined),
+  } as unknown as Response
+}
+
+/** stalledBodyResponse 에 json() 이 시작된 때를 알려 주고 결말을 시험이 쥐게 한 것. */
+function controlledBodyResponse(status = 200): {
+  response: Response
+  started: Promise<void>
+  rejectBody: (reason: unknown) => void
+} {
+  let markStarted: () => void = () => undefined
+  let rejectJson: (reason: unknown) => void = () => undefined
+  const started = new Promise<void>((resolve) => {
+    markStarted = resolve
+  })
+  const response = {
+    status,
+    ok: status >= 200 && status < 300,
+    json: () => {
+      markStarted()
+      return new Promise<never>((_resolve, reject) => {
+        rejectJson = reject
+      })
+    },
+  } as unknown as Response
+  return {
+    response,
+    started,
+    rejectBody: (reason) => {
+      rejectJson(reason)
+    },
+  }
+}
+
 describe('request — 요청 조립', () => {
   it('backendUrl 앞에 경로를 붙인다', async () => {
     fetchMock.mockResolvedValue(jsonApiResponse(COLLECTION_EMPTY))
@@ -545,6 +594,22 @@ describe('request — 타임아웃(스펙 8.5)', () => {
     expect(result.errors[0]?.code).toBe('REQUEST_TIMEOUT')
   })
 
+  // 위 시험의 json() 은 취소에 거절로 답한다. 취소에 답하지 않는 json() 이어도 끊겨야 한다 -
+  // request() 가 json() 을 요청 signal 과 경주시키기 때문이다(readJson).
+  it('본문이 끝나지 않는 응답도 시간이 다 되면 끊는다 - json() 이 취소에 반응하지 않아도', async () => {
+    fetchMock.mockResolvedValue(stalledBodyResponse(200))
+    const pending = request('/api/v1/examples')
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS)
+    const result = await pending
+    if (result.ok) throw new Error('끊기지 않았다')
+    expect(result.status).toBe(0)
+    const [error] = result.errors
+    expect(error?.code).toBe('REQUEST_TIMEOUT')
+    expect(error !== undefined && isSyntheticError(error)).toBe(true)
+    expect(getEventListeners(requestSignal(), 'abort')).toHaveLength(0)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
   it('끝난 요청은 타이머를 남기지 않는다', async () => {
     fetchMock.mockResolvedValue(jsonApiResponse(COLLECTION_EMPTY))
     await request('/api/v1/examples')
@@ -577,4 +642,79 @@ describe('request — 타임아웃(스펙 8.5)', () => {
     caller.abort()
     expect(lastCall()[1].signal?.aborted).toBe(false)
   })
+})
+
+/*
+ * 본문 읽기(readJson)는 response.json() 을 요청 signal 과 경주시킨다. 취소가 json() 을 거절시켜
+ * 준다고 믿을 수 없기 때문이다 - iOS 의 expo/fetch 는 취소 뒤에 json() 이 끝나는 상태로 가는 길이
+ * 없다(실측 기록 M6 의 소스 확인). 아래 응답의 json() 은 끝나지 않고 취소에도 반응하지 않는다.
+ * 실제 타이머를 쓴다: 타임아웃은 위 describe 가, 여기서는 호출자의 취소로 잰다.
+ */
+describe('request — 본문 읽기는 요청 signal 과 경주한다', () => {
+  it('본문을 읽는 도중 호출자가 끊으면 NON_JSONAPI_RESPONSE 다 - status 는 응답의 것', async () => {
+    const body = controlledBodyResponse(200)
+    fetchMock.mockResolvedValue(body.response)
+    const caller = new AbortController()
+    const pending = request('/api/v1/examples', { signal: caller.signal })
+    await body.started
+    caller.abort()
+    const result = await pending
+    expect(result).toMatchObject({ ok: false, status: 200 })
+    if (result.ok) throw new Error('끊기지 않았다')
+    const [error] = result.errors
+    expect(error?.code).toBe('NON_JSONAPI_RESPONSE')
+    expect(error !== undefined && isSyntheticError(error)).toBe(true)
+    expect(getEventListeners(requestSignal(), 'abort')).toHaveLength(0)
+    expect(getEventListeners(caller.signal, 'abort')).toHaveLength(0)
+  })
+
+  it('본문 읽기를 시작할 때 이미 끊겨 있으면 곧바로 끝난다', async () => {
+    // 이 모의 fetch 는 signal 을 무시하고 응답한다 - 호출자는 응답이 도착하기 전에 끊는다.
+    fetchMock.mockResolvedValue(stalledBodyResponse(200))
+    const caller = new AbortController()
+    const pending = request('/api/v1/examples', { signal: caller.signal })
+    caller.abort()
+    const result = await pending
+    expect(result).toMatchObject({ ok: false, status: 200 })
+    if (result.ok) throw new Error('끊기지 않았다')
+    expect(result.errors[0]?.code).toBe('NON_JSONAPI_RESPONSE')
+    expect(getEventListeners(requestSignal(), 'abort')).toHaveLength(0)
+  })
+
+  it('본문 읽기가 먼저 끝나면 요청 signal 에 리스너를 남기지 않는다', async () => {
+    fetchMock.mockResolvedValue(jsonApiResponse(COLLECTION_EMPTY))
+    const result = await request('/api/v1/examples')
+    expect(result.ok).toBe(true)
+    expect(getEventListeners(requestSignal(), 'abort')).toHaveLength(0)
+  })
+
+  // 취소가 이긴 뒤에도 json() 의 약속은 남아 있고, 늦게 거절되면 처리기가 없을 때 처리되지 않은
+  // 거절이 된다 - Node 는 그것을 오류로 다루고 RN 도 경고를 낸다.
+  it.each<[string, boolean]>([
+    ['본문을 읽는 도중 끊겼을 때', false],
+    ['본문 읽기를 시작할 때 이미 끊겨 있었을 때', true],
+  ])(
+    '취소가 이긴 뒤 json() 이 늦게 거절돼도 처리되지 않은 거절을 남기지 않는다 - %s',
+    async (_label, abortBeforeBody) => {
+      const unhandled: unknown[] = []
+      const record = (reason: unknown): void => {
+        unhandled.push(reason)
+      }
+      process.on('unhandledRejection', record)
+      try {
+        const body = controlledBodyResponse(200)
+        fetchMock.mockResolvedValue(body.response)
+        const caller = new AbortController()
+        const pending = request('/api/v1/examples', { signal: caller.signal })
+        if (!abortBeforeBody) await body.started
+        caller.abort()
+        await pending
+        body.rejectBody(new Error('늦은 거절'))
+        await new Promise<void>((resolve) => setTimeout(resolve, 0))
+      } finally {
+        process.off('unhandledRejection', record)
+      }
+      expect(unhandled).toEqual([])
+    },
+  )
 })

@@ -1229,8 +1229,10 @@ M6이 기기에서 잰 것은 응답 헤더가 오기 전의 취소(블랙홀 �
   - **iOS.** `emitRequestCanceled()`가 상태를 `.errorReceived`로 만들고(`NativeResponse.swift` 62–70행), `ExpoURLSessionTask.cancel`이 delegate를 먼저 떼므로(`ExpoURLSessionTask.swift` 48–53행,
     `expo-modules-core/ios/DevTools/URLSessionSessionDelegateProxy.swift` 21–25행·44–52행) 상태가 `.bodyCompleted`로 갈 길이 없다. 그러면 헤더를 받은 뒤 본문이 멈춘 요청의 `json()`은
     취소나 타임아웃 뒤에도 끝나지 않을 수 있다.
-- **그래서.** `lib/jsonapi/client.ts`의 `REQUEST_TIMEOUT_MS` 주석은 타임아웃이 연결·응답 대기·본문 읽기를 모두 덮는다고 적는다. 소스로는 Android에서 뒷받침되고 iOS에서는 위 경로가 걸린다.
-  재지 않았다 - iOS를 재는 CI 계획이 헤더 뒤에 본문이 멈추는 서버로 타임아웃을 함께 재야 한다.
+- **그래서.** `lib/jsonapi/client.ts`의 `readJson()`이 `json()`을 요청 signal과 경주시킨다. `REQUEST_TIMEOUT_MS` 주석이 적는 "연결·응답 대기·본문 읽기를 모두 덮는다"가 iOS의 위 경로에서도 서도록
+  게이트를 세운 뒤에 고쳤다. iOS에서 `json()`이 취소 뒤에 실제로 끝나지 않는지는 여전히 재지 못했다 - 이 코드는 그 여부와 무관하게 `REQUEST_TIMEOUT`이나 `NON_JSONAPI_RESPONSE`로 끝나고, 단위 시험이
+  끝나지 않는 `json()`으로 그것을 잰다(`test/unit/jsonapi/client.test.ts`의 "본문 읽기는 요청 signal 과 경주한다"와 타임아웃 describe의 "본문이 끝나지 않는 응답도 …"). iOS를 재는 CI 계획은 헤더 뒤에
+  본문이 멈추는 서버로 타임아웃을 기기에서 확인한다.
 
 ### 정한 것
 
@@ -1240,7 +1242,10 @@ M6이 기기에서 잰 것은 응답 헤더가 오기 전의 취소(블랙홀 �
   이 앱에서는 단계에 따라 맞지 않는다.
 - 스펙이 "RN fetch"라고 부른 것은 이 앱에서는 `expo/fetch`다. RN 폴리필(`EXPO_PUBLIC_USE_RN_FETCH=1`)의 동작은 재지 않았다.
 - **`request()`는 `cache`를 계속 넘기지 않는다.** 이유가 바뀌었을 뿐이다 - `expo/fetch`가 `cache`를 읽지 않고, RN 폴리필로 되돌려도 URL이 바뀐다(위 소스 확인 절). 스펙 6.2·15장에 정정을 더했다.
-- 이 절이 재지 않은 것: 본문을 읽는 도중의 타임아웃(소스를 읽은 결과와 iOS의 우려는 위 소스 확인 절에 있다), 호출자 `signal`이 끊은 요청의 화면 결과, 오류 메시지 원문, iOS.
+- **본문 읽기는 요청 signal과 경주시킨다.** 취소가 `json()`을 거절시켜 준다고 믿을 수 없어서 `readJson()`이 둘 중 먼저 끝나는 쪽을 결과로 삼는다(이유는 위 소스 확인 절). 본문을 읽는 도중 타임아웃이 걸리면
+  `REQUEST_TIMEOUT`, 호출자가 끊으면 `NON_JSONAPI_RESPONSE`(status는 응답의 것)다.
+- 이 절이 재지 않은 것: 본문을 읽는 도중의 타임아웃·취소의 기기 결과(`readJson()`이 런타임과 무관하게 끝내고 단위 시험이 그것을 잰다 - 소스를 읽은 결과와 iOS의 우려는 위 소스 확인 절에 있다),
+  호출자 `signal`이 끊은 요청의 화면 결과, 오류 메시지 원문, iOS.
 
 ## M3 — 기기 로캘
 

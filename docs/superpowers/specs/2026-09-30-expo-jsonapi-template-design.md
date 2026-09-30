@@ -820,8 +820,10 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > `AbortController` 로 건 타임아웃이 요청을 거절시킨다는 결과는 그대로다(실측 M6: 응답 헤더 전의 취소를
 > Android 에서 쟀다). 취소가 거절되는 모양은 단계마다 다르다 - 요청 단계는 `AbortError` 가 아니라
 > `Error`(`FetchError`), 본문을 스트림으로 읽는 중은 `AbortError` 다. `request()` 가 쓰는 `response.json()`
-> 은 스트림이 아니어서 이 구분 밖이고, 그래서 취소를 오류 이름으로 가르지 않는다. 본문을 읽는 도중의
-> 취소·타임아웃은 재지 못했다(소스를 읽은 결과는 실측 기록 M6).
+> 은 스트림이 아니어서 이 구분 밖이고, 그래서 취소를 오류 이름으로 가르지 않는다. 대신 `request()` 는
+> `json()` 을 요청 signal 과 경주시킨다(이유는 실측 기록 M6 의 소스 확인). 본문을 읽는 도중 시간이
+> 다 되면 `REQUEST_TIMEOUT`, 호출자가 끊으면 `NON_JSONAPI_RESPONSE`(status 는 응답의 것)이고 단위 시험이
+> 지킨다.
 
 ## 16. 리스크
 

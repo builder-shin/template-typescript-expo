@@ -247,7 +247,7 @@ export async function request<T>(
   init.signal = controller.signal
 
   try {
-    return await exchange<T>(url, init, () => timedOut)
+    return await exchange<T>(url, init, controller.signal, () => timedOut)
   } finally {
     clearTimeout(timer)
     callerSignal?.removeEventListener('abort', forwardAbort)
@@ -263,9 +263,41 @@ function timeoutResult<T>(cause?: string): JsonApiResult<T> {
   }
 }
 
+/**
+ * response.json() 을 요청 signal 과 경주시킨다 - 먼저 끝나는 쪽이 결과다.
+ *
+ * 취소가 json() 을 거절시켜 준다고 믿을 수 없어서다. expo/fetch 의 json() 은 스트림이 아니라 네이티브
+ * text() 를 기다리는데, iOS 에서는 취소가 응답을 .errorReceived 로 만들고 delegate 를 먼저 떼어
+ * text() 가 끝나는 상태(.bodyCompleted)로 갈 길이 없다(실측 기록 M6 의 소스 확인). 그러면 헤더를 받은
+ * 뒤 본문이 멈춘 요청은 타임아웃이 취소를 걸어도 여기서 끝나지 않고, 스피너가 끝없이 돈다. signal 이
+ * 이기면 이 약속은 거절되고, exchange() 의 catch 가 timedOut 으로 REQUEST_TIMEOUT 과
+ * NON_JSONAPI_RESPONSE 를 가른다. 취소에 반응하는 런타임(Android)에서도 결과가 같다.
+ *
+ * Promise.race 가 json() 의 약속에도 처리기를 다는 것에 기댄다 - signal 이 이긴 뒤 늦게 거절돼도
+ * 처리되지 않은 거절이 되지 않는다(시험이 고정한다). signal 의 리스너는 어느 쪽이 이기든 거둔다.
+ */
+async function readJson(response: Response, signal: AbortSignal): Promise<unknown> {
+  // 동기로 던져도 async 함수라 거절로 돌아온다(아직 리스너를 달기 전이다).
+  const body: Promise<unknown> = response.json()
+  let onAbort: () => void = () => undefined
+  const aborted = new Promise<never>((_resolve, reject) => {
+    onAbort = () => {
+      reject(new Error('The request was aborted while reading the response body.'))
+    }
+  })
+  if (signal.aborted) onAbort()
+  else signal.addEventListener('abort', onAbort, { once: true })
+  try {
+    return await Promise.race([body, aborted])
+  } finally {
+    signal.removeEventListener('abort', onAbort)
+  }
+}
+
 async function exchange<T>(
   url: string,
   init: RequestInit,
+  signal: AbortSignal,
   timedOut: () => boolean,
 ): Promise<JsonApiResult<T>> {
   let response: Response
@@ -296,7 +328,7 @@ async function exchange<T>(
 
   let parsed: unknown
   try {
-    parsed = await response.json()
+    parsed = await readJson(response, signal)
   } catch (error) {
     if (timedOut()) return timeoutResult(causeOf(error))
     return {

@@ -31,7 +31,8 @@
 합성 코드는 넷이다 - 원본의 `REQUEST_ASSEMBLY_FAILED`·`NETWORK_ERROR`·`NON_JSONAPI_RESPONSE`에
 이 저장소가 더한 `REQUEST_TIMEOUT`(`REQUEST_TIMEOUT_MS` 15초, 스펙 8.5). 호출자가 `signal`로
 끊은 요청은 타임아웃이 아니다 - 응답을 받기 전에 끊은 요청은 `NETWORK_ERROR`, 본문을 읽는 도중
-끊겨 `json()`이 거절되면 `NON_JSONAPI_RESPONSE`(status는 응답의 것)다.
+끊은 요청은 `NON_JSONAPI_RESPONSE`(status는 응답의 것)다. 시간이 다 된 요청은 어느 단계에서든
+`REQUEST_TIMEOUT`이다.
 
 ## 플랫폼을 모른다
 
@@ -44,8 +45,11 @@ vitest에서 그대로 돌고, 앱에서는 SDK 57의 `expo/fetch` 위에서 돈
   `request()`는 `cache`를 넘기지 않는다(스펙 8.5). 네이티브 HTTP 캐시(Android OkHttp·iOS URLCache)는
   응답 헤더를 따른다(미측정 - D2가 잰다).
 - 취소는 단계마다 다르게 거절된다. 요청 단계의 취소는 `AbortError`가 아니라 `Error`(`FetchError`)이고
-  (실측 M6), 본문을 스트림(`response.body`)으로 읽는 중의 취소는 `AbortError`다. `request()`가 쓰는
-  `response.json()`은 스트림이 아니라 네이티브 `text()`를 기다려서 이 구분 밖이다. 그래서 취소를 오류
+  (실측 M6), 본문을 스트림(`response.body`)으로 읽는 중의 취소는 `AbortError`다. 그래서 취소를 오류
   이름으로 가르지 않는다.
+- `request()`가 쓰는 `response.json()`은 스트림이 아니라 네이티브 `text()`를 기다려서, 취소가 그것을
+  거절시켜 준다고 믿을 수 없다. 그래서 `readJson()`이 `json()`을 요청 signal과 경주시킨다 - 본문을
+  읽는 도중의 취소와 타임아웃이 어느 런타임에서든 위 분류로 끝나고, 단위 시험이 끝나지 않는 `json()`으로
+  그것을 지킨다. 이 경주를 걷어내지 않는다.
 - 근거와 소스의 파일·줄은 `docs/superpowers/notes/2026-09-30-d1-measurements.md`의 M6, 원본과
   달라진 곳은 `docs/provenance/copied-core.json`의 `client.ts` 이탈 기록에 있다.
