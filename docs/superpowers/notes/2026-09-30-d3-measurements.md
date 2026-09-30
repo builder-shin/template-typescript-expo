@@ -1,7 +1,7 @@
 # D3 실측 기록 (2026-09-30)
 
 D3(목록·상세)를 구현하며 정하고 잰 것이다. 명령과 출력을 함께 적는다. L1 은 Task 1(기기에서 잰 딥링크와 그
-정규화는 Task 5), L2–L4 는 Task 3, L5·L6 은 Task 5 가 적었다.
+정규화는 Task 5), L2–L4 는 Task 3, L5·L6 은 Task 5, L7 은 D3 최종 검토 뒤의 고침이 적었다.
 
 ## L1 — 목록 주소의 인코딩 규칙 (스펙 8.2)
 
@@ -179,8 +179,11 @@ $ grep -cE 'POST /api/v1/examples |PATCH /api/v1/examples/' "$L"
 전체 실행(L1·L6 의 수정 전 APK 와 마지막 APK)에서 같았다. 첫 게이트 실행에서는 목록 GET 이 여덟이었다 - 앞 플로의 줄은
 없었고, 맨 위로 굴린 마지막 스와이프(`scrollUntilVisible` 의 위쪽)가 목록을 당겨 새로고침을 한 번 더 일으켰다(둘째 쪽
 커서 `… 20` 이 두 번). 그 새로고침은 `<접두사> 00` 을 만들기 전에 끝났지만, 도는 동안에는 다시 당겨도 새로고침이 일어나지
-않아(`RefreshControl` 이 당김을 받지 않는다) 새 행을 놓칠 수 있다 - 플로가 그 스크롤 뒤에 `waitForAnimationToEnd` 로
-스피너가 멎기를 기다린 다음 행을 만들게 고쳤다(고친 뒤 그 플로만 돈 실행: 목록 6·상세 2·쓰기 28). 요청의 순서(접두사와
+않아(`RefreshControl` 이 당김을 받지 않는다) 새 행을 놓칠 수 있다. 처음에는 그 스크롤 뒤에 `waitForAnimationToEnd` 를
+두었으나 경합을 닫지 못한다 - 하네스가 애니메이션 배율을 0 으로 두어 스피너가 곧바로 정지 화면이 되고, Maestro 2.11 의
+그 명령은 시간이 다 돼도 실패하지 않는다(D3 최종 검토가 설치본 jar 에서 읽었다). 그래서 `<접두사> 00` 을 위로 굴리기
+**전에** 만들게 바꿨다 - 어느 당김의 새로고침이든 그 행을 받고, 둘 다 `RefreshControl` 의 당김이라 재는 것은 같다.
+요청의 순서(접두사와
 id 를 가리고 커서를 줄였다):
 
 ```text
@@ -303,3 +306,73 @@ Gboard 의 숫자 자판에 `-` 키가 있고, 그 키와 `5` 를 눌러 `-5` �
 **목록의 네이티브 조각.** `RefreshControl`(당겨서 새로고침)과 `onEndReached`(둘째 쪽 읽기)가
 `examples-scroll-refresh` 에서 돌았다(L5 의 요청 줄). D2 의 일곱은 입력·버튼이 36dp 에서 40dp 로 바뀐 뒤에도
 통과했다 - testID 로 찾는다.
+
+## L7 — 닿지 못한 재조회와 읽은 목록 (기기, D3 최종 검토 I1)
+
+**왜 재는가.** 처음 판은 백엔드에 닿지 못한 조회를 결과 값으로 캐시에 두었다(D3 계획 결정 7). 그래서 재조회(앱 복귀·
+네트워크 복귀·당겨서 새로고침·다시 들어온 상세)가 닿지 못하면 쪽 배열이 `[실패]` 하나로 바뀌어 읽은 목록·상세가 전체
+화면 실패가 되고, 연결이 돌아와도 첫 쪽만 다시 읽었다. D3 최종 검토가 설치본 query-core 5.104.0 과 앱의 옵션(`staleTime`
+0·재시도 없음·`offlineFirst`)으로 재 보였다:
+
+```text
+after scrolling 3 pages: list rows=6 calls 3
+after app return while offline: unreachable (full screen) calls 4
+after reconnect: list rows=2 calls 5
+```
+
+**고친 것.** 조회의 `queryFn` 이 닿지 못함을 던진다(`queries/resource-options.ts` 의 `throwIfUnreachable` - 결정 7 의
+"틀리면" 갈래). TanStack Query 는 재조회가 실패해도 앞의 `data` 를 둔다. 화면 상태는 `listScreen`·`detailScreen`
+(`lib/resources/screen-state.ts`)이 데이터·오류에서 정한다 - 데이터가 없으면 실패가 화면 전부, 있으면 그대로 두고 작은
+실패(`request-failed-compact`)를 더한다. `test/unit/queries/resource-options.test.ts` 가 검토의 탐침을 실제
+`QueryClient`·`focusManager`·`onlineManager` 로 돈다 - 결과 값으로 캐시에 두는 판으로 되돌리면 네 전이가 실패한다(앱 복귀
+뒤와 새로고침 뒤의 화면이 `unreachable`, 다음 쪽 실패 뒤 `hasNextPage` 거짓, 상세 재조회 뒤 `unreachable`).
+
+**기기에서 잰 것.** `test/e2e/flows/examples-offline-refetch.yaml` - 목록을 읽은 뒤 비행기 모드를 켜고(에뮬레이터에서
+10.0.2.2 가 곧바로 `connect: Network is unreachable` - `adb shell ping` 으로 확인했다) 당겨서 새로고침하고, 비행기 모드를
+끈다. Maestro 출력:
+
+```text
+Enable airplane mode... COMPLETED
+Swipe from (50%, 35%) to (50%, 85%) in 1000 ms... COMPLETED
+Assert that id: request-failed-compact is visible... COMPLETED
+Assert that "probe-seed alpha", id: resource-row-title is visible... COMPLETED
+Assert that "probe-seed bravo", id: resource-row-title is visible... COMPLETED
+Assert that id: request-failed is not visible... COMPLETED
+Disable airplane mode... COMPLETED
+Assert that id: request-failed-compact is not visible... COMPLETED
+Assert that "probe-seed alpha", id: resource-row-title is visible... COMPLETED
+```
+
+기기 로그에는 `[e2e-http] 0 GET /api/v1/examples NETWORK_ERROR` 하나(선언한 0)와 `Running "main"` 뿐이다. 백엔드
+접근 로그의 목록 GET 은 둘이다 - 첫 조회와 연결 복귀의 재조회. 끊긴 동안의 당김은 서버에 닿지 않았다.
+
+**`docker pause` 를 쓰지 않은 까닭.** Maestro 플로에는 호스트의 셸 명령을 부를 단계가 없다 - `runScript` 의 GraalJS 는
+Maestro 2.11 이 표시한 호스트 멤버에만 닿는다(`GraalJsEngine` 의 `allowAccessAnnotatedBy`). 컨테이너를 멈추려면 하네스에
+제어 서버를 더해야 한다. 비행기 모드는 플로 안에서 켜고 끄며 곧바로 실패한다. 대신 "다시 시도" 버튼의 성공 갈래는 기기에서
+누르지 않는다 - 연결이 돌아오면 네트워크 복귀의 재조회가 먼저 작은 실패를 걷는다. 버튼이 부르는 것(목록 위·전체 화면은
+`refetch`, 목록 끝은 `fetchNextPage`)은 단위 시험이 잰다. `onFlowComplete` 는 2.11.0 에서 실패한 단계 뒤에도 돈다 -
+비행기 모드를 켜고 없는 id 를 단언하는 스크래치 플로가 `FAILED` 뒤에 `Disable airplane mode... COMPLETED` 를 찍었고
+기기는 `disabled` 였다. `android.sh boot` 도 비행기 모드를 끈다(하네스가 그 플로 도중에 죽은 경우).
+
+**실행.** `E2E_AVD=Pixel_9_API_36 E2E_FORCE_BUILD=1 ./test/e2e/run-android.sh` - 1064초(`BUILD SUCCESSFUL in 3m 58s`),
+`=== E2E 통과 - 플로 14개 ===`(D2 의 일곱과 D3 의 일곱). 선언한 표식 - 404 둘, 400 하나, 0 하나 - 과 선언하지 않은
+D3 플로 넷의 0. `examples-scroll-refresh` 의 둘째 쪽 커서는 `… 20` → `… 19` → `… 18` 이었다(L5 - `<접두사> 00` 을 위로
+굴리기 전에 만들게 바꾼 뒤).
+
+**그 앞의 빌드 실패.** 이 수정의 첫 빌드가 `:app:createBundleReleaseJsAndAssets` 에서 죽었다(`BUILD FAILED in 29s`):
+
+```text
+> Process 'command 'cmd'' finished with non-zero exit value -1073741819 (NTSTATUS 0xC0000005)
+```
+
+원인을 가른 것:
+
+- Metro 는 `Android Bundled … (2042 modules)`·`Done writing bundle output`·`Done writing sourcemap output` 까지 찍었다.
+  디스크의 `index.android.bundle` 은 JS 그대로였고(Hermes 로 바꾸기 전) 컴파일러 소스맵이 없었다.
+- 같은 번들을 Gradle 과 같은 인자(`-w -emit-binary -max-diagnostic-width=80 -out … -O -output-source-map`)로 설치본
+  `hermes-compiler/hermesc/win64-bin/hermesc.exe` 에 세 번 넣었다 - 셋 다 exit 0, 3,652,268 바이트, 매직 `c6 1f bc 03`.
+  죽은 것은 `hermesc` 가 아니라 번들을 다 쓴 node(`export:embed`)의 종료다 - D1 실측 M1 관찰 8 과 같은 모양이다.
+- `$TMP/metro-cache`(29MB)를 지우고 `E2E_FORCE_BUILD=1` 로 한 번 빌드했다 - 재현되지 않았다(위 실행). Gradle 의 번들
+  명령은 어차피 `--reset-cache` 를 준다(`BundleHermesCTask.kt` - 실패한 빌드도 `Bundler cache is empty, rebuilding` 을
+  찍었다) - 캐시를 비운 채 도는 번들도 드물게 종료에서 죽는다는 관찰을 M1 관찰 8 에 더한다. 재시도로 덮지 않았다 -
+  가르는 데 7분(21:45Z–21:52Z)이 걸렸다.

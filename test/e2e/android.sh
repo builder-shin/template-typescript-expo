@@ -5,7 +5,7 @@
 #                                   BOOT_TIMEOUT_SECONDS(기본 300) 안에 끝나지 않거나 에뮬레이터가
 #                                   죽으면 에뮬레이터 로그의 꼬리를 내고 실패한다. 기기가 여럿인데
 #                                   ANDROID_SERIAL 이 없으면 곧바로 실패한다. 끝으로 기기 로그의 링
-#                                   버퍼를 16MiB 로 넓힌다(이미 켜진 기기도)
+#                                   버퍼를 16MiB 로 넓히고 비행기 모드를 끈다(이미 켜진 기기도)
 #   test/e2e/android.sh check-path  이 위치에서 Android 네이티브 빌드가 되는가 - Windows 에서 저장소
 #                                   경로가 47자를 넘으면 실패한다
 #   test/e2e/android.sh build       e2e 변형 Release APK 를 만든다 (BACKEND_URL 필요).
@@ -86,6 +86,9 @@ boot() {
   # 통과하고, 선언한 [e2e-http] 줄을 놓쳐 가짜로 실패한다. 재부팅하면 기본 크기로 돌아가므로 부팅할
   # 때마다(이미 켜진 기기여도) 정한다.
   "$ADB" logcat -G 16M
+  # 비행기 모드를 끈다. 켜고 끄는 플로(examples-offline-refetch)는 끝나면 스스로 끄지만(onFlowComplete), 하네스가
+  # 그 플로 도중에 죽으면 켜진 채 남아 다음 실행의 플로가 전부 백엔드에 닿지 못한다.
+  "$ADB" shell cmd connectivity airplane-mode disable
 }
 
 check_path() {
