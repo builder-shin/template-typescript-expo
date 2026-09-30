@@ -436,7 +436,7 @@ export {}
 이 파일을 커밋하는 이유로 "Metro를 한 번도 돌리지 않은 체크아웃에서 typecheck가 `className` 타입을 모른다"가 있었다. 생성 파일 둘
 (`uniwind-types.d.ts`, git이 무시하는 `expo-env.d.ts`)을 치워 새 체크아웃을 흉내 냈다.
 
-| 있는 생성 파일 | `pnpm typecheck` |
+| 있는 생성 파일(`css.d.ts`를 더하기 전) | `pnpm typecheck` |
 | --- | --- |
 | 둘 다 | exit 0 |
 | `expo-env.d.ts`만 | exit 0 |
@@ -448,8 +448,11 @@ export {}
 props와 테마 이름(`light`·`dark`)을 더한다. 그래서 새 체크아웃에서 `pnpm typecheck`를 통과시키는 것은 `pnpm types:routes`
 (`expo customize tsconfig.json`)가 만드는 `expo-env.d.ts`다. `expo-env.d.ts`를 지우고
 `BACKEND_URL=https://gate-check.invalid pnpm types:routes`를 돌리면 파일이 다시 생기고 `tsconfig.json`은 그대로이며
-`pnpm typecheck`는 exit 0이다. 루트 `AGENTS.md`의 검증 명령은 설치 바로 뒤에 `pnpm typecheck`를 부르는데, 새 체크아웃에서는 그
-앞에 `pnpm types:routes`가 있어야 통과한다.
+`pnpm typecheck`는 exit 0이다.
+
+이 실패는 `*.css` 선언이 git이 무시하는 `expo-env.d.ts`에만 있어서 생긴다. 그래서 저장소 루트에 `css.d.ts`(`declare module '*.css'`)를 더했다.
+그 뒤로는 커밋을 `git archive`로 받아 `pnpm install --frozen-lockfile`만 한 사본(생성 파일이 하나도 없다)에서 `pnpm typecheck`가
+`pnpm types:routes` 없이 exit 0이다. `expo-env.d.ts`가 있을 때도 exit 0이라, 두 선언이 겹쳐도 오류가 없다.
 
 ### Release 빌드
 
@@ -564,6 +567,15 @@ BUILD SUCCESSFUL in 5m 3s
 APK는 102,792,486바이트다(`reactNativeArchitectures=armeabi-v7a,arm64-v8a,x86,x86_64`, `newArchEnabled=true`, `hermesEnabled=true`).
 Gradle 안의 JS 번들링은 `Android Bundled 9426ms node_modules\expo-router\entry.js (1466 modules)`였다.
 
+**이 APK의 앱 설정(JS)은 development였다.** 네이티브는 e2e(`com.example.templateexpo.e2e`)인데 에뮬레이터에 설치된 APK에서 꺼낸
+`assets/app.config`(앱이 읽는 `Constants.expoConfig`)는 `name` `Template Expo (Dev)` · `scheme` `templateexpo-dev` ·
+`extra.appVariant` `development` · `android.package` `com.example.templateexpo.dev`였다. `android.sh build`가 `APP_VARIANT=e2e`를
+prebuild 명령에만 접두 대입해서, Gradle의 `createExpoConfig`(expo-constants의 Exec 태스크가 `getAppConfig.js`로 `app.config.ts`를 다시 평가한다)가
+받지 못했다. `export APP_VARIANT=e2e`로 고치고 빌드 끝에서 `assets/app.config`의 `extra.appVariant`가 `e2e`인지 단언한다. 같은 방법(6자 경로 복사본,
+hoisted)으로 다시 만든 APK(5m 41s, 102,792,646바이트)는 `name` `Template Expo (E2E)` · `scheme` `templateexpo-e2e` · `extra.appVariant` `e2e` ·
+`android.package` `com.example.templateexpo.e2e`이고 단언이 통과했다. 옛 APK에 같은 단언을 돌리면 `extra.appVariant=development`로 exit 1이다.
+다시 설치해 실행한 화면은 아래와 같다(UI 덤프의 텍스트 셋, 색 `#ffffff` · `#171717` · `#fafafa` · `#0a0a0a`, 크래시 없음).
+
 ### 설치와 실행
 
 ```bash
@@ -669,23 +681,34 @@ npm `latest`는 1.12.0(2026-09-04)이라 고쳐진 릴리스는 아직 없다.
 3. **기기 도우미 `boot`.** 처음 `E2E_AVD=Pixel_9_API_36 test/e2e/android.sh boot`는 8분 가까이 지나도 `adb devices`에 기기가 나타나지 않았고(에뮬레이터 프로세스는
    떠 있었으나 콘솔 포트 5554가 열리지 않음) 프로세스를 직접 종료했다. 스크립트의 `adb wait-for-device`에는 시간 제한이 없어 이 경우 스크립트도 끝나지 않는다.
    같은 플래그(`-verbose`만 더함)로 다시 띄운 에뮬레이터는 약 2분 뒤 등록됐고, 그 뒤 에뮬레이터를 끄고 스크립트로 다시 부팅하니 20초 안에 exit 0으로 끝나고
-   애니메이션 배율 셋이 0이 되었다. 첫 실행이 멈춘 이유는 찾지 못했다.
+   애니메이션 배율 셋이 0이 되었다. 첫 실행이 멈춘 이유는 찾지 못했다. 그 뒤 스크립트를 고쳤다. 기기 등록도 `BOOT_TIMEOUT_SECONDS`(기본 300, 환경 변수로 바꿀 수 있다) 안에서
+   `device_count`로 기다리고, 띄운 에뮬레이터가 죽었는지 `kill -0`으로 보고, 에뮬레이터 출력을 `${TMPDIR:-/tmp}/e2e-emulator-<AVD>.log`에 남겨 실패할 때 꼬리 20줄을 낸다.
+   `device_count`는 `ANDROID_SERIAL`이 있으면 그 기기만 센다(`adb devices`는 이 변수를 무시한다). 세 경로를 시험했다. 연결된 기기는 0.4초에 exit 0이고,
+   없는 AVD 이름(`__no_such_avd__`)은 곧바로 exit 1과 emulator의 `Unknown AVD name` 오류를 낸다. 살아 있지만 등록되지 않는 가짜 emulator는 제한 10초에서 11초 만에 exit 1과
+   로그 꼬리를 낸다.
 4. **Uniwind의 Metro 캐시 디렉터리는 고정이다.** `uniwind/metro`의 `cacheStore`는 `os.tmpdir()/metro-cache` 하나를 쓴다. 같은 머신에서 Metro가 동시에 둘 돌면
    위의 `EPERM`처럼 서로 지우려다 부딪힐 수 있다(Release 빌드를 병렬로 돌렸을 때 재현됐다).
 5. **`components/ui/`의 `Platform.select({ web: … })` 분기는 이 저장소에서 실행되지 않는다.** 웹은 대상이 아니지만(스펙 1.2) 원본과 어긋나지 않게 그대로 두었다.
+6. **새 체크아웃의 `pnpm lint`는 `expo-env.d.ts` 없이는 실패한다.** 커밋을 `git archive`로 받아 `pnpm install --frozen-lockfile`만 한 사본에서
+   `app.config.ts`(26·27행)와 `lib/config/settings.ts`(46행)의 `process.env.…`가 `any`로 잡혀 `@typescript-eslint/no-unsafe-argument`·`no-unsafe-assignment` 3건이 난다.
+   이 작업 이전의 `b22c2e2`를 같은 방법으로 받아도 같다. 원인은 TypeScript 6.0에서 `types`의 기본값이 빈 목록이라 `@types/node`가 프로그램에 들어오지 않고(프로그램 안의
+   `@types/node` 파일 0개), `process`가 `expo-modules-core/build/ts-declarations/global.d.ts`의 느슨한 선언으로 잡히는 것이다. `expo-env.d.ts`가 있으면 `expo/types`의 선언이 잡혀 통과한다.
+   `compilerOptions.types: ["node"]`는 이를 고치지 못했고(lint 3건 그대로), `["expo/types"]`는 `expo-env.d.ts` 없이 typecheck·lint·test가 모두 exit 0이었다.
+   두 시험 모두 스크래치 사본에서만 했고 저장소의 `tsconfig.json`에는 적용하지 않았다.
 
 ### 정한 것
 
 - **M1 = 예.** Uniwind + React Native Reusables를 유지한다. Release 빌드에서 렌더되고 라이트·다크 토큰이 그대로 나온다.
 - **링커를 `nodeLinker: hoisted`로 바꾼다(M5 재판정).** Windows에서 Android 네이티브 빌드가 된 조합은 잰 것 가운데 hoisted + 47자 이하 경로뿐이었다. isolated는 6자 경로에서도 실패했다.
   Linux·macOS에서 isolated가 되는지는 이 머신에서 재지 못했다. CI가 잰다.
-- **`uniwind-types.d.ts`는 커밋한다.** 위 표의 이유로 새 체크아웃의 `pnpm typecheck`를 통과시키는 것은 이 파일이 아니라 `pnpm types:routes`가 만드는 `expo-env.d.ts`다.
-  이 파일은 Uniwind 전용 props와 테마 이름 타입을 준다.
+- **`uniwind-types.d.ts`와 `css.d.ts`를 커밋한다.** 새 체크아웃의 `pnpm typecheck`를 통과시키는 것은 `css.d.ts`(`*.css` 선언)이고,
+  `uniwind-types.d.ts`는 Uniwind 전용 props와 테마 이름 타입을 준다.
 - **받은 컴포넌트는 `text.tsx`의 `ROLE` 타입 한 줄만 고쳤다.**
 
 아래는 이 기록이 정하지 않은 것이다.
 
 - Uniwind의 `@media` 블록 결함에 어떻게 대응할지(패치, 다른 버전, `sm:` 회피). 지금은 `Button`의 높이만 눈에 띈다.
 - 이 머신에서 APK를 만드는 방법(47자 이하 경로의 작업 트리). `test/e2e/android.sh`는 경로 길이를 검사하지 않는다.
-- `AGENTS.md`의 검증 명령 순서(`pnpm types:routes`가 `pnpm typecheck` 앞에 필요)와 `secretlint` 스크립트 이름.
+- expo-doctor가 지목한 `secretlint` 스크립트 이름.
+- 새 체크아웃의 `pnpm lint`(관찰 6). 후보는 `tsconfig.json`의 `compilerOptions.types: ["expo/types"]`이다.
 - `expo-system-ui` 설치 여부.
