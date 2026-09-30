@@ -170,6 +170,17 @@ describe('nextPageQuery — links.next 를 그대로 따라간다', () => {
   it('읽을 수 없는 링크는 끝이다 - 던지지 않는다', () => {
     expect(nextPageQuery(okPage(['s1'], { next: 'http://[probe' }))).toBe(null)
   })
+
+  it('next 가 빈 문자열이면 끝이다 - 빈 쿼리를 따라가지 않는다', () => {
+    // 빈 URLSearchParams 를 주면 호출자(queries/resources.ts)의 `nextPageQuery(쪽)?.toString()` 이
+    // `''` 가 된다. `''` 는 "다음 쪽 없음"(undefined)이 아니라 쪽 매개변수라 끝이 오지 않고,
+    // 빈 쿼리의 요청을 한 번 더 보낸다.
+    expect(nextPageQuery(okPage(['s1'], { self: '/x', next: '' }))).toBe(null)
+  })
+
+  it('쿼리가 없는 링크도 끝이다', () => {
+    expect(nextPageQuery(okPage(['s1'], { self: '/x', next: '/probe/api/shelves' }))).toBe(null)
+  })
 })
 
 describe('listView — 쪽 여럿을 한 목록으로', () => {
@@ -201,6 +212,17 @@ describe('listView — 쪽 여럿을 한 목록으로', () => {
     expect(view.failure).toEqual({ kind: 'unreachable' })
   })
 
+  it('실패한 쪽 뒤의 쪽은 읽지 않는다 - 행도 실패도 앞의 것이 남는다', () => {
+    const view = listView(probeShelf(), plan, [
+      okPage(['s1']),
+      failedPage([UNREACHABLE]),
+      okPage(['s2']),
+    ])
+    if (view.kind !== 'list') throw new Error('목록이어야 한다')
+    expect(view.rows.map((row) => row.id)).toEqual(['s1'])
+    expect(view.failure).toEqual({ kind: 'unreachable' })
+  })
+
   it('뒤따르는 쪽의 백엔드 오류는 그 문구의 배너다', () => {
     const view = listView(probeShelf(), plan, [
       okPage(['s1']),
@@ -211,9 +233,10 @@ describe('listView — 쪽 여럿을 한 목록으로', () => {
   })
 
   it('뒤따르는 쪽의 오류에 문구가 없으면 던진다 - 빈 배너를 그리지 않는다', () => {
+    // 문구로 잰다 - 던지기만 재면 다른 까닭의 예외(쪽 배열을 못 읽는 TypeError 등)도 통과한다.
     expect(() =>
       listView(probeShelf(), plan, [okPage(['s1']), failedPage([{ status: '400' }])]),
-    ).toThrow()
+    ).toThrow('목록 요청이 문구 없는 오류로 실패했다')
   })
 })
 
@@ -249,6 +272,8 @@ describe('filterFormValues — 시트를 열 때의 값', () => {
 
   it('URL 이 비면 모든 값이 비어 있다', () => {
     const values = filterFormValues(filterFields(probeShelf(), {}))
+    // 컨트롤 일곱(제목·상태·크기 둘·시각 둘·주인 없음)마다 키가 있다 - `{}` 를 돌려줘도 아래 every 는 참이다.
+    expect(Object.keys(values)).toHaveLength(7)
     expect(Object.values(values).every((entry) => entry.length === 0)).toBe(true)
   })
 })

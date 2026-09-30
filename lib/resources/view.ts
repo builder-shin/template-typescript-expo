@@ -485,6 +485,9 @@ export interface ListRequest {
  *
  * ## 왜 `page.tsx` 에서 조각조각 부르지 않는가 (리뷰 라운드 1, Important-1)
  *
+ * (template-typescript-expo) 아래 경위는 원본 저장소의 것이다 - 이 파일은 `withAcceptLanguage` 를
+ * 쓰지 않는다. 언어는 앱의 API 클라이언트(`platform/api.ts`)가 싣는다(스펙 9.4).
+ *
  * 처음에는 `page.tsx` 가 `listQuery` · `withAcceptLanguage` · `EXAMPLE.path` 를
  * 각각 불렀다. 그 배선은 **어느 계층도 관측하지 못한다** - RSC 라 단위
  * 테스트가 부를 수 없고, E2E 는 그 결과를 화면으로만 본다. 리뷰어가 실제로
@@ -504,8 +507,9 @@ export interface ListRequest {
  * `request()` 에 그대로 넘긴다**는 한 줄이다. 그 한 줄은 이 저장소의 알려진
  * 구조적 한계다(요청 스코프를 스텁하지 않는 관례 - 루트 `AGENTS.md`). 즉:
  *
- * - **지켜진다:** `include` 를 싣는가 · `Accept-Language` 를 옵션에 얹는가 ·
- *   어느 경로로 가는가 · 남의 파라미터를 거르는가. 전부 아래 테스트가 잰다.
+ * - **지켜진다:** `include` 를 싣는가 · 옵션에 `Accept-Language` 를 싣지 않는가(싣는 자리는
+ *   `platform/api.ts` 하나다, 스펙 9.4) · 어느 경로로 가는가 · 남의 파라미터를 거르는가.
+ *   전부 아래 테스트가 잰다.
  * - ~~**지켜지지 않는다:** `page.tsx` 가 `plan.options` 대신 `{}` 를
  *   넘기는 것.~~ **(D3 Task 7) E2E 가 닫았다** - `test/e2e/examples.spec.ts`
  *   가 행 있는 목록을 상대로 돌고, 뮤턴트(`request(plan.path, {})`)가 14개 중
@@ -679,13 +683,19 @@ function failureOf(request: string, errors: readonly ErrorObject[]): ListFailure
  *   빈 쪽 뒤에 읽을 행은 없다 - 그 링크를 따라가면 빈 쪽을 한 번 더 부를 뿐이다.
  * - **이 쪽이 실패했거나 본문이 없다.** 실패한 쪽 뒤로는 읽지 않는다(`listView` 의 `failure`).
  * - **링크를 읽을 수 없다.** `linkQuery` 가 `null` 을 준다 - 던지지 않는다.
+ * - **링크에 쿼리가 없다.** `''` 이거나 경로뿐인 링크는 따라갈 커서가 없다. `linkQuery` 는 이때 빈
+ *   `URLSearchParams` 를 주는데, 호출자가 그것을 문자열로 바꿔 쪽 매개변수로 삼으면(`?.toString()`)
+ *   `''` 가 된다. `''` 는 "다음 쪽 없음"(`undefined`)이 아니라 쪽 매개변수라 끝이 오지 않고 빈
+ *   쿼리의 요청을 한 번 더 보낸다.
  */
 export function nextPageQuery(result: JsonApiResult<CollectionDocument>): URLSearchParams | null {
   if (!result.ok || result.document === null) return null
   if (result.document.data.length === 0) return null
   const next = result.document.links?.next
   if (!linkPresent(next)) return null
-  return linkQuery(next)
+  const query = linkQuery(next)
+  if (query === null || query.toString() === '') return null
+  return query
 }
 
 /* ------------------------------------------------------------------------- *
@@ -1315,7 +1325,7 @@ export function filterHref(
 }
 
 /* ------------------------------------------------------------------------- *
- * 정렬 메뉴와 페이지 이동 (D3 Task 5)
+ * 정렬 메뉴와 필터 지우기 (D3 Task 5)
  * ------------------------------------------------------------------------- */
 
 /**
@@ -1341,10 +1351,11 @@ function valueList(values: string | string[]): readonly string[] {
 /**
  * 지금 URL 에서 **이 화면이 유지해야 할 파라미터**만 옮겨 담는다.
  *
- * `drop` 이 참인 이름은 호출부가 새로 쓸 것이거나 뜻을 잃은 것이다. 셋(정렬
- * 이동 · 페이지 이동 · 필터 지우기)이 전부 이 모양이라 한 함수로 묶었다 -
- * 세 벌로 두면 "남의 파라미터를 그대로 옮긴다"(스펙 8.1)를 한 곳에서만 고쳐도
- * 나머지 둘이 조용히 옛 규칙으로 남는다.
+ * `drop` 이 참인 이름은 호출부가 새로 쓸 것이거나 뜻을 잃은 것이다. 둘(정렬
+ * 이동 · 필터 지우기)이 전부 이 모양이라 한 함수로 묶었다 - 두 벌로 두면
+ * "남의 파라미터를 그대로 옮긴다"(스펙 8.1)를 한 곳에서만 고쳐도 나머지가
+ * 조용히 옛 규칙으로 남는다. (template-typescript-expo) 원본에는 페이지 이동이 셋째였다 -
+ * offset 쪽 이동을 뺐다.
  */
 function carriedParams(
   searchParams: SearchParams,
@@ -1941,8 +1952,8 @@ export interface ReferenceRequest {
  *
  * ## 왜 `listRequest` 를 그대로 못 쓰는가
  *
- * `listRequest` 는 **화면의 목록**을 위한 것이라 정렬·필터·쪽 이동을 URL 이
- * 정한다. 이 함수는 **폼 안의 선택기**를 위한 것이라 그런 조회 상태가 아예
+ * `listRequest` 는 **화면의 목록**을 위한 것이라 정렬·필터를 URL 이 정한다(쪽은
+ * 커서로 따라간다 - 스펙 8.3). 이 함수는 **폼 안의 선택기**를 위한 것이라 그런 조회 상태가 아예
  * 없다 - "지금 존재하는 것 중에서 고른다" 뿐이므로 쪽 크기와 정렬을 고정하고
  * `searchParams` 를 받지 않는다.
  *
