@@ -112,10 +112,11 @@ describe('request — 요청 조립', () => {
     expect(headerOf(lastCall()[1], 'accept-language')).toBe('en')
   })
 
-  it('cache 옵션을 넘기지 않는다 - RN fetch polyfill 이 URL 을 바꾼다', async () => {
-    // RN 0.86.3 의 fetch 는 whatwg-fetch 3.6.20 이고, 그 Request 는 cache 가
-    // no-store·no-cache 인 GET 의 URL 끝에 `_=<시각>` 을 붙인다(fetch.js:398-407).
-    // JSON:API 요청 URL 은 백엔드의 쿼리 문법 검사를 거치므로 바뀌면 안 된다.
+  it('cache 옵션을 넘기지 않고 URL 을 그대로 둔다', async () => {
+    // 이 앱의 전역 fetch(expo/fetch)는 cache 를 읽지 않으므로 넘겨도 소용이 없다.
+    // EXPO_PUBLIC_USE_RN_FETCH 로 되살리는 RN polyfill(whatwg-fetch 3.6.20)은 Request 가
+    // cache 가 no-store·no-cache 인 GET 의 URL 끝에 `_=<시각>` 을 붙인다(fetch.js:398-407).
+    // JSON:API 요청 URL 은 백엔드의 쿼리 문법 검사를 거치므로 어느 fetch 에서든 바뀌면 안 된다.
     fetchMock.mockResolvedValue(jsonApiResponse(COLLECTION_EMPTY))
     await request('/api/v1/examples')
     expect(lastCall()[1].cache).toBeUndefined()

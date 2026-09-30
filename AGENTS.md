@@ -19,7 +19,12 @@
 | `platform/`            | Expo 모듈 호출, React Provider, API 클라이언트 조립                     | 판단                                      |
 | `queries/`             | 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화                                   | JSX, 쿼리 문자열 조립                     |
 | `app/`                 | 화면, 라우팅, 가드 배치                                                 | fetch, `request()` 호출, 쿼리 문자열 조립 |
+| `components/app/`      | 앱 전체에 걸린 화면 조각(설정 오류 화면 `FatalConfig` 등)               | 자원 UI, fetch                            |
 | `components/resource/` | 선언을 읽어 만드는 획일 UI                                              | 자원 이름으로 분기                        |
+
+`components/app/`은 스펙의 표와 4장의 트리에 없다. 시작 설정 오류 화면(`FatalConfig`)처럼 앱
+전체에 걸린 화면 조각이 `components/ui/`(React Native Reusables 복사본)도
+`components/resource/`(자원 UI)도 아니어서 따로 뒀다.
 
 위반의 정의:
 
@@ -62,9 +67,27 @@ Expo Router는 `app/` 아래의 모든 파일을 라우트로 취급한다. 판�
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm typecheck
-pnpm lint
-pnpm format:check
-pnpm secretlint
-pnpm test
+./scripts/check.sh
 ```
+
+`./scripts/check.sh` 하나가 유일한 게이트다(typecheck · lint · format · secretlint · 인용 ·
+복사 출처 · unit · 설정 · 의존성 호환 · 번들 · compose). 전제 조건(Docker, 네트워크)은 그
+파일 머리말에 있다. 실행 권한이 살아 있어야 통과한다 - `git ls-tree HEAD scripts/`가
+`100755`인지 확인한다. `core.filemode=false`인 머신에서는 권한이 빠져도 `git status`로
+드러나지 않는다.
+
+secretlint 단계는 `pnpm lint:secrets`다. 스크립트 이름을 `secretlint`로 두면
+`node_modules/.bin/secretlint`를 가려서 의존성 호환 단계(expo-doctor)의 package.json 검사가
+실패한다.
+
+`pnpm typecheck`는 타입 프로그램 둘을 돈다. 앱 코드(`app/`·`components/`·`lib/`·`platform/`)는
+`tsconfig.json`으로 검사하고, 그 `types`는 `expo/types`뿐이라 Node 타입이 없다. 시험(`test/`)은
+`test/tsconfig.json`으로 검사하고, 이 설정은 루트 설정을 물려받아 `node` 타입을 더한다(시험이
+`node:fs` 같은 Node 모듈을 import하기 때문이다). 둘로 나눈 이유는 Node 전용 전역(`Buffer`,
+`NodeJS.Timeout`)이 RN 앱 코드에 들어오지 않게 하려는 것이다 - `node` 타입을 앱 프로그램에 더하면
+`setTimeout`의 반환형이 `number`가 아니라 `NodeJS.Timeout`이 된다. 시험이 import하는 `lib/`
+파일은 두 프로그램에서 모두 검사되므로, 그런 파일의 타이머 핸들은
+`ReturnType<typeof setTimeout>`으로 적는다.
+
+실측 기록은 `docs/superpowers/notes/2026-09-30-d1-measurements.md`다. 기기 위의 동작(M1–M8)이
+궁금하면 거기부터 읽는다.

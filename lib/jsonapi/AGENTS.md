@@ -29,11 +29,13 @@
 곳에서 직접 비교하지 않는다.
 
 합성 코드는 넷이다 - 원본의 `REQUEST_ASSEMBLY_FAILED`·`NETWORK_ERROR`·`NON_JSONAPI_RESPONSE`에
-이 저장소가 더한 `REQUEST_TIMEOUT`(`REQUEST_TIMEOUT_MS` 15초, 스펙 8.5). 호출자가 `signal`로
-끊은 요청은 타임아웃이 아니라 `NETWORK_ERROR`다.
+이 저장소가 더한 `REQUEST_TIMEOUT`(`REQUEST_TIMEOUT_MS` 15초, 스펙 8.5). 응답이 오기 전에
+호출자가 `signal`로 끊은 요청은 타임아웃이 아니라 `NETWORK_ERROR`다. 응답이 온 뒤 본문을 읽다가
+끊은 요청은 본문을 읽지 못한 것이라 `NON_JSONAPI_RESPONSE`다.
 
 ## 플랫폼을 모른다
 
 이 디렉터리는 react·react-native·expo를 import하지 않는다(ESLint가 막는다). 그래서 node의
-vitest에서 그대로 돌고, 앱에서는 RN의 fetch 위에서 돈다. 둘의 차이(RN fetch polyfill의
-동작 등)는 `client.ts`의 이탈 기록에 있다.
+vitest에서 그대로 돌고, 앱에서는 SDK 57의 전역 fetch인 `expo/fetch` 위에서 돈다. 둘의
+차이는 `docs/provenance/copied-core.json`의 `client.ts` 이탈 기록(`cache`를 읽지 않는 것)과
+실측 기록 M6(응답 전에 취소하면 오류 이름이 `AbortError`가 아니라 `Error`인 것)에 있다.

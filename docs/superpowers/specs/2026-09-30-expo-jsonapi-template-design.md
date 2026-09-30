@@ -106,6 +106,18 @@ FastAPI·NestJS에는 CORS 설정이 없고(Next.js 스펙 2.2의 측정),
 | E2E | Maestro CLI | 2.11.0 (2026-09-29 릴리스) |
 | 품질 | ESLint · Prettier · secretlint | 형제 저장소와 같은 계열 |
 
+> 정정(2026-09-30, D1): 품질 도구의 ESLint 는 **9**다(형제 저장소는 10). eslint-config-expo 57 이
+> 의존하는 eslint-plugin-react 7.37·eslint-plugin-import 2.x 의 peer 가 ESLint 9 까지다. 그리고
+> eslint-config-expo 위에 typescript-eslint 의 설정을 그대로 얹으면 `@typescript-eslint` 플러그인
+> 재등록으로 ESLint 가 죽어서, typescript-eslint 에서는 규칙만 가져온다 - `eslint.config.js` 머리말.
+
+> 정정(2026-09-30, D1): pnpm 링커는 hoisted 다(`pnpm-workspace.yaml`의 `nodeLinker: hoisted`). 기본
+> isolated 링커에서도 Metro 번들(`expo export`)과 expo-doctor 는 통과했지만(실측 M5), Windows 에서
+> Android Release 빌드(Gradle·CMake·ninja)가 `node_modules/.pnpm` 의 긴 경로를 감당하지 못해 저장소를
+> 6자 경로에 두어도 실패했다. hoisted 에서만 빌드가 성공했다(실측 M1 - M5 의 재판정). pnpm 11 은
+> `.npmrc` 의 `node-linker` 를 읽지 않으므로 설정은 `pnpm-workspace.yaml` 에 둔다. 경로 길이 제한은
+> 16장의 정정.
+
 **스타일을 Uniwind로 고른 이유:** 형제 템플릿은 Tailwind v4와 shadcn/ui를
 쓴다. NativeWind 4.2.7(`latest`)은 `react-native-css-interop`을 거쳐
 `tailwindcss ~3`을 요구하고, Tailwind v4를 쓰는 NativeWind 5는 아직 RC다.
@@ -243,6 +255,14 @@ docs/superpowers/specs/ · plans/ · notes/
 그것들의 테스트. `lib/utils.ts`는 React Native Reusables가 자기 `cn`을 가져오므로
 복사하지 않는다.
 
+> 정정(2026-09-30, D1): "복사한 뒤 고치는 것" 표의 `lib/jsonapi/client.ts` 행이 "RN fetch"라 부른 것은
+> 이 앱에서 `expo/fetch` 다. SDK 57 의 winter 런타임이 전역 `fetch` 를 바꿔 끼우고
+> (`EXPO_PUBLIC_USE_RN_FETCH` 가 1·true 일 때만 RN 의 whatwg-fetch 폴리필이 남는다), `expo/fetch` 는
+> `init` 에서 `cache` 를 읽지 않는다. 그래서 `cache: 'no-store'` 를 넘겨도 무시된다. RN 에는 Next.js
+> 서버의 fetch 가 참조하는 데이터 캐시가 없고 캐시는 TanStack Query 가 소유하므로(8.5) `cache` 를 빼는
+> 결정은 그대로다. 이유의 사실 문장은 `docs/provenance/copied-core.json` 의 `lib/jsonapi/client.ts`
+> 이탈 기록에 있다.
+
 ### 6.3 출처 기록과 검사
 
 어드민 템플릿의 `docs/provenance/copied-core.json` 형식을 그대로 쓴다(아래는
@@ -268,6 +288,9 @@ docs/superpowers/specs/ · plans/ · notes/
 4. 모든 `divergences[].path`가 `paths` 안에 있고, `what`·`why`가 비어 있지 않다.
 
 원본에서 계약 버그가 고쳐지면 이 커밋과 원본을 비교해 반영 여부를 판단한다.
+
+> 정정(2026-09-30, D1): 검사 스크립트는 `scripts/check-provenance.sh`가 아니라
+> `scripts/check-provenance.mjs`다 - JSON 을 읽어야 해서 node 로 썼다. 검사하는 네 가지는 같다.
 
 ## 7. 인증과 세션
 
@@ -546,6 +569,10 @@ Next.js와 같다.
   — HTTP 주소가 배포 빌드에 섞이지 않는다.
 - 접미사 덕분에 한 기기에 여러 변형을 함께 설치할 수 있다.
 
+> 정정(2026-09-30, D1): 딥링크 scheme 도 변형마다 다르다 - `templateexpo-dev`·`templateexpo-preview`·
+> `templateexpo`(production)·`templateexpo-e2e`. 번들 ID 만 다르고 scheme 이 같으면, 한 기기에
+> 여러 변형을 설치했을 때 딥링크가 어느 변형으로 갈지 정해지지 않는다. 표는 `lib/config/app-variant.ts`.
+
 ### 10.3 앱 식별자
 
 기본 식별자는 `com.example.templateexpo`, 딥링크 scheme은 `templateexpo`다.
@@ -645,6 +672,14 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 
 **로캘 전환:** Android는 앱별 언어(`cmd locale set-app-locales`), iOS는 실행
 인자(`-AppleLanguages`)로 바꾼다. 실제로 되는지는 0단계에서 실측한다.
+
+> 정정(2026-09-30, D1): Android 는 앱별 언어로 성립했다(실측 M3) -
+> `adb shell cmd locale set-app-locales <패키지> --locales <태그>` 를 주면 앱의 `getLocales()` 가 그 태그를
+> 앞세우고 시스템 로캘이 뒤따른다. Maestro 2.11 의 `maestro test` 에는 `--device-locale` 옵션이 없고
+> (`Unknown option`, exit 2), 시스템 로캘을 바꾸는 길은 `user` 빌드 이미지에서 root 가 막혀 쓸 수 없다.
+> Maestro 플로는 adb 를 부를 수 없으므로 `pm clear` → `set-app-locales` → 앱 실행 순서는 플로를 시작하는
+> 하네스 스크립트가 맡는다. 그리고 로캘 플로에는 `clearState` 를 쓰지 않는다 - `clearState` 는 `pm clear` 라서
+> 앱별 언어까지 지운다. iOS 의 `-AppleLanguages` 는 개발 머신이 Windows 라 재지 못했다(CI 가 잰다).
 
 ### 11.4 E2E 스택
 
@@ -770,6 +805,9 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 각 실측 결과는 `docs/superpowers/notes/`에 남기고, 설계와 어긋나면 이 문서에
 날짜가 붙은 정정을 덧붙인다.
 
+> 정정(2026-09-30, D1): 위 6번의 "RN fetch"는 이 앱에서 `expo/fetch` 다(6.2의 정정). `AbortController`
+> 로 건 타임아웃이 요청을 실제로 끊는다는 결과는 그대로다(실측 M6).
+
 ## 16. 리스크
 
 | 리스크 | 대응 |
@@ -783,6 +821,20 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 | 로캘 전환이 E2E에서 안 된다 | 0단계 실측 3. 안 되면 대안을 기록과 함께 정한다 |
 | OTA 실증에 Expo 계정이 필요하다 | 게이트·CI는 계정 없이 돈다. 실증은 사용자 승인 후 9단계 |
 | 설정 오류가 OTA로 배포된다 | 설정 평가 시점의 검증(10.1), 앱 시작 시 재검증, `fingerprint` 런타임 정책 |
+
+> 정정(2026-09-30, D1): 리스크 하나를 더한다 - Windows 에서 Android 네이티브 빌드(12장 13단계의 e2e APK)는
+> 저장소가 **실제 디렉터리 경로 47자 이하**에 있어야 한다. hoisted 링커(3장의 정정)에서 47자까지 성공했고
+> 50자에서 실패했다(`ninja: error: manifest 'build.ninja' still dirty after 100 tries`, 48·49자는 재지 않았다).
+> `subst` 로 짧은 드라이브 문자에 매핑해도 소용없다 - Node 의 `fs.realpathSync.native` 가 `subst` 를 벗겨 실제
+> 경로를 돌려주고, 두 표기가 한 계산에 섞이면 React Native Gradle 플러그인의 codegen 이 실패한다. 한계는 지금의
+> 네이티브 모듈 구성에서 잰 값이라 모듈이 늘면 낮아질 수 있다. 이 머신(74자)에서는 커밋 대상 파일을 짧은 경로에
+> 복사해 거기서 빌드한다. `test/e2e/android.sh` 는 경로 길이를 검사하지 않는다(실측 M1).
+
+> 정정(2026-09-30, D1): 리스크 하나를 더한다 - Uniwind 1.12.0 은 같은 `@media` 블록 안에서 첫 규칙만 `minWidth`
+> 를 유지하고 둘째 규칙부터 미디어 조건을 잃는다. 그래서 `sm:` 규칙이 한 블록에 여럿 나오면 첫 규칙만 640dp
+> 이상에서 적용되고 나머지는 폰 폭(411dp)에서도 적용된다 - React Native Reusables `Button` 의 `h-10 … sm:h-9` 가
+> 폰에서 36dp 로 그려진다(실측 M1). 고쳐진 릴리스는 아직 없다(npm `latest` 가 1.12.0). 대응(패치, 다른 버전, `sm:`
+> 회피)은 화면을 만드는 D3 가 정한다.
 
 ## 17. 완료 조건
 

@@ -4,6 +4,7 @@
 **무엇을 했고(명령) 무엇이 나왔는가(출력)**를 사실로 적고, 그 결과로 정한 것을 따로 적는다.
 결과가 스펙과 어긋나면 스펙에 날짜가 붙은 정정을 더한다.
 계측 화면과 플로는 커밋 3d16db5에 있고 다음 커밋에서 지웠다 - 다시 재려면 그 커밋을 체크아웃한다.
+출력 원문에 나온 로컬 절대 경로에서 저장소 루트(74자)는 `…`로 줄였다.
 
 | # | 질문 | 결과 | 정한 것 |
 | --- | --- | --- | --- |
@@ -141,8 +142,9 @@ doctor exit=0
    `minimumReleaseAgeExclude`를 스스로 적었다(최종 5개: `expo@57.0.26` · `expo-constants@57.0.20` ·
    `expo-modules-core@57.0.20` · `expo-router@57.0.24` · `@expo/ui@57.0.21`). 다섯 모두
    2026-09-29 10:56~10:59 UTC에 릴리스됐고 설치한 때는 2026-09-30 00시(UTC) 무렵이라 pnpm 11 기본
-   `minimumReleaseAge`(1440분)의 안쪽이다. 임시 디렉터리에 `package.json`·`pnpm-lock.yaml`·`.npmrc`만
-   두고 `pnpm install --frozen-lockfile`을 하면 `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`(5건)으로 exit 1이고,
+   `minimumReleaseAge`(1440분)의 안쪽이다. 임시 디렉터리에 `package.json`·`pnpm-lock.yaml`만
+   두고(측정할 때는 그때 있던 `.npmrc`도 두었다. 그 파일은 관찰 1에 따라 지웠고 pnpm 설정은 지금 `pnpm-workspace.yaml`에
+   있다) `pnpm install --frozen-lockfile`을 하면 `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`(5건)으로 exit 1이고,
    `pnpm-workspace.yaml`을 더하면 exit 0이다. 가장 늦은 릴리스(2026-09-29 10:59 UTC)에서 하루가 지나면
    이 예외가 필요 없어질 것으로 보이지만, 이는 pnpm이 출력한 컷오프 규칙에서 읽은 것이고 그 시점
    이후에는 다시 재지 않았다.
@@ -174,7 +176,7 @@ doctor exit=0
    설치하므로 그때 `pnpm peers check`를 다시 본다. 이 태스크에서는 손대지 않았다.
 5. **Windows 경로 길이.** `node_modules`를 락파일로 다시 깐 트리에서 `node_modules/.pnpm` 아래 파일 33,314개
    가운데 절대 경로가 260자를 넘는 것이 2,075개이고 가장 긴 것은 354자다. 저장소 루트
-   (`C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo`, 74자)를 뺀 상대 경로만도
+   (74자)를 뺀 상대 경로만도
    279자라 저장소를 더 짧은 경로로 옮겨도 260자를 넘는 파일이 남는다. 가장 긴 파일은 `react-native`의
    `ReactCommon/react/renderer/components/legacyviewmanagerinterop/platform/ios/…ComponentDescriptor.mm`(iOS용
    소스)이다. 260자를 넘는 2,075개는 `react-native` 691개, `react-native-screens` 389개,
@@ -237,15 +239,15 @@ head -9 "$TMPDIR/m7-nourl.out"
 
 ```text
 exit=1
-Error: Error reading Expo config at C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo\app.config.ts:
+Error: Error reading Expo config at …\app.config.ts:
 
 BACKEND_URL is required
-Error: Error reading Expo config at C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo\app.config.ts:
+Error: Error reading Expo config at …\app.config.ts:
 
 BACKEND_URL is required
-    at requireAbsoluteUrl (file:///C:/Users/rootj/OneDrive/Desktop/develop/templates/template-typescript-expo/lib/config/settings.ts:29:11)
-    at loadSettings (file:///C:/Users/rootj/OneDrive/Desktop/develop/templates/template-typescript-expo/lib/config/settings.ts:46:17)
-    at appConfig (C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo\app.config.js:23:59)
+    at requireAbsoluteUrl (file:///…/lib/config/settings.ts:29:11)
+    at loadSettings (file:///…/lib/config/settings.ts:46:17)
+    at appConfig (…\app.config.js:23:59)
 ```
 
 출력은 16줄이고 이하 7줄은 Expo 내부 프레임이다.
@@ -257,14 +259,14 @@ head -8 "$TMPDIR/m7-prodhttp.out"
 
 ```text
 exit=1
-Error: Error reading Expo config at C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo\app.config.ts:
+Error: Error reading Expo config at …\app.config.ts:
 
 BACKEND_URL must use https for the production variant (got "http://probe-backend:4321")
-Error: Error reading Expo config at C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo\app.config.ts:
+Error: Error reading Expo config at …\app.config.ts:
 
 BACKEND_URL must use https for the production variant (got "http://probe-backend:4321")
-    at assertBackendUrlAllowed (file:///C:/Users/rootj/OneDrive/Desktop/develop/templates/template-typescript-expo/lib/config/app-variant.ts:67:11)
-    at appConfig (C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo\app.config.js:24:50)
+    at assertBackendUrlAllowed (file:///…/lib/config/app-variant.ts:67:11)
+    at appConfig (…\app.config.js:24:50)
 ```
 
 출력은 16줄이고 이하 8줄은 Expo·Node 내부 프레임이다.
@@ -293,7 +295,7 @@ head -6 "$TMPDIR/m7-nostrip.out"
 strip
 false
 exit=1
-SyntaxError: Error reading Expo config at C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo\app.config.ts:
+SyntaxError: Error reading Expo config at …\app.config.ts:
 
 Unexpected identifier 'as'
 SyntaxError: Unexpected identifier 'as'
@@ -455,6 +457,9 @@ props와 테마 이름(`light`·`dark`)을 더한다. 그래서 새 체크아웃
 그 뒤로는 커밋을 `git archive`로 받아 `pnpm install --frozen-lockfile`만 한 사본(생성 파일이 하나도 없다)에서 `pnpm typecheck`가
 `pnpm types:routes` 없이 exit 0이다. `expo-env.d.ts`가 있을 때도 exit 0이라, 두 선언이 겹쳐도 오류가 없다.
 
+이 절은 `tsconfig.json`에 `types`를 두기 전의 상태다. 뒤에 `types: ["expo/types"]`를 두자(아래 관찰 6) `expo/types`가 같은 `*.css` 선언을
+주게 되어 `css.d.ts`는 중복이 됐다. 아래 "정한 것"을 본다.
+
 ### Release 빌드
 
 `test/e2e/android.sh build`(= `APP_VARIANT=e2e pnpm exec expo prebuild --platform android --clean --no-install` 뒤
@@ -464,7 +469,7 @@ props와 테마 이름(`light`·`dark`)을 더한다. 그래서 새 체크아웃
 
 | # | 저장소 위치(경로 길이) | 링커 | 결과 |
 | --- | --- | --- | --- |
-| 1 | `C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo`(74자) | isolated | 실패, 3m 35s — `configureCMakeRelWithDebInfo[arm64-v8a]` 두 개 |
+| 1 | 이 머신의 저장소 위치(74자) | isolated | 실패, 3m 35s — `configureCMakeRelWithDebInfo[arm64-v8a]` 두 개 |
 | 2 | 같은 저장소를 `subst X:`로 드라이브 루트에 매핑(`X:\`) | isolated | 실패, 1초 — prebuild |
 | 3 | 저장소의 부모 폴더를 `subst X:`로 매핑(`X:\template-typescript-expo`, 27자) | isolated | 실패, 12초 — `generateCodegenSchemaFromJavaScript` 네 개 |
 | 4 | 74자 | hoisted | 실패, 1m 23s — `buildCMakeRelWithDebInfo` 두 개 |
@@ -500,7 +505,7 @@ Error: Couldn't find "package.json" up from path "X:\"
 
 ```text
 Execution failed for task ':react-native-gesture-handler:generateCodegenSchemaFromJavaScript'.
-> this and base files have different roots: X:\template-typescript-expo\node_modules\.pnpm\@react-native+codegen@0.86._88ef50d3e46a14e4cb3ce2c2b07db85d\node_modules\@react-native\codegen\lib\cli\combine\combine-js-to-schema-cli.js and C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo\node_modules\.pnpm\react-native-gesture-handle_b36ab204c3e9e0e9b3fd57438cb099df\node_modules\react-native-gesture-handler\android.
+> this and base files have different roots: X:\template-typescript-expo\node_modules\.pnpm\@react-native+codegen@0.86._88ef50d3e46a14e4cb3ce2c2b07db85d\node_modules\@react-native\codegen\lib\cli\combine\combine-js-to-schema-cli.js and …\node_modules\.pnpm\react-native-gesture-handle_b36ab204c3e9e0e9b3fd57438cb099df\node_modules\react-native-gesture-handler\android.
 ```
 
 `react-native-safe-area-context`·`react-native-screens`·`react-native-svg`도 같다. `node_modules`의 링크는 상대 경로 symlink라
@@ -512,7 +517,7 @@ Execution failed for task ':react-native-gesture-handler:generateCodegenSchemaFr
 
 ```text
 Execution failed for task ':react-native-worklets:buildCMakeRelWithDebInfo[arm64-v8a][worklets]'.
-> com.android.ide.common.process.ProcessException: ninja: Entering directory `C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo\node_modules\react-native-worklets\android\.cxx\RelWithDebInfo\6x1k4z1o\arm64-v8a'
+> com.android.ide.common.process.ProcessException: ninja: Entering directory `…\node_modules\react-native-worklets\android\.cxx\RelWithDebInfo\6x1k4z1o\arm64-v8a'
   …
   ninja: error: manifest 'build.ninja' still dirty after 100 tries
 ```
@@ -700,7 +705,7 @@ npm `latest`는 1.12.0(2026-09-04)이라 고쳐진 릴리스는 아직 없다.
    실패한다(`types`를 바꾸기 전에도, `expo-env.d.ts`가 있어도 같았다). `types`에 `"node"`를 전역으로 더하면(`["expo/types", "node"]`, 순서를 바꿔도 같다) 그 시험 파일은 통과하지만 전역 `setTimeout`의 반환형이
    `NodeJS.Timeout`이 되어 앱 코드의 `const handle: number = setTimeout(…)`이 `TS2322`로 실패한다. 그래서 루트 `tsconfig.json`(`types: ["expo/types"]`, `expo/tsconfig.base`의 `exclude` 여섯 항목에 `test`를 더한 `exclude`)은
    `app/`·`components/`·`lib/`·`platform/`·`app.config.ts`·`css.d.ts`·`uniwind-types.d.ts`·타입드 라우트 파일을 Node 전역 없이 검사한다(프로그램 안의 `@types/node` 파일 0개). `test/tsconfig.json`(루트를 `extends`,
-   `types: ["expo/types", "node"]`, `include: ["**/*.ts"]`, 루트의 `test` 제외를 물려받지 않도록 `exclude: []`)은 시험 파일과 그들이 import하는 `lib/`·`app.config.ts` 파일을 Node 타입과 함께 검사한다(66개). `pnpm typecheck`는
+   `types: ["expo/types", "node"]`, `include: ["**/*.ts"]`, 루트의 `test` 제외를 물려받지 않도록 `exclude: []`)은 시험 파일과 그들이 import하는 `lib/`·`app.config.ts` 파일을 Node 타입과 함께 검사한다(프로그램 안의 `@types/node` 파일이 66개다). `pnpm typecheck`는
    `tsc --noEmit -p tsconfig.json && tsc --noEmit -p test/tsconfig.json`이다. 시험 파일이 import하는 `lib/` 파일은 두 프로그램에서 모두 검사된다. 그런 파일에서 타이머 핸들의 타입은 `ReturnType<typeof setTimeout>`만 둘 다 통과한다(`number`는 테스트 프로그램에서 `TS2322`,
    `NodeJS.Timeout`은 앱 프로그램에서 `TS2694`로 실패한다).
    ESLint의 `projectService`는 파일에서 가장 가까운 `tsconfig.json`을 쓰므로 시험 파일은 `test/tsconfig.json`으로 타입 규칙을 받는다. 임시 프로브로 확인했다. `node:fs`·`node:child_process`·`process.env`를 쓰는 시험 파일과
@@ -712,17 +717,23 @@ npm `latest`는 1.12.0(2026-09-04)이라 고쳐진 릴리스는 아직 없다.
 - **M1 = 예.** Uniwind + React Native Reusables를 유지한다. Release 빌드에서 렌더되고 라이트·다크 토큰이 그대로 나온다.
 - **링커를 `nodeLinker: hoisted`로 바꾼다(M5 재판정).** Windows에서 Android 네이티브 빌드가 된 조합은 잰 것 가운데 hoisted + 47자 이하 경로뿐이었다. isolated는 6자 경로에서도 실패했다.
   Linux·macOS에서 isolated가 되는지는 이 머신에서 재지 못했다. CI가 잰다.
-- **`uniwind-types.d.ts`와 `css.d.ts`를 커밋한다.** 새 체크아웃의 `pnpm typecheck`를 통과시키는 것은 `css.d.ts`(`*.css` 선언)이고,
-  `uniwind-types.d.ts`는 Uniwind 전용 props와 테마 이름 타입을 준다.
+- **`uniwind-types.d.ts`와 `css.d.ts`를 커밋한다.** `uniwind-types.d.ts`는 Uniwind 전용 props와 테마 이름 타입을 준다. `css.d.ts`(`*.css` 선언)는
+  더한 때에는 새 체크아웃의 `pnpm typecheck`를 통과시키는 파일이었다. 그 뒤 `tsconfig.json`에 `types: ["expo/types"]`를 두자(다음 항목, 관찰 6)
+  `expo/types`의 `global.d.ts`(29행)가 같은 `declare module '*.css'`를 준다. 지금 새 체크아웃의 typecheck를 통과시키는 것은 `types: ["expo/types"]`이고,
+  `css.d.ts`는 같은 선언을 한 번 더 하는 무해한 중복이다. `css.d.ts`와 `expo-env.d.ts`를 모두 치운 트리에서 `tsc --noEmit -p tsconfig.json`과
+  `tsc --noEmit -p test/tsconfig.json`이 둘 다 exit 0이다.
 - **`tsconfig.json`에 `"types": ["expo/types"]`를 둔다.** 새 체크아웃의 `pnpm lint`가 `expo-env.d.ts` 없이 통과한다(관찰 6).
 - **타입 프로그램은 앱(`tsconfig.json`)과 시험(`test/tsconfig.json`) 둘이다.** 앱 코드에 Node 전역을 들이지 않으면서 시험이 `node:` 모듈을 import할 수 있다(관찰 7).
 - **받은 컴포넌트는 `text.tsx`의 `ROLE` 타입 한 줄만 고쳤다.**
+- **`secretlint` 스크립트를 `lint:secrets`로 바꾼다(게이트를 세울 때).** 스크립트 이름이 `node_modules/.bin/secretlint`를 가려 expo-doctor의
+  `Check package.json for common issues`가 실패했다(관찰 1). 이름을 바꾸면 expo-doctor가 21/21(exit 0)이고, 같은 트리에서 옛 이름으로 되돌리면
+  20/21(exit 1)에 같은 오류가 다시 난다.
+  expo-doctor는 `expo config`를 불러 `app.config.ts`를 평가하므로 `BACKEND_URL`이 없으면 그 호출이 exit 1로 죽는다 - 게이트의 9단계도 다른 설정 평가 단계처럼 값을 준다.
 
 아래는 이 기록이 정하지 않은 것이다.
 
 - Uniwind의 `@media` 블록 결함에 어떻게 대응할지(패치, 다른 버전, `sm:` 회피). 지금은 `Button`의 높이만 눈에 띈다.
 - 이 머신에서 APK를 만드는 방법(47자 이하 경로의 작업 트리). `test/e2e/android.sh`는 경로 길이를 검사하지 않는다.
-- expo-doctor가 지목한 `secretlint` 스크립트 이름.
 - `expo-system-ui` 설치 여부.
 
 ## M8 — Maestro CLI
@@ -1105,12 +1116,33 @@ http_code=200
 플로가 끝난 화면의 `probe-health-result`는 `fail 0 REQUEST_TIMEOUT`이다. Maestro 디버그 출력의 명령별 시간에서 `probe-health`를 누른 다음 결과를 기다린 단계가 15,021ms였다
 (`launchApp` 1,918 · 홈 대기 958 · `openLink` 1,246 · `tapOn` 2,143 · 결과 대기 15,021). `REQUEST_TIMEOUT_MS`(15,000ms)와 21ms 차이다.
 
+### `cache` 옵션은 무시된다 (소스 확인)
+
+`request()`가 `fetch`에 `cache: 'no-store'`를 넘기지 않는 이유(스펙 6.2)를, 전역 `fetch`가 `expo/fetch`임을 안 뒤에 설치된 소스로 다시 확인했다. 기기에서 잰 것이 아니라
+`node_modules`를 읽은 것이다(`expo` 57.0.26 · `react-native` 0.86.3 · `whatwg-fetch` 3.6.20). 처음 적은 근거는 whatwg-fetch의 `_=<시각>` 덧붙임이었는데 이 앱의 기본 런타임에는 닿지 않는다.
+
+- **전역 `fetch`를 바꿔 끼우는 곳.** `node_modules/expo/src/winter/runtime.native.ts` 41–53행이다. `EXPO_PUBLIC_USE_RN_FETCH`가 `1`·`true`가 아니면(41–44행)
+  `install('fetch', () => require('./fetch').fetch)`(52행)가 RN이 깐 `fetch`를 덮는다(`installGlobal.ts` 80–113행이 지연 getter로 바꾼다). `@expo/metro-config/build/ExpoMetroConfig.js`
+  275–277행이 `expo/src/winter/index.ts`를 메인 모듈보다 먼저 도는 모듈에 넣는다. RN 쪽은 `react-native/Libraries/Core/setUpXHR.js` 27–30행이 `fetch`·`Headers`·`Request`·`Response`를
+  깔고, `Libraries/Network/fetch.js` 15행이 `whatwg-fetch`를 부른다. `Headers`·`Request`·`Response`는 그대로 RN 폴리필의 것이다(`runtime.native.ts` 45–51행이 그 전제를 확인한다).
+  `expo-modules-core/src/polyfill/index.ts`는 `// noop`이고 `expo-modules-core/src`와 `expo/src`에서 전역 `fetch`를 설치하는 코드는 `runtime.native.ts` 52행뿐이다(웹의 `fetch.web.ts` 1행은 전역을 그대로 내보낸다).
+- **`expo/fetch`는 `cache`를 읽지 않는다.** `node_modules/expo/src/winter/fetch/fetch.ts`의 `fetch()`(35–96행)는 `init`에서 `body`·`signal`·`redirect`·`method`·`credentials`·`headers`만
+  읽고(41–55행) 네이티브에 넘기는 `nativeRequestInit`은 `credentials`·`headers`·`method`·`redirect` 넷이다(70–75행). 입력 타입 `FetchRequestInit`(`fetch.types.ts` 4–18행)과
+  `NativeRequestInit`(`NativeRequest.ts` 14–19행)에도 `cache`가 없다. 그래서 `cache: 'no-store'`는 오류 없이 무시된다.
+- **`whatwg-fetch`의 `_=<시각>` 덧붙임.** `node_modules/whatwg-fetch/fetch.js` 398–407행, `Request` 생성자 안이다. `cache`가 `no-store`·`no-cache`인 GET·HEAD의 URL 끝에 붙인다.
+  `EXPO_PUBLIC_USE_RN_FETCH`로 RN 폴리필을 되살렸을 때만 이 앱의 요청에 닿는다(그 동작은 재지 않았다).
+- **네이티브 HTTP 캐시는 있다.** Android의 `expo/fetch`는 `OkHttpClientProvider.createClient(reactContext)`로 만든 클라이언트를 쓰고(`expo/android/.../fetch/ExpoFetchModule.kt` 26–31행), 그
+  클라이언트에는 10MB `http-cache`가 붙는다(`react-native/ReactAndroid/.../network/OkHttpClientProvider.kt` 43–44행, 61–77행). iOS는 `URLSessionConfiguration.default`(`expo/ios/Fetch/ExpoFetchModule.swift`
+  118–133행)를 쓰고 요청에 `cachePolicy`를 주지 않는다(`ExpoURLSessionTask.swift` 24–41행). 둘 다 요청의 `cache` 옵션이 아니라 응답 헤더(`Cache-Control` 등)를 따른다. 세 백엔드가 응답에
+  어떤 캐시 헤더를 싣는지는 재지 않았다.
+
 ### 정한 것
 
 - **M6 = 예.** 타이머와 `AbortController`로 거는 타임아웃이 요청을 끊는다. `REQUEST_TIMEOUT_MS`는 15초로 둔다(스펙 8.5).
 - **취소를 오류 이름으로 가르지 않는다.** SDK 57의 `fetch`는 취소를 `AbortError`가 아니라 `Error`로 던진다. `lib/jsonapi/client.ts`의 `exchange()`는 `catch`에서 `timedOut()` 플래그로
   `REQUEST_TIMEOUT`을 가르므로 이름에 기대지 않는다. 다른 호출자가 `error.name === 'AbortError'`로 취소를 가르면 이 앱에서는 맞지 않는다.
 - 스펙이 "RN fetch"라고 부른 것은 이 앱에서는 `expo/fetch`다. RN 폴리필(`EXPO_PUBLIC_USE_RN_FETCH=1`)의 동작은 재지 않았다.
+- **`request()`는 `cache`를 계속 넘기지 않는다.** 이유가 바뀌었을 뿐이다 - `expo/fetch`가 `cache`를 읽지 않고, RN 폴리필로 되돌려도 URL이 바뀐다(위 소스 확인 절). 스펙 6.2·15장에 정정을 더했다.
 - 이 절이 재지 않은 것: 본문을 읽는 도중의 타임아웃, 호출자 `signal`이 끊은 요청의 화면 결과, 오류 메시지 원문, iOS.
 
 ## M3 — 기기 로캘
