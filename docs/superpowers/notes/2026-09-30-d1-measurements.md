@@ -12,7 +12,7 @@
 | M4 | `e2e` 변형 Release APK가 평문 HTTP로 `10.0.2.2:4100`에 닿는가 | | |
 | M5 | pnpm 기본(isolated) 링커에서 Metro 번들과 expo-doctor가 도는가 | 돈다 — `expo export`(android·ios) exit 0, expo-doctor 21/21 통과 exit 0 | isolated 유지(기본값). 폴백이 필요하면 `pnpm-workspace.yaml`의 `nodeLinker: hoisted`(pnpm 11은 `.npmrc`의 `node-linker`를 읽지 않는다) |
 | M6 | RN fetch에서 `AbortController` 타임아웃이 요청을 실제로 끊는가 | | |
-| M7 | `app.config.ts`가 `./lib/config/*.ts`를 확장자 포함 import로 쓸 수 있는가 | | |
+| M7 | `app.config.ts`가 `./lib/config/*.ts`를 확장자 포함 import로 쓸 수 있는가 | 쓸 수 있다 — `expo config --type public --json`(e2e 변형) exit 0에 변형 값이 나오고, `BACKEND_URL` 없음과 production+http는 각각 해당 오류 문구와 exit 1 | 확장자 포함 import 유지(검증 복사 없음). 전제는 Node의 type stripping이다 — 끄면 같은 명령이 구문 오류로 exit 1 |
 | M8 | Maestro CLI가 Windows Git Bash에서 도는가 | | |
 
 iOS 쪽(M1·M2·M3의 iOS 절반)은 개발 머신이 Windows라 여기서 잴 수 없다. CI 계획이 잰다.
@@ -185,3 +185,125 @@ doctor exit=0
    `git status`는 이 폴더로 들어가지 않아 영향이 없다). Node 기반 도구(`expo export`·`tsc`·pnpm)는 영향 없이
    돌았다. Gradle·CMake 네이티브 빌드가 이 경로를 읽을 때 문제가 되는지는 아직 빌드하지 않아 재지 못했고,
    hoisted 배치의 경로 길이도 재지 않았다.
+
+## M7 — app.config.ts 의 .ts import
+
+`app.config.ts`는 검증 함수를 두 벌 두지 않으려고 `lib/config/app-variant.ts`와 `lib/config/settings.ts`를
+확장자를 포함해(`./lib/config/app-variant.ts`) import한다. Expo CLI가 이 파일을 평가할 때 그 import가
+풀리는지 쟀다. 환경은 Node 24.19.0 · pnpm 11.22.0 · Windows 11(Git Bash)이고, 설치된 버전은 `expo` 57.0.26 ·
+`@expo/cli` 57.0.27 · `@expo/config` 57.0.9 · `@expo/require-utils` 57.0.5 · `typescript` 6.0.3이다.
+재기 전에 `tsconfig.json`의 `compilerOptions`에 `allowImportingTsExtensions: true`를 더했다.
+`expo/tsconfig.base`가 `noEmit: true`라 `tsc`가 이 옵션을 허용한다.
+
+### 성공 경로 — e2e 변형
+
+```bash
+BACKEND_URL=http://probe-backend:4321 APP_VARIANT=e2e pnpm exec expo config --type public --json > "$TMPDIR/m7-e2e.json"; echo "exit=$?"
+node -e "const c=require(process.argv[1]); console.log(c.android.package, c.scheme, JSON.stringify(c.extra))" "$TMPDIR/m7-e2e.json"
+```
+
+```text
+exit=0
+com.example.templateexpo.e2e templateexpo-e2e {"backendUrl":"http://probe-backend:4321","appVariant":"e2e","router":{}}
+```
+
+`extra.router`는 `expo-router` 플러그인(`expo-router/plugin/build/withRouter.js`)이 `config.extra`에 병합하는
+값이다. `app.config.ts`가 싣는 것은 `backendUrl`과 `appVariant` 둘이다. 같은 JSON에서 `name`은
+`Template Expo (E2E)`, `ios.bundleIdentifier`는 `com.example.templateexpo.e2e`,
+`ios.infoPlist.NSAppTransportSecurity`는 `{"NSAllowsLocalNetworking":true}`, `plugins`의
+`expo-build-properties` 옵션은 `{"android":{"usesCleartextTraffic":true}}`다.
+
+### 실패 경로 — 필수 변수 없음, 배포 변형의 http
+
+`expo config --type public --json 2>&1 | tail -5`로 자르면 오류 문구가 잘려 Expo 내부 프레임만 남는다. 그래서
+파일로 받아 앞부분을 적는다. 두 경우 모두 `expo config`가 exit 1로 멈추고 문구는 `app.config.ts`가 부른 검증
+함수의 것이다.
+
+```bash
+env -u BACKEND_URL pnpm exec expo config --type public --json > "$TMPDIR/m7-nourl.out" 2>&1; echo "exit=$?"
+head -9 "$TMPDIR/m7-nourl.out"
+```
+
+```text
+exit=1
+Error: Error reading Expo config at C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo\app.config.ts:
+
+BACKEND_URL is required
+Error: Error reading Expo config at C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo\app.config.ts:
+
+BACKEND_URL is required
+    at requireAbsoluteUrl (file:///C:/Users/rootj/OneDrive/Desktop/develop/templates/template-typescript-expo/lib/config/settings.ts:29:11)
+    at loadSettings (file:///C:/Users/rootj/OneDrive/Desktop/develop/templates/template-typescript-expo/lib/config/settings.ts:46:17)
+    at appConfig (C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo\app.config.js:23:59)
+```
+
+출력은 16줄이고 이하 7줄은 Expo 내부 프레임이다.
+
+```bash
+BACKEND_URL=http://probe-backend:4321 APP_VARIANT=production pnpm exec expo config --type public --json > "$TMPDIR/m7-prodhttp.out" 2>&1; echo "exit=$?"
+head -8 "$TMPDIR/m7-prodhttp.out"
+```
+
+```text
+exit=1
+Error: Error reading Expo config at C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo\app.config.ts:
+
+BACKEND_URL must use https for the production variant (got "http://probe-backend:4321")
+Error: Error reading Expo config at C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo\app.config.ts:
+
+BACKEND_URL must use https for the production variant (got "http://probe-backend:4321")
+    at assertBackendUrlAllowed (file:///C:/Users/rootj/OneDrive/Desktop/develop/templates/template-typescript-expo/lib/config/app-variant.ts:67:11)
+    at appConfig (C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo\app.config.js:24:50)
+```
+
+출력은 16줄이고 이하 8줄은 Expo·Node 내부 프레임이다.
+
+`app.config.ts`를 평가하는 다른 명령도 같은 검증에서 멈춘다. `BACKEND_URL` 없이 돌린 `pnpm exec expo export --platform android`와
+`pnpm types:routes`는 둘 다 같은 `BACKEND_URL is required` 오류로 exit 1이고 번들 폴더를 만들지 않는다. 그래서 위 M5 절의
+`expo export` 명령을 이 뒤로 다시 돌릴 때는 `BACKEND_URL`을 함께 준다.
+
+### 누가 `.ts` import를 처리하는가
+
+실패 경로의 스택에서 `settings.ts`와 `app-variant.ts`는 `file:///…/lib/config/*.ts` 프레임으로, 줄 번호는 원본
+소스와 같다(`settings.ts:29`는 `throw new Error(`${name} is required`)` 줄, `app-variant.ts:67`은 `throw new Error(`
+줄). `app.config.ts`는 `app.config.js` 프레임으로 나타난다. `@expo/require-utils@57.0.5`의 `loadModuleSync`는
+진입 파일 `app.config.ts` 하나만 프로젝트의 TypeScript로 변환해 `app.config.js`라는 이름으로 평가한다. 그 안의
+`./lib/config/*.ts`는 Node가 직접 읽는 것으로 보인다. 이를 가르려고 Node의 type stripping을 끄고 e2e 변형 명령을
+다시 돌렸다.
+
+```bash
+node -p "process.features.typescript"
+NODE_OPTIONS=--no-experimental-strip-types node -p "process.features.typescript"
+NODE_OPTIONS=--no-experimental-strip-types BACKEND_URL=http://probe-backend:4321 APP_VARIANT=e2e pnpm exec expo config --type public --json > "$TMPDIR/m7-nostrip.out" 2>&1; echo "exit=$?"
+head -6 "$TMPDIR/m7-nostrip.out"
+```
+
+```text
+strip
+false
+exit=1
+SyntaxError: Error reading Expo config at C:\Users\rootj\OneDrive\Desktop\develop\templates\template-typescript-expo\app.config.ts:
+
+Unexpected identifier 'as'
+SyntaxError: Unexpected identifier 'as'
+    at compileSourceTextModule (node:internal/modules/esm/utils:318:16)
+    at ModuleLoader.importSyncForRequire (node:internal/modules/esm/loader:336:18)
+```
+
+출력에 파일 이름은 없다. `lib/config`에서 ` as `가 나오는 파일은 `app-variant.ts`뿐이고(8행 `as const`), type stripping을
+끄면 Node가 `.ts`를 그냥 JavaScript로 읽다 그 줄에서 죽는다. 그러므로 `.ts` import를 푸는 쪽은 Node의 type
+stripping이다.
+
+### 정한 것
+
+- **M7 = 예.** 대체 경로(`app.config.ts` 안에 검증을 복사하고 두 구현을 표로 교차 검증하는 테스트)는 쓰지
+  않는다. `app.config.ts`는 `lib/config/*.ts`를 확장자 포함으로 import하고, 검증 함수는 앱이 시작할 때 쓰는
+  것과 같다(스펙 10.1). `pnpm typecheck`(`tsc --noEmit`)는 `allowImportingTsExtensions`로 통과하고, vitest는 같은
+  import를 자체 변환으로 읽는다(`test/unit/config/app-config.test.ts` 6개 통과).
+- **전제는 Node의 type stripping이다.** 확인한 Node는 24.19.0 하나다. `package.json`의 `engines.node` 하한
+  (`>=24.11.0`)과 EAS 빌드 서버의 Node에서는 재지 않았다. EAS 빌드는 계정과 빌드 크레딧이 필요해 스펙 10.7이
+  따로 두는 실증에 속한다.
+- **`.ts` 파일이 지켜야 할 것.** `process.features.typescript`가 `strip`이다. strip 모드는 타입 구문만 지우고
+  `enum` 같은 런타임 구문은 변환하지 않는다(Node 문서의 정의). 그래서 `app.config.ts`에서 직접·간접으로 import되는
+  `.ts` 파일은 타입을 지우면 그대로 도는 구문만 쓰고, 그 파일들 사이의 import도 확장자를 포함해야 한다. 지금 그런
+  파일은 `lib/config/app-variant.ts`와 `lib/config/settings.ts` 둘이고 둘 다 import가 없다.

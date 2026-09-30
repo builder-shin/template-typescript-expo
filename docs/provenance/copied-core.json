@@ -1,0 +1,29 @@
+{
+  "source": "https://github.com/builder-shin/template-typescript-nextjs",
+  "commit": "34d0b1057d65693645e75bec4e9558dcf6838822",
+  "copiedAt": "2026-09-30",
+  "paths": ["lib/config/settings.ts", "test/unit/config/settings.test.ts"],
+  "note": "복사본이다. 원본에서 계약 버그가 고쳐지면 이 커밋과 원본을 비교해 반영 여부를 판단한다. 개별 이탈은 divergences 배열에 기록한다(스펙 6.3). 복사본의 주석이 말하는 '스펙'·'D2 Task N'·'proxy.ts' 같은 자리는 원본 저장소의 것이다.",
+  "divergences": [
+    {
+      "path": "lib/config/settings.ts",
+      "what": "Settings 에서 sessionCookieSecure 와 SESSION_COOKIE_SECURE 파싱(parseBoolean)을 뺐다.",
+      "why": "세션 쿠키가 없다 - 모바일 앱은 세션을 SecureStore 에 둔다(스펙 7.1)."
+    },
+    {
+      "path": "lib/config/settings.ts",
+      "what": "setSettingsSource() 와 SettingsEnv 타입을 더했다. getSettings() 는 그 자리(기본값 process.env)에서 읽고, 자리를 바꾸면 캐시를 버린다. 머리말 주석에 두 사용처를 적었다.",
+      "why": "앱 런타임의 process.env 에는 BACKEND_URL 이 없다 - 값은 app.config.ts 가 extra.backendUrl 로 싣고 platform/config.ts 가 시작할 때 자리를 알려 준다(스펙 10.1). node 의 테스트는 기본 자리를 그대로 쓴다."
+    },
+    {
+      "path": "lib/config/settings.ts",
+      "what": "주석만 고쳤다. 머리말의 '이 파일 · .env.example · README.md' 를 '정본 파일 · .env.example · README.md' 로 바꾸고 'README 는 그 표에서 \"정본은 이 파일\" 이라고 명시한다' 를 뺐다. getSettings() 주석의 '프로세스 환경으로' 를 '자리에서' 로, '한 요청 안에서' 를 '한 실행 안에서' 로 바꿨다.",
+      "why": "선택 변수 파싱을 뺐으므로 이 파일이 선택 변수 기본값의 정본이라는 문장이 맞지 않는다(스펙 10.1 은 app.config.ts 를 든다). 위 두 이탈로 getSettings() 는 프로세스 환경이 아니라 지정한 자리에서 읽고, 앱은 요청 단위가 아니라 실행 단위로 설정을 읽는다."
+    },
+    {
+      "path": "test/unit/config/settings.test.ts",
+      "what": "SESSION_COOKIE_SECURE 테스트 셋을 지우고 setSettingsSource 테스트 넷을 더했다.",
+      "why": "위 두 이탈을 따라간다."
+    }
+  ]
+}
