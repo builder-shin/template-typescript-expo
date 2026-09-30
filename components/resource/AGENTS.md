@@ -18,6 +18,9 @@
 - 로딩에 글자를 쓰지 않는다 - 첫 로딩은 스켈레톤, 더 읽기·당겨서 새로고침·다시 시도는 스피너(스펙 8.7).
 - 아래 여백: 목록·상세의 끝과 시트의 아래는 시스템 내비게이션 막대만큼 띄운다(`useSafeAreaInsets` -
   Android(SDK 57)는 화면 끝까지 그린다).
+- 키보드: 시트(`components/app/sheet.tsx`)는 키보드가 올라오면 두 플랫폼 모두 그 높이만큼 올라간다
+  (`KeyboardAvoidingView` 의 `padding`) - Android 의 `Modal` 창은 edge-to-edge 라 창이 줄지 않는다. 입력이 든 시트의
+  몸통은 `ScrollView`(`keyboardShouldPersistTaps="handled"`)로 그린다 - 줄어든 시트에서도 포커스한 칸까지 굴러간다.
 - 접근성: 아이콘으로만 전하는 상태(정렬 방향)는 `accessibilityLabel` 에도 적는다. 범위 입력은 자리표시자
   ("최소"·"최대")와 라벨이 어느 끝인지 말하고, 숫자 범위의 자판은 `FilterField` 의 `signed`(선언의 `min`)로 가른다 -
   자원 이름이 아니다.
