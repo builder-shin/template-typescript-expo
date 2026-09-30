@@ -12,6 +12,7 @@
 #   1. `pnpm install --frozen-lockfile` 이 끝나 있어야 한다.
 #   2. Docker 가 돌고 있어야 한다 - [11] 이 쓴다.
 #   3. [9] expo-doctor 는 네트워크가 필요하다(의존성 호환 목록을 받아 온다).
+#   4. [10] 이 Metro·Uniwind 캐시를 지운다(--clear) - 돌리기 전에 이 저장소의 expo start 를 끈다.
 #
 # ## 설정을 평가하는 단계가 쓰는 BACKEND_URL
 #
@@ -64,10 +65,10 @@ done
 echo "=== [9/11] 의존성 호환 ==="
 BACKEND_URL="$GATE_BACKEND_URL" pnpm exec expo-doctor
 
-# Windows 에서 expo export 가 대개 결과를 다 쓴 뒤 종료할 때 간헐적으로 0xC0000005(Git Bash 에서는 139)로
-# 죽는다 - 실측 기록의 M1 관찰 8. 이 단계가 139 로 끝나면 같은 명령이 다시 통과하는지 본다.
+# Windows 에서 캐시를 둔 expo export 는 대개 결과를 다 쓴 뒤 종료할 때 간헐적으로 0xC0000005(Git Bash 에서는
+# 139)로 죽었고 --clear 를 주면 죽지 않았다(실측 기록의 M1 관찰 8: 26회 중 13회, 10회 중 0회). 그래서 준다.
 echo "=== [10/11] 번들 ==="
-APP_VARIANT=production BACKEND_URL="$GATE_BACKEND_URL" pnpm exec expo export --platform android --platform ios --output-dir dist
+APP_VARIANT=production BACKEND_URL="$GATE_BACKEND_URL" pnpm exec expo export --clear --platform android --platform ios --output-dir dist
 
 # 세 프로파일 전부를 정적 검증한다 - 프로파일을 안 주면 프로파일이 붙은 서비스 아홉이
 # 활성 집합에서 빠져 한 번도 검증되지 않는다(원본 저장소의 실측). 이 단계는 YAML 문법·

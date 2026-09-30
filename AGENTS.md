@@ -87,6 +87,10 @@ pnpm install --frozen-lockfile
 (`scripts/check-provenance.mjs`는 `node`가 부르므로 `100644`가 맞다). `core.filemode=false`인
 머신에서는 권한이 빠져도 `git status`로 드러나지 않는다.
 
+번들 단계는 `expo export --clear`라서 Metro·Uniwind 캐시를 지운다 - 게이트를 돌리기 전에 이 저장소의
+`expo start`를 끈다. 캐시를 두면 Windows에서 `expo export`가 끝날 때 간헐적으로 죽었다(실측 기록 M1
+관찰 8).
+
 secretlint 단계는 `pnpm lint:secrets`다. 스크립트 이름을 `secretlint`로 두면
 `node_modules/.bin/secretlint`를 가려서 의존성 호환 단계(expo-doctor)의 package.json 검사가
 실패한다.
