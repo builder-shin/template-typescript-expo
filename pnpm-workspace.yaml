@@ -8,17 +8,11 @@ allowBuilds:
 # engines.node 를 강제한다 — pnpm 11 은 .npmrc 의 engine-strict 를 읽지 않는다.
 engineStrict: true
 
-# pnpm 11 은 릴리스 후 1일(minimumReleaseAge, 기본 1440분)이 지나지 않은 버전이 락파일에
-# 있으면 설치를 막는다(ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION). 아래는 2026-09-29 에
-# 릴리스된 Expo SDK 57 패키지 다섯 개와 lucide-react-native 1.49.0 을 2026-09-30 에 설치하며
-# pnpm 이 스스로 적은 예외다. 가장 늦은 릴리스(lucide-react-native 2026-09-29 22:27 UTC)로부터
-# 하루가 지나면 없어도 설치된다.
+# pnpm 11 은 릴리스 후 1일(minimumReleaseAge, 기본 1440분)이 지나지 않은 버전이 락파일에 있으면 설치를
+# 막는다(ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION). 아래는 설치할 때 그 창 안에 있어 pnpm 이 스스로 적은
+# 예외다. 릴리스로부터 하루가 지나면 없어도 설치되므로 다음 의존성 변경 때 뺀다
+# (`pnpm view <이름>@<버전> time --json` 으로 릴리스 시각을 본다).
 minimumReleaseAgeExclude:
-  - expo-constants@57.0.20
-  - expo-modules-core@57.0.20
-  - expo@57.0.26
-  - '@expo/ui@57.0.21'
-  - expo-router@57.0.24
   - lucide-react-native@1.49.0
 
 # 웹은 대상이 아니므로(스펙 1.2) expo-router 의 웹 전용 의존성이 요구하는 react-dom 은 설치하지 않는다.
@@ -31,3 +25,10 @@ peerDependencyRules:
 # docs/superpowers/notes/2026-09-30-d1-measurements.md 의 M1 절). hoisted 로도 저장소 경로가 길면 같은
 # 빌드가 실패한다(47자까지 성공, 50자에서 실패).
 nodeLinker: hoisted
+
+# package.json 의 devDependencies 가 metro·metro-cache·metro-transform-worker 를 0.84.5 로 고정한다.
+# Expo 의 번들러(@expo/metro)가 metro 계열을 0.84.5 로 고정해 두었고, uniwind/metro 는 그 metro 의
+# Graph 프로토타입을 덮어쓰고 metro-cache 의 FileStore 를 상속한다 - 둘이 같은 인스턴스여야 한다
+# (docs/superpowers/notes/2026-09-30-d1-measurements.md 의 M1 절). 고정을 빼면 react-native 의 CLI 가
+# 끌어온 0.84.6 이 최상위에 호이스팅될 수 있다. pnpm peers check 는 이 동일성을 보지 않으므로
+# test/unit/deps/metro-pin.test.ts 가 잰다.

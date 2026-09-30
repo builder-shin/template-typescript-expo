@@ -22,6 +22,11 @@ export interface VariantProfile {
   readonly nameSuffix: string
   /** 평문 HTTP 허용 여부. development·e2e 만 허용한다. */
   readonly allowCleartext: boolean
+  /**
+   * API 클라이언트가 2xx 가 아닌 결과를 표식과 함께 기기 로그에 남기는가. e2e 만 켠다 - E2E
+   * 하네스가 플로가 선언하지 않은 4xx·5xx 를 실패로 만드는 재료다(스펙 11.3).
+   */
+  readonly logsHttpFailures: boolean
 }
 
 const PROFILES: Readonly<Record<AppVariant, VariantProfile>> = {
@@ -30,15 +35,29 @@ const PROFILES: Readonly<Record<AppVariant, VariantProfile>> = {
     schemeSuffix: '-dev',
     nameSuffix: ' (Dev)',
     allowCleartext: true,
+    logsHttpFailures: false,
   },
   preview: {
     idSuffix: '.preview',
     schemeSuffix: '-preview',
     nameSuffix: ' (Preview)',
     allowCleartext: false,
+    logsHttpFailures: false,
   },
-  production: { idSuffix: '', schemeSuffix: '', nameSuffix: '', allowCleartext: false },
-  e2e: { idSuffix: '.e2e', schemeSuffix: '-e2e', nameSuffix: ' (E2E)', allowCleartext: true },
+  production: {
+    idSuffix: '',
+    schemeSuffix: '',
+    nameSuffix: '',
+    allowCleartext: false,
+    logsHttpFailures: false,
+  },
+  e2e: {
+    idSuffix: '.e2e',
+    schemeSuffix: '-e2e',
+    nameSuffix: ' (E2E)',
+    allowCleartext: true,
+    logsHttpFailures: true,
+  },
 }
 
 function isAppVariant(value: string): value is AppVariant {

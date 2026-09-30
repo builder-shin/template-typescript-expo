@@ -70,4 +70,18 @@ describe('app.config.ts - 스펙 10.1·10.2', () => {
   it('기본 식별자는 배포할 수 없는 com.example 이다 - 스펙 10.3', () => {
     expect(BASE_APP_ID).toBe('com.example.templateexpo')
   })
+
+  it('expo-secure-store 플러그인이 세션을 Android 자동 백업에서 빼고 Face ID 문구를 넣지 않는다 - 스펙 7.1', () => {
+    const config = evaluate({
+      BACKEND_URL: 'https://probe-backend.example',
+      APP_VARIANT: 'production',
+    })
+    const entry = config.plugins?.find(
+      (plugin) => Array.isArray(plugin) && plugin[0] === 'expo-secure-store',
+    )
+    expect(entry).toEqual([
+      'expo-secure-store',
+      { configureAndroidBackup: true, faceIDPermission: false },
+    ])
+  })
 })

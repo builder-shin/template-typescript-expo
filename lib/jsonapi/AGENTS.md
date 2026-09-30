@@ -9,7 +9,8 @@
 
 다섯 파일은 `template-typescript-nextjs`에서 복사했다. 출처 커밋과 원본에서 달라진 곳은
 `docs/provenance/copied-core.json`이 전부 갖는다 - 여기서 무엇을 바꾸면 그 파일의
-`divergences`에 `what`·`why`를 더한다. 게이트가 기록의 형식과 경로를 검사한다.
+`divergences`에 `what`·`why`를 더하고, 그 파일이 `sourceBlobs`에 있으면 지운다. 게이트가 기록의
+형식과 경로, 그리고 이탈이 없는 사본의 내용이 원본과 같은지를 검사한다.
 
 주석에 나오는 "스펙 N장", "D2 Task N", `proxy.ts`, `app/error.tsx` 같은 자리는 **원본
 저장소의 것**이다. 원본과 비교하기 쉽게 주석을 고치지 않고 두었다.
@@ -44,7 +45,8 @@ vitest에서 그대로 돌고, 앱에서는 SDK 57의 `expo/fetch` 위에서 돈
 - `expo/fetch`는 `cache`를 읽지 않고, RN 폴리필(`EXPO_PUBLIC_USE_RN_FETCH=1`)은 `cache`가
   no-store·no-cache인 GET·HEAD의 URL에 `_=<시각>`을 붙인다. 어느 쪽이든 캐시 정책은 TanStack Query가 소유하므로
   `request()`는 `cache`를 넘기지 않는다(스펙 8.5). 네이티브 HTTP 캐시(Android OkHttp·iOS URLCache)는
-  응답 헤더를 따른다(미측정 - D2가 잰다).
+  응답 헤더를 따른다(기기에서는 미측정 - 세 백엔드가 싣는 헤더는
+  `docs/superpowers/notes/2026-09-30-d2-measurements.md`의 H1).
 - 취소는 단계마다 다르게 거절된다. 요청 단계의 취소는 `AbortError`가 아니라 `Error`(`FetchError`)이고
   (실측 M6), 본문을 스트림(`response.body`)으로 읽는 중의 취소는 `AbortError`다. 그래서 취소를 오류
   이름으로 가르지 않는다.
@@ -54,3 +56,13 @@ vitest에서 그대로 돌고, 앱에서는 SDK 57의 `expo/fetch` 위에서 돈
   그것을 지킨다. 이 경주를 걷어내지 않는다.
 - 근거와 소스의 파일·줄은 `docs/superpowers/notes/2026-09-30-d1-measurements.md`의 M6, 원본과
   달라진 곳은 `docs/provenance/copied-core.json`의 `client.ts` 이탈 기록에 있다.
+
+## 이 저장소가 더한 것
+
+복사본이 아니다 - 출처 기록에 없다.
+
+| 파일                 | 역할                                                                                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `send.ts`            | 요청을 보내는 함수의 모양(`JsonApiSend`). 인증 호출은 `request()` 대신 이것을 주입받는다 - 앱에서는 `platform/api.ts`의 클라이언트가 들어온다(스펙 9.4) |
+| `accept-language.ts` | 기기 언어 목록 → `Accept-Language` 값. 품질값을 앞에서부터 낮춘다(스펙 9.4)                                                                             |
+| `failure-log.ts`     | e2e 변형이 기기 로그에 남기는 실패 한 줄(`[e2e-http] …`). E2E 가드가 읽는다(스펙 11.3)                                                                  |

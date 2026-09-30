@@ -1,0 +1,24 @@
+# e2e-allow-http: 409
+# 이미 있는 이메일로 가입하면 409 EMAIL_ALREADY_REGISTERED 가 폼 위 배너로 뜬다. source 가 없는
+# 문서 오류라 이메일 칸 아래로 옮기지 않는다(스펙 9.1, lib/auth/flow.ts 의 authFormStateFromErrors).
+appId: com.example.templateexpo.e2e
+---
+- runFlow: ../subflows/start-signed-out.yaml
+- runFlow: ../subflows/register.yaml
+- runFlow: ../subflows/logout.yaml
+- openLink: templateexpo-e2e://register
+- extendedWaitUntil:
+    visible:
+      id: register-screen
+    timeout: 15000
+- runFlow: ../subflows/submit-credentials.yaml
+- extendedWaitUntil:
+    visible:
+      id: form-banner-message
+    timeout: 20000
+- assertVisible:
+    id: register-screen
+- assertNotVisible:
+    id: email-error
+- assertNotVisible:
+    id: logout-button

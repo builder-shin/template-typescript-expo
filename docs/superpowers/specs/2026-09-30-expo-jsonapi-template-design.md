@@ -183,6 +183,13 @@ docs/superpowers/specs/ · plans/ · notes/
 > 화면 `FatalConfig` 등)을 두는 디렉터리다. React Native Reusables 복사본(`ui/`)도 자원 UI(`resource/`)도
 > 아니어서 따로 뒀다. 소유 규칙은 루트 `AGENTS.md` 의 표에 있다.
 
+> 정정(2026-09-30, D2): 루트 `_layout.tsx` 의 "세션 Provider" 는 Context Provider 가 아니다. 회전이 한
+> 곳에서 일어나야 해서(7.2) 세션 관리자는 `platform/session.ts` 에 하나뿐이고, Context 로 내려보낼 값이
+> 없다. 화면은 `useSessionStatus()`(`useSyncExternalStore`)로 상태를 읽는다. 루트 레이아웃은 설정 검증이
+> 통과했을 때만 스플래시를 붙잡고, 그 갈래에서만 그리는 자식이 `sessionManager.restore()` 를 부르며
+> `QueryClientProvider` 로 감싼다. 복원이 끝나면 스플래시를 내린다. 시작 설정의 판단은
+> `lib/config/startup.ts` 에 있다(`platform/config.ts` 는 `expo-constants` 와 설정 자리 바인딩만 한다).
+
 ## 5. 계층 소유권
 
 | 위치 | 소유하는 것 | 소유하지 않는 것 |
@@ -211,6 +218,13 @@ docs/superpowers/specs/ · plans/ · notes/
 - `components/resource/*`에 자원 이름으로 분기하는 코드가 있으면 위반이다.
 - `platform/`에 분기 판단이 자라면 위반이다. 판단은 `lib/`로 옮기고
   `platform/`은 호출과 배선만 한다.
+
+> 정정(2026-09-30, D2): `lib/**`의 위반이 둘 더 있다. (1) `@react-navigation/*`를 import하면 위반이다 - 첫
+> 항목의 플랫폼 모듈에 든다. (2) `lib/`는 맨 아래 계층이라 위 계층(`platform/`·`queries/`·`components/`·
+> `app/`)을 import하면 위반이다. 별칭(`@/queries/auth`)이든 상대 경로(`../../queries/auth`)든, 하위 경로든
+> 맨 디렉터리(`@/queries`)든 ESLint `no-restricted-imports`가 막는다. 시험이 위 계층을 `vi.mock`하면 vitest까지
+> 통과해도 경계가 무너지기 때문이다. 경로의 이름만 보므로 `lib/` 안에 이 네 이름의 디렉터리를 두지 않는다
+> (`firebase/app` 같은 패키지 경로는 막지 않는다).
 
 `lib/resources/index.ts`는 손으로 채우는 배열이다. **여기 없으면 그 자원은
 존재하지 않는 것과 같다** — 백엔드의 `config/routes.py`·`ENTITIES`·
@@ -268,6 +282,11 @@ docs/superpowers/specs/ · plans/ · notes/
 > 따른다(미측정 - D2 가 잰다). 사실 문장과 소스의 파일·줄은 `docs/provenance/copied-core.json` 의
 > `lib/jsonapi/client.ts` 이탈 기록과 실측 기록 M6 에 있다.
 
+> 정정(2026-09-30, D2): 위 정정의 "(미측정 - D2 가 잰다)" - 세 백엔드가 `GET /api/v1/users/me`·목록·상세에
+> 싣는 캐시 헤더는 `docs/superpowers/notes/2026-09-30-d2-measurements.md` 의 H1 에 있다. 네이티브 캐시가 그
+> 헤더대로 도는지는 기기에서 재지 않았다 - D2 앱의 요청은 전부 POST 라 저장되지 않는다. 앱에 GET 이 생기는
+> D3 가 목록·상세의 신선도와 함께 잰다.
+
 ### 6.3 출처 기록과 검사
 
 어드민 템플릿의 `docs/provenance/copied-core.json` 형식을 그대로 쓴다(아래는
@@ -296,6 +315,16 @@ docs/superpowers/specs/ · plans/ · notes/
 
 > 정정(2026-09-30, D1): 검사 스크립트는 `scripts/check-provenance.sh`가 아니라
 > `scripts/check-provenance.mjs`다 - JSON 을 읽어야 해서 node 로 썼다. 검사하는 네 가지는 같다.
+
+> 정정(2026-09-30, D2): 검사가 다섯이 됐다. 5. `divergences`가 없는 경로는 기록의 `sourceBlobs`에 원본
+> 파일의 git blob SHA-1(`git rev-parse <commit>:<경로>`)을 적고, 작업 트리의 파일이 그 값과 같아야 한다.
+> 이탈이 있는 경로는 `sourceBlobs`에 두지 않는다. 형식만 보는 네 검사로는 그대로 복사한 파일을 고치고
+> 이탈을 적지 않아도 게이트가 통과했다. 값은 git이 저장할 내용으로 잰다 - 작업 트리의 바이트에서 CRLF를
+> LF로 바꾼 것이다. `.gitattributes`의 `* text=auto eol=lf`가 체크아웃을 LF로 두고 add할 때 CRLF를 LF로
+> 바꿔 저장하므로 `git hash-object <경로>`와 같고, 편집기가 CRLF로 저장한 사본도 내용이 같으면 원본
+> 그대로다(NUL이나 홀로 선 CR이 있는 파일은 git이 이진으로 보고 바꾸지 않으므로 바이트 그대로 잰다).
+> 3의 "실재한다"는 저장소 안의 일반 파일이라는 뜻이다 - 절대 경로, 드라이브 문자로 시작하는 경로, `..` 구간이
+> 있는 경로는 거절한다.
 
 ## 7. 인증과 세션
 
@@ -385,6 +414,13 @@ Next.js가 회전을 `proxy.ts` 한 곳으로 모은 이유(스펙 7.2)와 같�
 
 둘 다 Next.js에서 브라우저 탭을 닫는 것과 같은 성격이라 고치지 않고 문서에
 적는다.
+
+> 정정(2026-09-30, D2): 한계가 하나 더 있다. iOS 키체인 항목은 앱을 지워도 남는다 - 같은 기기에 앱을
+> 다시 설치하면 이전 세션이 되살아날 수 있다(refresh 가 아직 만료되지 않았다면 로그인된 채로 시작한다).
+> 7.1 의 `AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY` 는 백업을 다른 기기로 복원할 때 항목이 따라가지 않게 할
+> 뿐 같은 기기의 재설치는 막지 않는다. 앱을 지우면 로그아웃된다고 여기는 사용자에게는 뜻밖일 수 있다.
+> 로그아웃(7.4)한 세션은 되살아나지 않는다 - 기기 세션을 지우고 refresh 를 폐기하기 때문이다. 이 동작은
+> iOS 플랫폼의 알려진 것이고 이 저장소에서 기기로 재지는 않았다. 앞의 둘처럼 고치지 않고 문서에 적는다.
 
 ## 8. 화면과 데이터 흐름
 
@@ -523,6 +559,15 @@ source.pointer = /data/relationships/<name>   → 필드 오류 → 관계 선�
 
 UI 문구는 자원 선언의 한국어 라벨이고, 오류 문구는 백엔드가 협상한 언어다 —
 Next.js와 같다.
+
+> 정정(2026-09-30, D2): 인증 폼(D2)은 이 절과 세 군데가 다르다. (a) 앱 자신의 문구가 둘이다 - 복사한
+> `UNUSABLE_RESPONSE_MESSAGE`("지금은 요청을 처리할 수 없습니다. 잠시 후 다시 시도해 주세요.")와 가입 화면의 "계정은
+> 만들어졌습니다. 자동 로그인만 실패했으니 로그인에서 다시 시도해 주세요." 안내다. 안내는 백엔드 오류 카탈로그를 옮긴
+> 것이 아니라 두 호출(가입 → 로그인) 가운데 어디까지 갔는지라는 흐름의 사실이다 - 백엔드에는 그것을 말하는 오류가
+> 없다. (b) `UNUSABLE_RESPONSE_MESSAGE` 는 백엔드가 응답하지 못한 때(네트워크 실패·타임아웃)만이 아니라 계약을 어긴
+> 응답에도 뜬다 - 2xx 인데 토큰 문서가 없거나, 오류 문서인데 문구가 하나도 없을 때다(복사한 `lib/auth/flow.ts`).
+> 사용자에게는 둘이 같다("지금은 안 된다, 이따 다시"). (c) 인증 폼에는 "다시 시도" 버튼이 없다 - 입력이 그대로 남은
+> 폼의 제출 버튼이 곧 다시 시도다(D2 계획 결정 23). 이 절의 버튼은 조회 화면(D3)의 오류 상태에 둔다.
 
 ### 9.4 Accept-Language
 
@@ -687,6 +732,14 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > `adb root`·`setprop` 으로 바꾸는 길은 `user` 빌드 이미지에서 root 가 막혀 안 됐다. iOS 의
 > `-AppleLanguages` 는 개발 머신이 Windows 라 재지 못했다(CI 가 잰다).
 
+> 정정(2026-09-30, D2): 앱별 언어는 키보드에도 닿는다 - Gboard 는 앞에 뜬 앱의 앱별 언어를 따라 자판을
+> 바꾸고(ko-KR 이면 두벌식), Maestro 의 `inputText` 는 글자마다 키 이벤트를 보내므로 라틴 글자가 한글 자모로
+> 조합된다(이메일이 깨져 로그인이 401 대신 422 로 끝났다 - `docs/superpowers/notes/2026-09-30-d2-measurements.md`
+> 의 H2). 입력기를 모두 끄면 Maestro 세션 안에서 기본 키보드가 다시 켜졌다. 그래서 하네스
+> (`test/e2e/run-android.sh`)는 앱별 언어를 정한 플로 동안 키보드 자판이 없는 입력기(에뮬레이터의 음성 입력)를
+> 기본 입력기로 두고 끝나면 입력기 설정 셋을 되돌린다 - 순서는 `pm clear` → `set-app-locales` → 입력기 바꾸기
+> → 플로 → 입력기 되돌리기다. 그런 입력기가 없는 기기에서는 로캘 플로가 그 사실을 알리고 실패한다.
+
 ### 11.4 E2E 스택
 
 - `docker-compose.e2e.yml`은 Next.js 파일에서 `web` 서비스를 뺀 것이다. 백엔드마다
@@ -735,6 +788,19 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > (3장의 정정)와 **실제 디렉터리 경로 47자 이하**의 저장소(16장의 정정)가 필요하다. 로컬 게이트가
 > Windows 에서 13단계까지 돌려면 두 조건을 만족하는 작업 트리가 있어야 한다. `test/e2e/android.sh` 는
 > 경로 길이를 검사하지 않는다.
+
+> 정정(2026-09-30, D2): 지금의 게이트는 12단계다 - 정적 단계 열하나 뒤에 E2E 가 `[12/12]` 로 돈다. 계약
+> 거울(위 12단계)은 그것을 재는 테스트가 생기는 D5 가 E2E 앞에 더하고, 그때 E2E 는 `[13/13]` 이 된다.
+> E2E 단계는 `test/e2e/run-android.sh` 하나다. 빌드 입력(시험·문서·스크립트를 뺀 파일 내용과 앱이 볼
+> `BACKEND_URL`)의 지문이 지난번과 같으면 APK 를 다시 만들지 않는다. 플로가 일부러 일으키는 2xx 밖의
+> 상태와 앱별 언어는 플로 파일 머리말 주석(`# e2e-allow-http:`·`# e2e-app-locale:`)으로 선언한다(11.3의
+> "플로가 선언하지 않은 4xx·5xx"). 가드는 `test/e2e/guard-log.sh` 이고 단위 시험이 그것을 실제로 돌려 잰다.
+> 위 D1 정정의 마지막 문장(`test/e2e/android.sh` 는 경로 길이를 검사하지 않는다)은 더는 맞지 않는다 -
+> `test/e2e/android.sh build` 는 Windows 에서 저장소 경로가 47자를 넘으면 빌드 전에 멈추고(`check-path`),
+> `test/e2e/run-android.sh` 가 커밋 대상 파일(무시되지 않은 미추적 파일 포함)을 짧은 경로(`E2E_STAGE_DIR`,
+> 기본 `C:/t/e`)에 복사해 거기서 빌드한다. 사본의 `node_modules` 는 남겨 두어 다음 설치가 몇 초로 끝난다.
+> 하네스가 만든 표식(`.e2e-stage`)이 없는 비어 있지 않은 디렉터리는 지우지 않는다. 그래서 Windows 에서도
+> 저장소를 옮기지 않고 E2E 까지 돈다.
 
 ## 13. CI (GitHub Actions)
 
@@ -852,6 +918,10 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > 이상에서 적용되고 나머지는 폰 폭(411dp)에서도 적용된다 - React Native Reusables `Button` 의 `h-10 … sm:h-9` 가
 > 폰에서 36dp 로 그려진다(실측 M1). 고쳐진 릴리스는 아직 없다(npm `latest` 가 1.12.0). 대응(패치, 다른 버전, `sm:`
 > 회피)은 화면을 만드는 D3 가 정한다.
+
+> 정정(2026-09-30, D2): 위 "Windows 에서 Android 네이티브 빌드 … 47자" 정정의 마지막 문장(`test/e2e/android.sh`
+> 는 경로 길이를 검사하지 않는다)은 더는 맞지 않는다 - E2E 하네스가 짧은 경로의 사본에서 빌드한다(12장의
+> D2 정정).
 
 ## 17. 완료 조건
 

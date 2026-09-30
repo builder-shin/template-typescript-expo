@@ -39,11 +39,45 @@ const PLATFORM_MODULE_PATTERNS = [
   'expo-*',
   '@expo/*',
   '@react-native*',
+  '@react-navigation/*',
   '@rn-primitives/*',
   '@tanstack/*',
   'uniwind',
   'lucide-react-native',
 ]
+
+/**
+ * lib/ 위의 계층(스펙 5장의 소유 표) - lib/ 는 맨 아래 계층이다. 위를 import 하면 시험이 그
+ * 모듈을 vi.mock 해서 vitest 까지 통과해도 경계가 무너진다. 별칭(@/platform/…)이든 상대
+ * 경로(../../platform/…)든, 하위 경로든 맨 디렉터리(@/queries)든 잡는다. 경로의 이름만 보므로
+ * lib/ 안에 이 네 이름의 디렉터리를 두지 않는다. test/unit/lint/lib-boundary.test.ts 가 잰다.
+ */
+const UPPER_LAYER_PATTERNS = [
+  // 하위 경로 - 앞의 ** 가 별칭(@/platform/api)과 상대 경로(../../platform/api)를 함께 잡는다.
+  '**/platform/*',
+  '**/queries/*',
+  '**/components/*',
+  '**/app/*',
+  // 맨 디렉터리 - 별칭. 앞에 **/ 를 붙이면 firebase/app 같은 패키지 경로까지 잡으므로 붙이지 않는다.
+  '@/platform',
+  '@/queries',
+  '@/components',
+  '@/app',
+  // 맨 디렉터리 - 상대 경로(../queries, ../../queries, …). 위로 올라가는 경로에만 걸리고 같은
+  // 디렉터리의 형제 파일(./queries)과 패키지 경로(firebase/app)는 지나간다.
+  '**/../platform',
+  '**/../queries',
+  '**/../components',
+  '**/../app',
+]
+
+/**
+ * request()(lib/jsonapi/client.ts)의 모듈 경로. 앱 코드가 이 값을 import 하면 Accept-Language 를 싣는
+ * 자리(platform/api.ts 의 apiRequest)를 건너뛴다(스펙 9.4). 앞의 ** 가 별칭(@/lib/jsonapi/client)과
+ * 상대 경로(../lib/jsonapi/client)를 함께 잡고, 둘째 항목은 `.ts` 확장자를 붙인 import 를 잡는다.
+ * test/unit/lint/request-boundary.test.ts 가 잰다.
+ */
+const REQUEST_MODULE_PATTERNS = ['**/lib/jsonapi/client', '**/lib/jsonapi/client.ts']
 
 module.exports = defineConfig([
   {
@@ -67,6 +101,13 @@ module.exports = defineConfig([
     rules: typeCheckedRules,
   },
   {
+    // nodeLinker: hoisted 라서 선언하지 않은 전이 의존성(expo-modules-core 등)도 node_modules
+    // 꼭대기에서 풀린다. package.json 에 없는 패키지의 import 를 막는다 -
+    // test/unit/lint/dependencies.test.ts 가 잰다.
+    files: ['**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+    rules: { 'import/no-extraneous-dependencies': 'error' },
+  },
+  {
     files: ['lib/**/*.{ts,tsx,js,jsx,mjs,cjs}'],
     rules: {
       'no-restricted-imports': [
@@ -77,6 +118,41 @@ module.exports = defineConfig([
               group: PLATFORM_MODULE_PATTERNS,
               message:
                 'lib/ 는 순수 TypeScript 다(스펙 5장). 네이티브·React 모듈은 platform/ 이나 queries/ 에서 쓴다.',
+            },
+            {
+              group: UPPER_LAYER_PATTERNS,
+              message:
+                'lib/ 는 위 계층(platform·queries·components·app)을 import 하지 않는다(스펙 5장). 위 계층이 lib/ 를 부른다.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // request() 를 값으로 import 하는 곳은 platform/api.ts 와 lib/ 뿐이다 - 그 밖의 앱 코드는 apiRequest 를
+    // 지난다(스펙 9.4). 타입 import 는 어디서나 된다. lib/ 는 위 블록의 규칙을 받고 그 규칙은 request 를
+    // 막지 않는다. 같은 규칙 이름의 옵션은 블록끼리 합쳐지지 않으므로 두 블록의 files 는 겹치면 안 된다.
+    // 정적 import 와 `export … from` 만 잰다 - `import x = require()`(importNames 가 있으면 이름 없이
+    // 지나간다)와 동적 import()·require() 호출은 재지 않는다.
+    files: [
+      'app/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+      'components/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+      'queries/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+      'platform/**/*.{ts,tsx,js,jsx,mjs,cjs}',
+    ],
+    ignores: ['platform/api.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: REQUEST_MODULE_PATTERNS,
+              importNames: ['request'],
+              allowTypeImports: true,
+              message:
+                'request() 는 platform/api.ts 의 apiRequest 만 부른다(스펙 9.4) - Accept-Language 를 싣는 자리가 그 한 곳이다. 앱 코드는 apiRequest 를 쓴다. 타입 import 는 된다.',
             },
           ],
         },

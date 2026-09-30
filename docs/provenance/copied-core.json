@@ -35,9 +35,20 @@
     "test/e2e/seed/examples.rails.sql",
     "test/unit/e2e/seed-mirror.test.ts",
     "scripts/check-citations.sh",
-    "test/unit/scripts/check-citations.test.ts"
+    "test/unit/scripts/check-citations.test.ts",
+    "lib/auth/credentials.ts",
+    "lib/auth/flow.ts",
+    "lib/auth/form-state.ts",
+    "lib/auth/logout.ts",
+    "lib/auth/rotation.ts",
+    "test/unit/auth/credentials.test.ts",
+    "test/unit/auth/flow.test.ts",
+    "test/unit/auth/logout.test.ts",
+    "test/unit/auth/rotation.test.ts",
+    "test/e2e/probe-email.ts",
+    "test/unit/e2e/probe-email.test.ts"
   ],
-  "note": "복사본이다. 원본에서 계약 버그가 고쳐지면 이 커밋과 원본을 비교해 반영 여부를 판단한다. 개별 이탈은 divergences 배열에 기록한다(스펙 6.3). 복사본의 주석이 말하는 '스펙'·'D2 Task N'·'proxy.ts' 같은 자리는 원본 저장소의 것이다. scripts/check-citations.sh 머리말의 게이트 단계 번호 '[5/9]' 도 원본 게이트의 번호다(이 저장소의 게이트에서는 [5/11]). 같은 머리말이 계약이 적혀 있다고 가리키는 '루트 AGENTS.md 의 R21 절'도 원본 저장소의 것이고 이 저장소의 루트 AGENTS.md 에는 없다(이 저장소에서 그 계약은 '사라질 자리를 인용하지 마라' 절이다). test/unit/scripts/check-citations.test.ts 의 toPosix 주석은 원본의 실측 문장(계정 이름이 든 예시 경로)을 그대로 둔 것이다. 복사한 시드 파일과 시드 시험도 원본 저장소의 것을 가리킨다 - 원본의 web 서비스와 TZ, test/e2e/*.spec.ts, lib/resources/view.ts, 원본 루트 AGENTS.md 의 문장은 이 저장소에 없다.",
+  "note": "복사본이다. 원본에서 계약 버그가 고쳐지면 이 커밋과 원본을 비교해 반영 여부를 판단한다. 개별 이탈은 divergences 배열에 기록한다(스펙 6.3). 복사본의 주석이 말하는 '스펙'·'D2 Task N'·'proxy.ts' 같은 자리는 원본 저장소의 것이다. scripts/check-citations.sh 머리말의 게이트 단계 번호 '[5/9]' 도 원본 게이트의 번호다(이 저장소의 게이트에서는 [5/12]). 같은 머리말이 계약이 적혀 있다고 가리키는 '루트 AGENTS.md 의 R21 절'도 원본 저장소의 것이고 이 저장소의 루트 AGENTS.md 에는 없다(이 저장소에서 그 계약은 '사라질 자리를 인용하지 마라' 절이다). test/unit/scripts/check-citations.test.ts 의 toPosix 주석은 원본의 실측 문장(계정 이름이 든 예시 경로)을 그대로 둔 것이다. 복사한 시드 파일과 시드 시험도 원본 저장소의 것을 가리킨다 - 원본의 web 서비스와 TZ, test/e2e/*.spec.ts, lib/resources/view.ts, 원본 루트 AGENTS.md 의 문장은 이 저장소에 없다. sourceBlobs 는 원본 그대로인 경로마다 원본 커밋의 blob SHA-1 이다(git -C <원본> rev-parse <commit>:<경로>) - 그 파일을 고치면 divergences 에 적고 sourceBlobs 에서 항목을 지운다.",
   "divergences": [
     {
       "path": "lib/config/settings.ts",
@@ -62,7 +73,7 @@
     {
       "path": "lib/jsonapi/client.ts",
       "what": "fetch 에 cache: 'no-store' 를 넘기지 않는다.",
-      "why": "앱의 전역 fetch(SDK 57 의 expo/fetch)는 cache 를 읽지 않고, RN 폴리필(EXPO_PUBLIC_USE_RN_FETCH=1)은 cache 가 no-store·no-cache 인 GET·HEAD 의 URL 끝에 `_=<시각>` 을 붙인다. 어느 쪽이든 캐시 정책은 TanStack Query 가 소유하므로 넘기지 않는다(스펙 8.5). 근거(2026-09-30 소스 확인, 기기에서 재지는 않았다): SDK 57(expo 57.0.26)의 winter 런타임이 EXPO_PUBLIC_USE_RN_FETCH 가 1·true 가 아닌 한 전역 fetch 를 expo/fetch 로 바꿔 끼운다(node_modules/expo/src/winter/runtime.native.ts:41-53). 기기의 Release APK 가 그 fetch 로 도는 것은 실측 기록 M6 이 확인했다. expo/fetch 는 init 에서 body·signal·redirect·method·credentials·headers 만 읽고 cache 는 읽지 않는다(node_modules/expo/src/winter/fetch/fetch.ts:39-75. expo/src/winter/fetch/*.ts 에는 cache 라는 낱말이 없다). whatwg-fetch 3.6.20 의 `_=<시각>` 덧붙임은 Request 생성자 안에 있다(node_modules/whatwg-fetch/fetch.js:398-407). JSON:API 요청 URL 은 백엔드의 쿼리 문법 검사를 거치므로 바뀌면 안 된다. 네이티브 HTTP 캐시(Android OkHttp 10MB, iOS URLCache)는 요청의 cache 옵션이 아니라 응답 헤더(Cache-Control 등)를 따른다. 백엔드가 어떤 캐시 헤더를 싣는지는 재지 않았다(D2 가 잰다)."
+      "why": "앱의 전역 fetch(SDK 57 의 expo/fetch)는 cache 를 읽지 않고, RN 폴리필(EXPO_PUBLIC_USE_RN_FETCH=1)은 cache 가 no-store·no-cache 인 GET·HEAD 의 URL 끝에 `_=<시각>` 을 붙인다. 어느 쪽이든 캐시 정책은 TanStack Query 가 소유하므로 넘기지 않는다(스펙 8.5). 근거(2026-09-30 소스 확인, 기기에서 재지는 않았다): SDK 57(expo 57.0.26)의 winter 런타임이 EXPO_PUBLIC_USE_RN_FETCH 가 1·true 가 아닌 한 전역 fetch 를 expo/fetch 로 바꿔 끼운다(node_modules/expo/src/winter/runtime.native.ts:41-53). 기기의 Release APK 가 그 fetch 로 도는 것은 실측 기록 M6 이 확인했다. expo/fetch 는 init 에서 body·signal·redirect·method·credentials·headers 만 읽고 cache 는 읽지 않는다(node_modules/expo/src/winter/fetch/fetch.ts:39-75. expo/src/winter/fetch/*.ts 에는 cache 라는 낱말이 없다). whatwg-fetch 3.6.20 의 `_=<시각>` 덧붙임은 Request 생성자 안에 있다(node_modules/whatwg-fetch/fetch.js:398-407). JSON:API 요청 URL 은 백엔드의 쿼리 문법 검사를 거치므로 바뀌면 안 된다. 네이티브 HTTP 캐시(Android OkHttp 10MB, iOS URLCache)는 요청의 cache 옵션이 아니라 응답 헤더(Cache-Control 등)를 따른다. 세 백엔드가 싣는 캐시 헤더는 docs/superpowers/notes/2026-09-30-d2-measurements.md 의 H1 이 적는다 - 네이티브 캐시의 기기 동작은 재지 않았다."
     },
     {
       "path": "lib/jsonapi/client.ts",
@@ -86,8 +97,86 @@
     },
     {
       "path": "test/unit/scripts/check-citations.test.ts",
-      "what": "GATE_TARGETS 를 app·components·lib·platform·test 로 바꿨고, 주석의 원본 게이트 단계 번호 [5/9] 를 이 저장소의 [5/11] 로 바꿨다.",
-      "why": "이 저장소에는 proxy.ts 가 없고 platform/ 이 있다. 테스트는 check.sh 의 호출 인자와 이 목록을 맞대므로 둘이 같아야 한다. queries/ 는 첫 파일이 생길 때 두 자리에 함께 더한다."
+      "what": "GATE_TARGETS 를 app·components·lib·platform·queries·test 로 바꿨고, 주석의 원본 게이트 단계 번호 [5/9] 를 이 저장소의 [5/12] 로 바꿨다.",
+      "why": "이 저장소에는 proxy.ts 가 없고 platform/ 이 있다. 테스트는 check.sh 의 호출 인자와 이 목록을 맞대므로 둘이 같아야 한다. queries/ 는 그 디렉터리의 첫 파일(queries/auth.ts)과 함께 두 자리에 더했다. 대상이 여섯이 되어 주석과 시험 이름의 \"다섯\"을 \"여섯\"으로 바꿨다."
+    },
+    {
+      "path": "lib/auth/credentials.ts",
+      "what": "credentialsFromFormData 와 그 도우미 stringField 를 뺐다. signUp·signIn·signUpThenSignIn 이 acceptLanguage(string | null) 대신 send(JsonApiSend, lib/jsonapi/send.ts)를 받아 그 함수로 요청을 보낸다 - request·withAcceptLanguage import 를 뺐다. 그 자리의 주석 둘(기본값이 없다는 절, 두 호출을 묶는 이유)을 send 에 맞게 고쳤다.",
+      "why": "RN 화면은 FormData 로 제출하지 않고 입력 상태(Credentials)를 그대로 넘긴다(스펙 6.2). Accept-Language 를 싣는 자리는 platform/ 의 API 클라이언트 한 곳이다(스펙 9.4) - 호출부마다 언어 값을 넘기던 원본에서는 그 인자를 null 로 바꾸는 뮤턴트가 게이트를 통과했다. 인증 호출은 그 클라이언트를 주입받는다."
+    },
+    {
+      "path": "test/unit/auth/credentials.test.ts",
+      "what": "credentialsFromFormData describe(3개)와 그 import 를 지웠다. signUp·signIn·signUpThenSignIn 호출의 언어 인자를 전송으로 바꿨다 - PROBE_ACCEPT_LANGUAGE 는 그 값을 싣는 전송(probeSend = request + withAcceptLanguage), null 은 request, '' 는 sendWithLanguage('') 다. 그 둘을 만드는 도우미와 import(request·withAcceptLanguage·RequestOptions·JsonApiSend)를 더했다.",
+      "why": "위 이탈을 따라간다. 헤더 맵 전체를 비교하는 원래 단언이 그대로 남아, 함수가 주입받은 전송을 쓰지 않고 request 를 직접 부르면 accept-language 가 빠져 죽는다."
+    },
+    {
+      "path": "lib/auth/logout.ts",
+      "what": "revokeSession·endSession 이 acceptLanguage 대신 send(JsonApiSend)를 받는다. endSession 의 셋째 인자 이름을 clearCookies 에서 clearLocal 로 바꾸고 그 절의 주석을 고쳤다. request·withAcceptLanguage import 를 뺐다. revokeSession 주석의 acceptLanguage 절을 send 에 맞게 고쳤고, endSession 주석의 실측 문단에 남은 clearCookies 를 clearLocal 로 고쳤다.",
+      "why": "Accept-Language 는 주입받은 전송이 싣는다(스펙 9.4). 이 저장소에는 쿠키가 없다 - 로그아웃이 비우는 것은 기기의 세션 항목과 Query 캐시다(스펙 7.4). 부르는 곳은 lib/auth/session-manager.ts 의 logout() 하나다."
+    },
+    {
+      "path": "test/unit/auth/logout.test.ts",
+      "what": "logoutAction import 와 그 관측 한계 describe(1개)를 지웠다. LOGIN_PATH·isProtectedPath 를 lib/auth/guard·@/proxy 대신 lib/auth/protected-paths 에서 가져온다. revokeSession·endSession·rotateSession 의 언어 인자를 전송(probeSend, null 은 request)으로 바꾸고 그 도우미와 import 를 더했다. BACKEND_URL 예외 시험은 새로 들여온 client.ts 의 request 를 넘긴다. endSession '폐기에 성공한 세계' 시험에 단언 하나를 더했다 - 주입한 전송(probeSend)만 싣는 accept-language 헤더가 나갔는지 잰다. makeClearSpy 주석의 clearCookies 를 clearLocal 로 고쳤다.",
+      "why": "Server Action·proxy.ts·guard.ts 는 복사하지 않았다(스펙 6.2) - 보호 경로 목록은 lib/auth/protected-paths.ts 하나다(스펙 7.3). logout.ts 가 이제 request 를 import 하지 않으므로, 설정 캐시가 빈 새 모듈을 타려면 그 모듈의 request 를 인자로 넘겨야 한다. endSession 이 받은 send 를 revokeSession 에 넘기는 배선은 다른 단언이 재지 못한다 - revokeSession(session, request) 로 바꿔도 시험이 전부 통과했다."
+    },
+    {
+      "path": "lib/auth/rotation.ts",
+      "what": "RotationDecision 과 decideRotation 을 빼고 그 자리에 뺀 이유를 적은 주석을 두었다. rotateSession 이 acceptLanguage 대신 send(JsonApiSend)를 받는다. session.ts(decodeAccessCookieValue)·isAccessExpiring·request·withAcceptLanguage import 를 뺐다. rotateSession 주석의 acceptLanguage 절을 send 에 맞게 고쳤다. 머리 주석에서 decideRotation 을 이 파일의 것으로 말하던 문장을 고쳤다(호출자는 lib/auth/session-manager.ts 이고, 원본에 있던 회전 판단은 뺐다). rotateSession 주석 첫 문단의 호출자를 proxy.ts 에서 lib/auth/session-manager.ts 로 고쳤다.",
+      "why": "decideRotation 은 원본의 쿠키 두 개(session.ts 의 인코딩)를 읽는 프록시용 판단이다. 이 저장소는 세션을 SecureStore 항목 하나에 두고, 회전할지는 lib/auth/session-manager.ts 가 저장된 세션의 isAccessExpiring 으로 정한다(스펙 7.1·7.2). 전송은 credentials.ts 와 같은 이유다(스펙 9.4)."
+    },
+    {
+      "path": "test/unit/auth/rotation.test.ts",
+      "what": "decideRotation describe(7개)와 그 도우미(accessCookie)·import(decideRotation·encodeAccessCookieValue·ACCESS_EXPIRY_LEEWAY_MS)를 지웠다. rotateSession 의 언어 인자를 전송(probeSend, null 은 request)으로 바꾸고 그 도우미와 import 를 더했다.",
+      "why": "위 이탈을 따라간다. 회전할지의 판단은 test/unit/auth/session-manager.test.ts 가 잰다."
+    },
+    {
+      "path": "lib/auth/form-state.ts",
+      "what": "AuthFormAction 타입과 그 주석을 뺐다.",
+      "why": "Server Action 모양((state, formData: FormData) => Promise<AuthFormState>)이다(스펙 6.2). RN 화면은 쓰기 훅(queries/auth.ts)의 결과로 폼 상태를 바꾼다."
+    },
+    {
+      "path": "lib/jsonapi/client.ts",
+      "what": "cache 를 넘기지 않는 자리의 주석에서 '(미측정 - D2 가 잰다)' 를 '(기기에서는 미측정 - 세 백엔드가 싣는 헤더는 D2 실측 기록 H1)' 로 바꿨다.",
+      "why": "D2 가 세 백엔드의 헤더를 쟀다. 네이티브 캐시가 그 헤더대로 도는지는 앱에 GET 이 생기는 D3 가 잰다."
+    },
+    {
+      "path": "test/unit/jsonapi/client.test.ts",
+      "what": "'cache 옵션을 넘기지 않는다' 시험의 주석에서 '(미측정 - D2 가 잰다)' 를 '(기기에서는 미측정 - 세 백엔드가 싣는 헤더는 D2 실측 기록 H1)' 로 바꿨다.",
+      "why": "위 client.ts 이탈을 따라간다."
     }
-  ]
+  ],
+  "sourceBlobs": {
+    "lib/jsonapi/document.ts": "0cb1d5f831455fead9ac4a615f8846979ae5ce8e",
+    "lib/jsonapi/normalize.ts": "971f7fec8a0a69968d0ca1bc067be3a97b317762",
+    "lib/jsonapi/query.ts": "2084a5fe0911e47abb05cc53e8f0fbc581c25bb7",
+    "lib/jsonapi/errors.ts": "3e91bb7804980f49babbf0d4d69eedd5acb489af",
+    "lib/resources/define.ts": "561322b3228355c6baf8602a189469f010482c92",
+    "lib/resources/example.ts": "4e067036ca5620f4cd7fc8149fa4eca2569a9983",
+    "lib/resources/category.ts": "65cc44e63bfa89f74dab92f538a3d8453ee8139e",
+    "lib/resources/tag.ts": "11cc96f738264779fd01ddfd5b7d44f1a88a3d18",
+    "lib/resources/index.ts": "e769c06e2f874223d01f00fabea7b39e185eb14c",
+    "lib/resources/mirror.ts": "69f4d7e18ab8a084574a363bfab28ee1961259a0",
+    "lib/auth/tokens.ts": "6133c491ebcf76b1d1e476f6ef2f70d409380a38",
+    "test/fixtures/documents.ts": "b957502df656bae83fa3b468e447db72bc9ba369",
+    "test/unit/jsonapi/document.test.ts": "768258f20c89c077c766ad5c5e9f79a61afada4e",
+    "test/unit/jsonapi/normalize.test.ts": "7a4bd2269d80ea3c708a6daec17f12092ee56cde",
+    "test/unit/jsonapi/query.test.ts": "2421d2afb11179b6bf8d2da4f6098abb67b3238e",
+    "test/unit/jsonapi/errors.test.ts": "2cd20480ae76275fcc87c982772935a8192b41b5",
+    "test/unit/jsonapi/error-routing.test.ts": "9afa4828fdb734ec71d315587fa6ab4702359853",
+    "test/unit/resources/define.test.ts": "cbfb330d3c6d36e4400b981a3384823998d0f602",
+    "test/unit/resources/mirror.test.ts": "4ec4620aa9415b12ca0f17f48838e6b488202948",
+    "test/unit/resources/resources.test.ts": "b4c4e6ffcf691c7acd25883797260a1f723f8a49",
+    "test/unit/resources/invariants.ts": "ba3d9fc54f4a0150c60c45457332602a3f4bdb09",
+    "test/unit/auth/tokens.test.ts": "f79143a2b00fbdf3fa10d81affa4467bac58767f",
+    "test/e2e/seed/README.md": "a871027190642141011e055d22f5ae8e4bde72f8",
+    "test/e2e/seed/examples.sql": "fec8529213bdb0f4b041c2da580ad2651a367969",
+    "test/e2e/seed/examples.rails.sql": "db8808f8a1a3e928bb55d2bdddb8afcff69dd717",
+    "test/unit/e2e/seed-mirror.test.ts": "523003330904a4d411be0f656607775618566033",
+    "scripts/check-citations.sh": "d1368852d42de3db315ab78b12cebc943ed07b11",
+    "lib/auth/flow.ts": "62ee21b41bfb16c474252e6118108fe5d96d98f2",
+    "test/unit/auth/flow.test.ts": "1579380da841000bc6b025b64e91a3efb9c556cd",
+    "test/e2e/probe-email.ts": "70d57b3fd387f599d85dc76e3cb10f5c0032f8fb",
+    "test/unit/e2e/probe-email.test.ts": "406e0fd808767c0a605bbbf25c414eec129b165e"
+  }
 }

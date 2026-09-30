@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 /**
- * `scripts/check-citations.sh` 를 **실제로 돌려서** 잰다 - 게이트 [5/11] 의 몸통이다.
+ * `scripts/check-citations.sh` 를 **실제로 돌려서** 잰다 - 게이트 [5/12] 의 몸통이다.
  *
  * ## 왜 이 파일이 있는가
  *
@@ -24,8 +24,8 @@ import { fileURLToPath } from 'node:url'
  *
  * ## 픽스처 문자열은 반드시 이어붙여 만든다
  *
- * 게이트가 훑는 다섯 대상에 `test/` 가 들어 있다 - 즉 **이 파일 자신이 검사
- * 대상**이다. 금지 인용을 리터럴로 적으면 이 파일이 [5/11] 에 걸린다. 예외 장치는
+ * 게이트가 훑는 여섯 대상에 `test/` 가 들어 있다 - 즉 **이 파일 자신이 검사
+ * 대상**이다. 금지 인용을 리터럴로 적으면 이 파일이 [5/12] 에 걸린다. 예외 장치는
  * 하나도 없다(`--exclude` · 허용 목록 · 무시 주석 전부 없고 일부러 두지 않았다).
  * 그래서 금지 인용은 `'task-' + '9' + '-report.md'` 처럼 조각으로 적는다.
  *
@@ -61,11 +61,11 @@ function toPosix(path: string): string {
 const SCRIPT_PATH = toPosix(join(REPO_ROOT, 'scripts', CITATIONS_SCRIPT_NAME))
 
 /**
- * 게이트가 `[5/11]` 에서 넘기는 대상 다섯. **의도적인 옮겨 적기다** -
+ * 게이트가 `[5/12]` 에서 넘기는 대상 여섯. **의도적인 옮겨 적기다** -
  * `scripts/check.sh` 의 호출과 여기를 함께 고쳐야 초록이 유지된다. 검사
  * 스크립트가 기본값을 두지 않고 대상을 인자로만 받는 것이 이 성질을 만든다.
  */
-const GATE_TARGETS = ['app', 'components', 'lib', 'platform', 'test'] as const
+const GATE_TARGETS = ['app', 'components', 'lib', 'platform', 'queries', 'test'] as const
 
 /**
  * 금지 갈래마다 픽스처 하나. **각 갈래를 지우는 뮤턴트가 여기서 죽는다** -
@@ -146,7 +146,7 @@ function writeFixture(name: string, citation: string): string {
 }
 
 /**
- * `scripts/check.sh` 의 `[5/11]` 호출에 실제로 적힌 인자들. 주석 줄은 건너뛴다 -
+ * `scripts/check.sh` 의 `[5/12]` 호출에 실제로 적힌 인자들. 주석 줄은 건너뛴다 -
  * 그 파일 머리말이 스크립트 이름을 산문으로도 적는다.
  */
 function citationTargetsInGate(): string[] {
@@ -243,11 +243,11 @@ describe('scripts/check-citations.sh', () => {
     })
   }
 
-  it('게이트가 다섯 대상을 그대로 넘긴다 - 두 자리를 함께 고쳐야 한다', () => {
+  it('게이트가 여섯 대상을 그대로 넘긴다 - 두 자리를 함께 고쳐야 한다', () => {
     expect([...citationTargetsInGate()].sort()).toEqual([...GATE_TARGETS].sort())
   })
 
-  it('게이트가 넘기는 다섯 대상이 저장소에 실재한다', () => {
+  it('게이트가 넘기는 여섯 대상이 저장소에 실재한다', () => {
     for (const target of GATE_TARGETS) {
       expect(existsSync(join(REPO_ROOT, target)), `${target} 가 저장소에 없다`).toBe(true)
     }

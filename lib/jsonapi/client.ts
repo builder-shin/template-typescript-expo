@@ -204,7 +204,8 @@ export async function request<T>(
     // (EXPO_PUBLIC_USE_RN_FETCH=1)은 cache 가 no-store·no-cache 인 GET·HEAD 의 URL 끝에 `_=<시각>` 을
     // 붙인다. 어느 쪽이든 캐시 정책은 TanStack Query 가 소유하므로 넘기지 않는다
     // (template-typescript-expo 스펙 8.5). 네이티브 HTTP 캐시(Android OkHttp·iOS URLCache)는
-    // 응답 헤더를 따른다(미측정 - D2 가 잰다). signal 은 아래에서 타임아웃과 합쳐 싣는다.
+    // 응답 헤더를 따른다(기기에서는 미측정 - 세 백엔드가 싣는 헤더는 D2 실측 기록 H1). signal 은
+    // 아래에서 타임아웃과 합쳐 싣는다.
     if (options.body !== undefined) {
       headers.set('content-type', JSONAPI_MEDIA_TYPE)
       init.body = JSON.stringify(options.body)

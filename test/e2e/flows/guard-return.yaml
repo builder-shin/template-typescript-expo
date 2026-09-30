@@ -1,0 +1,33 @@
+# 보호 경로 → 로그인 → next 로 복귀(스펙 7.3·11.3). 로그인한 뒤 홈이 아니라 막혔던 화면에 닿아야 한다.
+appId: com.example.templateexpo.e2e
+---
+- runFlow: ../subflows/start-signed-out.yaml
+# 로그인할 계정을 만들고 로그아웃해 익명으로 돌아간다.
+- runFlow: ../subflows/register.yaml
+- runFlow: ../subflows/logout.yaml
+# 보호 경로를 딥링크로 연다 - 경로 가드가 로그인으로 보낸다.
+- openLink: templateexpo-e2e://examples/new
+- extendedWaitUntil:
+    visible:
+      id: login-screen
+    timeout: 15000
+- assertNotVisible:
+    id: new-example-screen
+- runFlow: ../subflows/submit-credentials.yaml
+- extendedWaitUntil:
+    visible:
+      id: new-example-screen
+    timeout: 20000
+- assertVisible:
+    id: logout-button
+# 복귀한 화면에서 뒤로 가면 홈이 나온다 - 복귀한 화면 아래에 (app) 의 앵커(홈)가 깔려 있어야 뒤로 가기가 앱을
+# 닫지 않는다(app/(app)/_layout.tsx 의 unstable_settings, 로그인 화면의 dismissTo 에 준 withAnchor). 홈의 testID 가
+# 보이면 앱이 앞에 떠 있는 것이다 - 앵커가 없으면 뒤로 가기가 앱을 닫아 런처가 보인다. 이 앞에서 키보드는 내려가
+# 있다(로그인 화면이 사라지며 닫힌다) - 그래서 뒤로 가기는 키보드가 아니라 화면을 닫는다.
+- pressKey: back
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 15000
+- assertVisible:
+    id: logout-button
