@@ -38,8 +38,7 @@ const PLATFORM_MODULE_PATTERNS = [
   'expo/*',
   'expo-*',
   '@expo/*',
-  '@react-native/*',
-  '@react-native-community/*',
+  '@react-native*',
   '@rn-primitives/*',
   '@tanstack/*',
   'uniwind',
@@ -68,7 +67,7 @@ module.exports = defineConfig([
     rules: typeCheckedRules,
   },
   {
-    files: ['lib/**/*.ts'],
+    files: ['lib/**/*.{ts,tsx,js,jsx,mjs,cjs}'],
     rules: {
       'no-restricted-imports': [
         'error',
