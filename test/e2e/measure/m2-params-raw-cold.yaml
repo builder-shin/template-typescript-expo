@@ -1,0 +1,16 @@
+appId: com.example.templateexpo.e2e
+---
+# 앱이 꺼진 채로 딥링크가 앱을 띄운다 - 링크가 초기 URL 로 들어오는 경로.
+- stopApp
+- clearState
+- openLink: templateexpo-e2e://probe?filter[status]=active&sort=-createdAt
+- extendedWaitUntil:
+    visible:
+      id: probe-params
+    timeout: 30000
+- copyTextFrom:
+    id: probe-params
+- evalScript: "${console.log('M2 cold raw deep link params: ' + maestro.copiedText)}"
+- assertVisible:
+    id: probe-params
+    text: '.*"filter\[status\]":"active".*'

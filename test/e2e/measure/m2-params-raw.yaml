@@ -1,0 +1,16 @@
+appId: com.example.templateexpo.e2e
+---
+- launchApp:
+    clearState: true
+# launchApp 은 JS 가 뜨기 전에 돌아온다 - 그 사이에 보낸 딥링크는 버려진다.
+- extendedWaitUntil:
+    visible:
+      id: home-probe-button
+    timeout: 30000
+- openLink: templateexpo-e2e://probe?filter[status]=active&sort=-createdAt
+- copyTextFrom:
+    id: probe-params
+- evalScript: "${console.log('M2 raw deep link params: ' + maestro.copiedText)}"
+- assertVisible:
+    id: probe-params
+    text: '.*"filter\[status\]":"active".*'

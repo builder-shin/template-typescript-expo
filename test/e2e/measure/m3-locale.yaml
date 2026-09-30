@@ -1,0 +1,17 @@
+appId: com.example.templateexpo.e2e
+---
+# clearState 를 쓰지 않는다 - pm clear 는 adb 로 정한 앱별 언어까지 지운다. launchApp 은
+# 실행 중인 앱을 멈추고 다시 띄운다.
+- launchApp
+# launchApp 은 JS 가 뜨기 전에 돌아온다 - 그 사이에 보낸 딥링크는 버려진다.
+- extendedWaitUntil:
+    visible:
+      id: home-probe-button
+    timeout: 30000
+- openLink: templateexpo-e2e://probe
+- copyTextFrom:
+    id: probe-locales
+- evalScript: "${console.log('M3 locales: ' + maestro.copiedText)}"
+- assertVisible:
+    id: probe-locales
+    text: '${EXPECTED_LOCALE}.*'
