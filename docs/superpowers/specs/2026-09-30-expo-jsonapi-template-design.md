@@ -212,6 +212,13 @@ docs/superpowers/specs/ · plans/ · notes/
 - `platform/`에 분기 판단이 자라면 위반이다. 판단은 `lib/`로 옮기고
   `platform/`은 호출과 배선만 한다.
 
+> 정정(2026-09-30, D2): `lib/**`의 위반이 둘 더 있다. (1) `@react-navigation/*`를 import하면 위반이다 - 첫
+> 항목의 플랫폼 모듈에 든다. (2) `lib/`는 맨 아래 계층이라 위 계층(`platform/`·`queries/`·`components/`·
+> `app/`)을 import하면 위반이다. 별칭(`@/queries/auth`)이든 상대 경로(`../../queries/auth`)든, 하위 경로든
+> 맨 디렉터리(`@/queries`)든 ESLint `no-restricted-imports`가 막는다. 시험이 위 계층을 `vi.mock`하면 vitest까지
+> 통과해도 경계가 무너지기 때문이다. 경로의 이름만 보므로 `lib/` 안에 이 네 이름의 디렉터리를 두지 않는다
+> (`firebase/app` 같은 패키지 경로는 막지 않는다).
+
 `lib/resources/index.ts`는 손으로 채우는 배열이다. **여기 없으면 그 자원은
 존재하지 않는 것과 같다** — 백엔드의 `config/routes.py`·`ENTITIES`·
 `MIGRATIONS`, Next.js의 같은 파일과 같은 계약이다. 자동 탐색을 쓰지 않는다.
@@ -300,9 +307,12 @@ docs/superpowers/specs/ · plans/ · notes/
 > 정정(2026-09-30, D2): 검사가 다섯이 됐다. 5. `divergences`가 없는 경로는 기록의 `sourceBlobs`에 원본
 > 파일의 git blob SHA-1(`git rev-parse <commit>:<경로>`)을 적고, 작업 트리의 파일이 그 값과 같아야 한다.
 > 이탈이 있는 경로는 `sourceBlobs`에 두지 않는다. 형식만 보는 네 검사로는 그대로 복사한 파일을 고치고
-> 이탈을 적지 않아도 게이트가 통과했다. 값은 작업 트리의 바이트로 잰다 - `.gitattributes`의
-> `* text=auto eol=lf`가 체크아웃을 LF로 두므로 `git hash-object`와 같다. 3의 "실재한다"는 저장소 안의
-> 일반 파일이라는 뜻이다 - 절대 경로, 드라이브 문자로 시작하는 경로, `..` 구간이 있는 경로는 거절한다.
+> 이탈을 적지 않아도 게이트가 통과했다. 값은 git이 저장할 내용으로 잰다 - 작업 트리의 바이트에서 CRLF를
+> LF로 바꾼 것이다. `.gitattributes`의 `* text=auto eol=lf`가 체크아웃을 LF로 두고 add할 때 CRLF를 LF로
+> 바꿔 저장하므로 `git hash-object <경로>`와 같고, 편집기가 CRLF로 저장한 사본도 내용이 같으면 원본
+> 그대로다(NUL이나 홀로 선 CR이 있는 파일은 git이 이진으로 보고 바꾸지 않으므로 바이트 그대로 잰다).
+> 3의 "실재한다"는 저장소 안의 일반 파일이라는 뜻이다 - 절대 경로, 드라이브 문자로 시작하는 경로, `..` 구간이
+> 있는 경로는 거절한다.
 
 ## 7. 인증과 세션
 

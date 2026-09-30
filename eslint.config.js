@@ -48,10 +48,28 @@ const PLATFORM_MODULE_PATTERNS = [
 
 /**
  * lib/ 위의 계층(스펙 5장의 소유 표) - lib/ 는 맨 아래 계층이다. 위를 import 하면 시험이 그
- * 모듈을 vi.mock 해서 vitest 까지 통과해도 경계가 무너진다. 앞의 ** 가 별칭(@/platform/…)과
- * 상대 경로(../../platform/…)를 함께 잡는다. test/unit/lint/lib-boundary.test.ts 가 잰다.
+ * 모듈을 vi.mock 해서 vitest 까지 통과해도 경계가 무너진다. 별칭(@/platform/…)이든 상대
+ * 경로(../../platform/…)든, 하위 경로든 맨 디렉터리(@/queries)든 잡는다. 경로의 이름만 보므로
+ * lib/ 안에 이 네 이름의 디렉터리를 두지 않는다. test/unit/lint/lib-boundary.test.ts 가 잰다.
  */
-const UPPER_LAYER_PATTERNS = ['**/platform/*', '**/queries/*', '**/components/*', '**/app/*']
+const UPPER_LAYER_PATTERNS = [
+  // 하위 경로 - 앞의 ** 가 별칭(@/platform/api)과 상대 경로(../../platform/api)를 함께 잡는다.
+  '**/platform/*',
+  '**/queries/*',
+  '**/components/*',
+  '**/app/*',
+  // 맨 디렉터리 - 별칭. 앞에 **/ 를 붙이면 firebase/app 같은 패키지 경로까지 잡으므로 붙이지 않는다.
+  '@/platform',
+  '@/queries',
+  '@/components',
+  '@/app',
+  // 맨 디렉터리 - 상대 경로(../queries, ../../queries, …). 위로 올라가는 경로에만 걸리고 같은
+  // 디렉터리의 형제 파일(./queries)과 패키지 경로(firebase/app)는 지나간다.
+  '**/../platform',
+  '**/../queries',
+  '**/../components',
+  '**/../app',
+]
 
 module.exports = defineConfig([
   {

@@ -10,12 +10,15 @@
  *
  * 형식만 보면 그대로 복사한 파일을 고치고 이탈을 적지 않아도 통과한다. 그래서 divergences 가
  * 없는 경로는 sourceBlobs 에 원본 파일의 git blob SHA-1 을 적고, 작업 트리의 파일이 그 값과
- * 같아야 한다. 값은 작업 트리의 바이트로 잰다 - .gitattributes 의 `* text=auto eol=lf` 가
- * 체크아웃을 LF 로 두므로 `git hash-object` 와 같다. 이탈이 있는 경로는 원본과 같을 수 없으므로
+ * 같아야 한다. 값은 git 이 저장할 내용으로 잰다 - 작업 트리의 바이트에서 CRLF 를 LF 로 바꾼
+ * 것이다. .gitattributes 의 `* text=auto eol=lf` 가 체크아웃을 LF 로 두고 add 할 때 CRLF 를
+ * LF 로 바꿔 저장하므로, 편집기가 줄 끝을 CRLF 로 저장한 사본도 내용이 같으면 원본 그대로다
+ * (`git hash-object <경로>` 와 같은 값이다). 이탈이 있는 경로는 원본과 같을 수 없으므로
  * sourceBlobs 에 두지 않는다.
  *
  * 스펙은 이 검사를 check-provenance.sh 로 적었지만 JSON 을 읽어야 해서 node 로 쓴다.
  */
+import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
@@ -94,9 +97,20 @@ divergences.forEach((divergence, index) => {
   }
 })
 
-/** git 이 파일 내용에 매기는 blob SHA-1 - `git hash-object` 와 같은 계산이다. */
+/**
+ * git 이 add 할 때 이 파일에 하는 줄 끝 정규화 - CRLF 를 LF 로 바꾼다. NUL 이나 홀로 선 CR 이
+ * 있으면 git 은 이진으로 보고 바꾸지 않으므로 그런 파일은 그대로 둔다(이미지 같은 이진 사본은
+ * 우연히 든 CRLF 도 원본 그대로여야 한다). 바이트를 1:1 로 다루려고 latin1 로 읽는다.
+ */
+function toStored(content) {
+  const text = content.toString('latin1')
+  if (content.includes(0) || /\r(?!\n)/.test(text)) return content
+  return Buffer.from(text.replaceAll('\r\n', '\n'), 'latin1')
+}
+
+/** git 이 이 파일 내용으로 저장할 blob 의 SHA-1 - `git hash-object <경로>` 와 같은 계산이다. */
 function blobSha(path) {
-  const content = readFileSync(path)
+  const content = toStored(readFileSync(path))
   return createHash('sha1').update(`blob ${content.length}\0`).update(content).digest('hex')
 }
 

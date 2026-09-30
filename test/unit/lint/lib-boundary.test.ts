@@ -68,14 +68,30 @@ const FORBIDDEN = [
   'lucide-react-native',
 ]
 
-// 위 계층은 별칭과 상대 경로 둘 다 막는다. 깊이가 다른 경로도 하나 둔다.
+// 위 계층은 별칭과 상대 경로, 하위 경로와 맨 디렉터리(그 디렉터리의 index 를 뜻하는 import)를
+// 모두 막는다. 계층마다 상대 경로 표본을 두고, 깊이가 다른 경로도 둔다.
 const UPPER_LAYER = [
+  // 하위 경로 - 별칭
   '@/platform/api',
   '@/queries/auth',
   '@/components/ui/button',
   '@/app/_layout',
   '@/platform/deep/probe',
+  // 하위 경로 - 상대 경로
   '../../platform/api',
+  '../../queries/auth',
+  '../../components/ui/button',
+  '../../app/_layout',
+  // 맨 디렉터리 - 별칭
+  '@/platform',
+  '@/queries',
+  '@/components',
+  '@/app',
+  // 맨 디렉터리 - 상대 경로
+  '../platform',
+  '../../queries',
+  '../../../components',
+  '../../app',
 ]
 
 const ALLOWED = [
@@ -85,6 +101,15 @@ const ALLOWED = [
   '../jsonapi/client',
   'clsx',
   'tailwind-merge',
+  // 같은 디렉터리의 형제 파일은 위 계층이 될 수 없다.
+  './queries',
+  // 계층 이름으로 끝나는 패키지 경로는 막지 않는다 - 맨 디렉터리 패턴은 별칭(@/)과
+  // 상대 경로(../)에만 걸려야 한다.
+  'firebase/app',
+  '@firebase/app',
+  'some-kit/platform',
+  'some-kit/queries',
+  'some-kit/components',
 ]
 
 // 계약의 lib/** 는 깊이·디렉터리·확장자를 가리지 않는다. 표본이 세 축을 모두 걸쳐야

@@ -33,10 +33,15 @@
 
 위반의 정의:
 
-- `lib/**`에서 `react`·`react-native`·`expo`·`expo-*`·`@expo/*`·`@react-native*` 등
+- `lib/**`에서 `react`·`react-native`·`expo`·`expo-*`·`@expo/*`·`@react-native*`·`@react-navigation/*` 등
   플랫폼 모듈을 import하면 위반이다. ESLint가 막고(정적 import·`export … from`·`import x = require()`만
   잰다 - 동적 `import()`와 `require()` 호출은 `lib/`에서 쓰지 않는다) `test/unit/lint/lib-boundary.test.ts`가
   그 규칙을 잰다. `lib/`가 node의 vitest에서 그대로 돌아야 복사한 테스트가 유효하다.
+- `lib/**`에서 위 계층(`platform/`·`queries/`·`components/`·`app/`)을 import하면 위반이다. 별칭
+  (`@/queries/auth`)이든 상대 경로(`../../queries/auth`)든, 하위 경로든 맨 디렉터리(`@/queries`)든 ESLint가
+  막는다 - `lib/`는 맨 아래 계층이라 위 계층이 `lib/`를 부르지 그 반대가 아니다. 경로의 이름만 보므로
+  `lib/` 안에 이 네 이름의 디렉터리를 두지 않는다(`firebase/app` 같은 패키지 경로는 막지 않는다).
+  `test/unit/lint/lib-boundary.test.ts`가 그 규칙도 잰다.
 - `lib/jsonapi/`에 이 저장소의 실제 자원 이름 문자열이 코드로 나타나면 위반이다.
 - `lib/resources/*.ts`에 JSX가 있으면 위반이다.
 - `app/`에서 `fetch`나 `request()`를 직접 부르면 위반이다. 화면은 `queries/`의 훅만 쓴다.

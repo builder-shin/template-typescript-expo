@@ -57,8 +57,11 @@ function run(record: unknown): Result {
   return runRaw(JSON.stringify(record))
 }
 
-/** git 이 content 에 매기는 blob SHA-1. 검사기의 계산을 되풀이하지 않고 git 에게 묻는다. */
-function blobOf(content: string): string {
+/**
+ * git 이 content 에 매기는 blob SHA-1. 검사기의 계산을 되풀이하지 않고 git 에게 묻는다. 표준
+ * 입력으로 읽으면 줄 끝 변환 없이 바이트 그대로 잰다 - 검사기가 하는 줄 끝 정규화는 넣지 않는다.
+ */
+function blobOf(content: string | Buffer): string {
   return execFileSync('git', ['hash-object', '--stdin'], {
     input: content,
     encoding: 'utf8',
@@ -412,4 +415,41 @@ describe('check-provenance: sourceBlobs', () => {
     }).trim()
     expect(run(withSecond({ 'lib/second.ts': sha })).status).toBe(0)
   })
+
+  /*
+   * .gitattributes 의 `* text=auto eol=lf` 는 add 할 때 CRLF 를 LF 로 바꿔 저장한다. 편집기가 줄 끝을
+   * CRLF 로 저장한 사본도 git 에게는 원본 그대로이므로 실패시키지 않는다. 다만 NUL 이나 홀로 선 CR 이
+   * 있는 파일은 git 이 이진으로 보고 줄 끝을 바꾸지 않는다 - 그런 파일은 바이트 그대로 잰다.
+   */
+  it('줄 끝이 CRLF 여도 LF 로 바꾼 내용이 원본 blob 과 같으면 통과한다', () => {
+    writeFileSync(join(dir, 'lib', 'second.ts'), SECOND.replaceAll('\n', '\r\n'))
+    const result = run(withSecond({ 'lib/second.ts': blobOf(SECOND) }))
+    expect(result.stderr).toBe('')
+    expect(result.status).toBe(0)
+    expect(result.stdout).toMatch(/원본 그대로 1개/)
+  })
+
+  it('줄 끝이 CRLF 이고 LF 로 바꾼 내용도 원본과 다르면 git 이 저장할 내용의 SHA 를 적고 실패한다', () => {
+    writeFileSync(join(dir, 'lib', 'second.ts'), 'export const second = 3\r\n')
+    const result = run(withSecond({ 'lib/second.ts': blobOf(SECOND) }))
+    expectListed(result, [/원본과 다르다.*lib\/second\.ts/])
+    expect(result.stderr).toContain(`작업 트리 ${blobOf('export const second = 3\n')}`)
+  })
+
+  it.each([
+    ['NUL 이 있는', 'PNG\r\n\0data\r\n'],
+    ['홀로 선 CR 이 있는', 'a\rb\r\n'],
+  ])(
+    '%s 파일은 git 이 이진으로 봐서 줄 끝을 바꾸지 않으므로 바이트 그대로 잰다',
+    (_label, text) => {
+      const content = Buffer.from(text)
+      writeFileSync(join(dir, 'lib', 'second.ts'), content)
+      expect(run(withSecond({ 'lib/second.ts': blobOf(content) })).status).toBe(0)
+      // CRLF 를 LF 로 바꾼 내용을 원본으로 적으면 다르다 - 검사기가 바꾸지 않았다는 증거다.
+      const normalized = blobOf(Buffer.from(text.replaceAll('\r\n', '\n')))
+      expectListed(run(withSecond({ 'lib/second.ts': normalized })), [
+        /원본과 다르다.*lib\/second\.ts/,
+      ])
+    },
+  )
 })
