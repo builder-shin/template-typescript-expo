@@ -30,8 +30,11 @@ TanStack Query 의 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화를 소�
 - 자동 재시도는 `platform/query-client.ts`가 끈다.
 - 쓰기 뒤의 캐시는 `keys.ts` 의 표를 지난다 - 생성·수정·삭제 훅(D4)도
   `applyCacheEffects(queryClient, cacheEffects({ kind: 'create', type }))` 처럼 표를 부른다. 키를 손으로 적지 않는다.
-- `apiRequest` 는 던지지 않는다 - 백엔드 오류도 닿지 못함도 결과 값이다. 조회 훅은 Query 의 오류 상태를 쓰지 않고
-  결과를 view 함수에 넘긴다. 무한 조회의 쪽도 결과 값 그대로 쌓인다(`listView` 가 쪽 배열을 읽는다).
+- `apiRequest` 는 던지지 않는다 - 백엔드 오류도 닿지 못함도 결과 값이다. 설정 오류는 예외다: `request()` 가 일부러
+  던진다(`lib/jsonapi/client.ts` 머리말 - 배포에 고정된 결함을 "연결할 수 없다" 배너로 삼키지 않으려는 것). 조회 훅은
+  그 예외를 다루지 않는다 - 설정 검증을 통과한 갈래(`STARTUP.ok`)에서만 도는 훅이라 여기까지 오지 않는다
+  (`platform/AGENTS.md` 의 부팅 순서). 조회 훅은 Query 의 오류 상태를 쓰지 않고 결과를 view 함수에 넘긴다. 무한
+  조회의 쪽도 결과 값 그대로 쌓인다(`listView` 가 쪽 배열을 읽는다).
 - 요청에 TanStack Query 의 `signal` 을 넘기지 않는다 - 끊은 요청은 e2e 변형에서 상태 0 실패(`[e2e-http] 0`)로
   기록돼 E2E 가드에 걸리고, 조회는 작아서 화면을 떠난 뒤 끝까지 받아도 잃는 것이 없다. 넘기게 되면 세 곳을 함께
   고친다: `apiRequest`(`platform/api.ts`)가 호출자가 끊은 요청을 실패 표식으로 남기지 않게, `lib/jsonapi/client.ts` 의

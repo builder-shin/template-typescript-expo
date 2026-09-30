@@ -64,15 +64,24 @@ export function cacheEffects(write: CacheWrite): readonly CacheEffect[] {
   }
 }
 
-/** 표의 일을 캐시에 옮긴다. 무효화는 기다리지 않는다 - 다시 부르는 것은 화면의 일이다. */
+/**
+ * 표의 일을 캐시에 옮긴다. 무효화는 기다리지 않는다 - 다시 부르는 것은 화면의 일이다.
+ *
+ * `removeAll` 은 조회 캐시만 비운다(`removeQueries`). `client.clear()` 로 바꾸지 않는다 - 이 효과는
+ * 로그아웃 쓰기 안에서 돌고(queries/auth.ts), 쓰기 캐시까지 비우면 그 쓰기가 사라져 `useIsLoggingOut`
+ * 이 폐기 요청이 끝나기 전에 거짓이 된다.
+ */
 export function applyCacheEffects(client: QueryClient, effects: readonly CacheEffect[]): void {
   for (const effect of effects) {
     if (effect.action === 'invalidate') {
       void client.invalidateQueries({ queryKey: effect.queryKey })
     } else if (effect.action === 'remove') {
       client.removeQueries({ queryKey: effect.queryKey, exact: true })
-    } else {
+    } else if (effect.action === 'removeAll') {
       client.removeQueries()
+    } else {
+      // 효과를 CacheEffect 에 더하고 여기를 빠뜨리면 타입 오류다. 모르는 효과가 캐시 전체를 비우게 두지 않는다.
+      throw new Error(`알 수 없는 캐시 효과다: ${JSON.stringify(effect satisfies never)}`)
     }
   }
 }

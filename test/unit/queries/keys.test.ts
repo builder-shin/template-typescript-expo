@@ -1,7 +1,13 @@
-import { QueryClient } from '@tanstack/react-query'
+import { MutationObserver, QueryClient } from '@tanstack/react-query'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { applyCacheEffects, cacheEffects, queryKeys, type CacheWrite } from '@/queries/keys'
+import {
+  applyCacheEffects,
+  cacheEffects,
+  queryKeys,
+  type CacheEffect,
+  type CacheWrite,
+} from '@/queries/keys'
 
 /**
  * 캐시 키와 쓰기 뒤의 무효화 표(스펙 8.5). 표는 값으로 고정하고, 표가 캐시에 하는 일은 실제
@@ -65,11 +71,22 @@ describe('applyCacheEffects — 표를 실제 캐시에 옮긴다', () => {
     client.setQueryData(queryKeys.list(OTHER, 'probe=a'), 'probe-other-list')
     client.setQueryData(queryKeys.detail(TYPE, 'probe-1'), 'probe-detail-1')
     client.setQueryData(queryKeys.detail(TYPE, 'probe-2'), 'probe-detail-2')
+    client.setQueryData(queryKeys.detail(OTHER, 'probe-1'), 'probe-other-detail')
   }
 
   function invalidated(queryKey: readonly string[]): boolean | undefined {
     return client.getQueryCache().find({ queryKey, exact: true })?.state.isInvalidated
   }
+
+  it('키가 조건·자원·상세를 가른다 - 서로의 캐시를 덮어쓰지 않는다', () => {
+    seed()
+    expect(client.getQueryData(queryKeys.list(TYPE, 'probe=a'))).toBe('probe-list-a')
+    expect(client.getQueryData(queryKeys.list(TYPE, 'probe=b'))).toBe('probe-list-b')
+    expect(client.getQueryData(queryKeys.list(OTHER, 'probe=a'))).toBe('probe-other-list')
+    expect(client.getQueryData(queryKeys.detail(TYPE, 'probe-1'))).toBe('probe-detail-1')
+    expect(client.getQueryData(queryKeys.detail(TYPE, 'probe-2'))).toBe('probe-detail-2')
+    expect(client.getQueryData(queryKeys.detail(OTHER, 'probe-1'))).toBe('probe-other-detail')
+  })
 
   it('생성은 그 자원의 목록만 무효화한다 - 다른 자원과 상세는 두고', () => {
     seed()
@@ -102,5 +119,28 @@ describe('applyCacheEffects — 표를 실제 캐시에 옮긴다', () => {
     client.setQueryData(['probe-outside'], 'probe-outside-value')
     applyCacheEffects(client, cacheEffects({ kind: 'logout' }))
     expect(client.getQueryCache().getAll()).toEqual([])
+  })
+
+  it('로그아웃은 조회 캐시만 비운다 - 진행 중인 쓰기는 캐시에 남는다', () => {
+    seed()
+    // 이 효과는 로그아웃 쓰기 안에서 돈다(queries/auth.ts). useIsLoggingOut 이 그 쓰기를 진행 중으로 세므로
+    // 쓰기 캐시까지 비우면(client.clear()) 폐기 요청이 끝나기 전에 진행 표시가 꺼진다.
+    const write = new MutationObserver(client, {
+      mutationKey: ['probe-write'],
+      mutationFn: () => new Promise<never>(() => undefined),
+    })
+    void write.mutate()
+    applyCacheEffects(client, cacheEffects({ kind: 'logout' }))
+    expect(client.isMutating({ mutationKey: ['probe-write'] })).toBe(1)
+  })
+
+  it('모르는 효과는 캐시를 건드리지 않고 던진다 - 전체 비움으로 읽지 않는다', () => {
+    seed()
+    const before = client.getQueryCache().getAll().length
+    const unknown = { action: 'probeUnknown' } as unknown as CacheEffect
+    expect(() => {
+      applyCacheEffects(client, [unknown])
+    }).toThrow('probeUnknown')
+    expect(client.getQueryCache().getAll()).toHaveLength(before)
   })
 })
