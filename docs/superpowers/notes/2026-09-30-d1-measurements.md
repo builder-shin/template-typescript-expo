@@ -695,10 +695,16 @@ npm `latest`는 1.12.0(2026-09-04)이라 고쳐진 릴리스는 아직 없다.
    `@types/node` 파일 0개), `process`가 `expo-modules-core/build/ts-declarations/global.d.ts`의 느슨한 선언으로 잡히는 것이다. `expo-env.d.ts`가 있으면 `expo/types`의 선언이 잡혀 통과했다.
    스크래치 사본에서 `compilerOptions.types: ["node"]`는 이를 고치지 못했고(lint 3건 그대로), `["expo/types"]`는 `expo-env.d.ts` 없이 typecheck·lint·test가 모두 exit 0이었다.
    그래서 `tsconfig.json`의 `compilerOptions`에 `"types": ["expo/types"]`를 두었다. `expo-env.d.ts`가 쓰는 `/// <reference types="expo/types" />`와 같은 참조다(JSON이라 주석을 달 수 없어 이유를 여기에 적는다).
-7. **`node:fs`·`node:child_process` import는 이 설정 전에도 후에도 타입체크되지 않는다.** 그런 import를 담은 시험 파일은 `TS2591: Cannot find name 'node:fs'. … add 'node' to the types field in your tsconfig`로
-   실패한다(`expo-env.d.ts`가 있어도 같다). 지금 저장소의 TS 파일에는 그런 import가 없다. `process.env`를 쓰는 `test/unit/config/settings.test.ts`와 `process.env`를 읽는 `@/app.config`를 부르는
-   `test/unit/config/app-config.test.ts`는 통과한다. `types`에 `"node"`를 더하면(`["expo/types", "node"]`, 순서를 바꿔도 같다) 그 시험 파일은 통과하지만 전역 `setTimeout`의 반환형이 `NodeJS.Timeout`이 되어
-   `const handle: number = setTimeout(…)`이 `TS2322`로 실패한다. 스크래치 사본에서만 시험했고 저장소에는 적용하지 않았다.
+7. **타입 프로그램을 둘로 나눴다.** `node:fs`·`node:child_process`를 import하는 시험 파일은 `types`에 `"node"`가 없으면 `TS2591: Cannot find name 'node:fs'. … add 'node' to the types field in your tsconfig`로
+   실패한다(`types`를 바꾸기 전에도, `expo-env.d.ts`가 있어도 같았다). `types`에 `"node"`를 전역으로 더하면(`["expo/types", "node"]`, 순서를 바꿔도 같다) 그 시험 파일은 통과하지만 전역 `setTimeout`의 반환형이
+   `NodeJS.Timeout`이 되어 앱 코드의 `const handle: number = setTimeout(…)`이 `TS2322`로 실패한다. 그래서 루트 `tsconfig.json`(`types: ["expo/types"]`, `expo/tsconfig.base`의 `exclude` 여섯 항목에 `test`를 더한 `exclude`)은
+   `app/`·`components/`·`lib/`·`platform/`·`app.config.ts`·`css.d.ts`·`uniwind-types.d.ts`·타입드 라우트 파일을 Node 전역 없이 검사한다(프로그램 안의 `@types/node` 파일 0개). `test/tsconfig.json`(루트를 `extends`,
+   `types: ["expo/types", "node"]`, `include: ["**/*.ts"]`, 루트의 `test` 제외를 물려받지 않도록 `exclude: []`)은 시험 파일과 그들이 import하는 `lib/`·`app.config.ts` 파일을 Node 타입과 함께 검사한다(66개). `pnpm typecheck`는
+   `tsc --noEmit -p tsconfig.json && tsc --noEmit -p test/tsconfig.json`이다. 시험 파일이 import하는 `lib/` 파일은 두 프로그램에서 모두 검사된다. 그런 파일에서 타이머 핸들의 타입은 `ReturnType<typeof setTimeout>`만 둘 다 통과한다(`number`는 테스트 프로그램에서 `TS2322`,
+   `NodeJS.Timeout`은 앱 프로그램에서 `TS2694`로 실패한다).
+   ESLint의 `projectService`는 파일에서 가장 가까운 `tsconfig.json`을 쓰므로 시험 파일은 `test/tsconfig.json`으로 타입 규칙을 받는다. 임시 프로브로 확인했다. `node:fs`·`node:child_process`·`process.env`를 쓰는 시험 파일과
+   `number = setTimeout(…)`을 쓰는 `lib/` 파일을 함께 두어도 `pnpm typecheck`는 exit 0이고, 같은 `setTimeout` 줄을 시험 프로브에 더하면 테스트 프로그램에서만 `TS2322`가 나며, 시험 프로브에 넣은 미대기 Promise는
+   `@typescript-eslint/no-floating-promises`로 보고된다(깨끗한 프로브에서는 `no-unsafe-*`가 없다).
 
 ### 정한 것
 
@@ -708,6 +714,7 @@ npm `latest`는 1.12.0(2026-09-04)이라 고쳐진 릴리스는 아직 없다.
 - **`uniwind-types.d.ts`와 `css.d.ts`를 커밋한다.** 새 체크아웃의 `pnpm typecheck`를 통과시키는 것은 `css.d.ts`(`*.css` 선언)이고,
   `uniwind-types.d.ts`는 Uniwind 전용 props와 테마 이름 타입을 준다.
 - **`tsconfig.json`에 `"types": ["expo/types"]`를 둔다.** 새 체크아웃의 `pnpm lint`가 `expo-env.d.ts` 없이 통과한다(관찰 6).
+- **타입 프로그램은 앱(`tsconfig.json`)과 시험(`test/tsconfig.json`) 둘이다.** 앱 코드에 Node 전역을 들이지 않으면서 시험이 `node:` 모듈을 import할 수 있다(관찰 7).
 - **받은 컴포넌트는 `text.tsx`의 `ROLE` 타입 한 줄만 고쳤다.**
 
 아래는 이 기록이 정하지 않은 것이다.
@@ -715,5 +722,4 @@ npm `latest`는 1.12.0(2026-09-04)이라 고쳐진 릴리스는 아직 없다.
 - Uniwind의 `@media` 블록 결함에 어떻게 대응할지(패치, 다른 버전, `sm:` 회피). 지금은 `Button`의 높이만 눈에 띈다.
 - 이 머신에서 APK를 만드는 방법(47자 이하 경로의 작업 트리). `test/e2e/android.sh`는 경로 길이를 검사하지 않는다.
 - expo-doctor가 지목한 `secretlint` 스크립트 이름.
-- 시험에서 `node:fs`·`node:child_process`를 쓰려면 필요한 Node 타입(관찰 7). `types`에 `"node"`를 더하면 앱 코드의 `setTimeout` 반환형이 바뀌고, 더하지 않으면 그런 import가 타입체크되지 않는다.
 - `expo-system-ui` 설치 여부.
