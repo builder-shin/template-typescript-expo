@@ -50,6 +50,15 @@ async function establishIfSignedIn(plan: SignInPlan): Promise<SignInPlan> {
  */
 const DISCARD_SOON_MS = 1_000
 
+/**
+ * 인증 쓰기는 오프라인이어도 멈추지 않는다. 기본값('online')은 onlineManager 가 오프라인이면 mutationFn 을
+ * 부르지 않고 멈춰 두면서 진행 중으로 센다 - D3 가 onlineManager 를 NetInfo 에 물리면 오프라인 로그아웃은
+ * 기기 세션을 지우지 못한 채 스피너가 끝나지 않고, 로그인·가입은 실패 대신 멈춘다. 'always' 는 그냥
+ * 보낸다: 닿지 못하면 API 클라이언트가 만든 transport 오류가 오고, 로그아웃은 기기 쪽을 이미 비운 뒤라 폐기만
+ * 실패한다.
+ */
+const NETWORK_MODE = 'always' as const
+
 /** 로그인. `rawNext` 는 화면이 받은 `next` 파라미터 그대로다 - 검사는 decideAfterLogin 이 한다. */
 export function useLoginMutation(rawNext: unknown) {
   return useMutation({
@@ -57,6 +66,7 @@ export function useLoginMutation(rawNext: unknown) {
       establishIfSignedIn(
         decideAfterLogin(await signIn(credentials, apiRequest), rawNext, credentials.email),
       ),
+    networkMode: NETWORK_MODE,
     gcTime: DISCARD_SOON_MS,
     // 백엔드의 거절은 예외가 아니라 결정(SignInPlan)으로 온다. 여기 오는 것은 예외뿐이다.
     onError: (error) => {
@@ -76,6 +86,7 @@ export function useRegisterMutation(rawNext: unknown) {
           credentials.email,
         ),
       ),
+    networkMode: NETWORK_MODE,
     gcTime: DISCARD_SOON_MS,
     onError: (error) => {
       logFailure('가입이 예외로 끝났다', error)
@@ -104,6 +115,7 @@ export function useLogoutMutation(onSettled: () => void) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationKey: LOGOUT_MUTATION_KEY,
+    networkMode: NETWORK_MODE,
     mutationFn: (): Promise<LogoutOutcome> =>
       sessionManager.logout(() => {
         queryClient.removeQueries()

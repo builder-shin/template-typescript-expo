@@ -1,9 +1,10 @@
 /**
  * 보호 경로 목록과 로그인으로 보내는 주소 - 스펙 7.3 의 첫 겹(경로 가드).
  *
- * 목록은 **여기 하나**다. `app/(app)/_layout.tsx` 가 현재 경로를 이 목록과 대조해 세션이 없으면
- * `loginHref()` 로 보낸다. 범위는 원본(template-typescript-nextjs)의 `PROTECTED_PATH_PATTERNS` 와
- * 같다 - 생성과 수정·삭제 화면만 로그인이 필요하고 목록·상세·실험실은 공개다.
+ * 목록은 **여기 하나**다. `app/(app)/_layout.tsx` 가 (guard-latch.ts 의 `decideGuard()` 로) 현재 경로를
+ * 이 목록과 대조해 세션이 없으면 `loginHref()` 로 보낸다. 범위는 원본(template-typescript-nextjs)의
+ * `PROTECTED_PATH_PATTERNS` 와 같다 - 생성과 수정·삭제 화면만 로그인이 필요하고 목록·상세·실험실은
+ * 공개다.
  *
  * 경로는 Expo Router 의 `usePathname()` 값이다 - 쿼리가 없고, 동적 세그먼트는 실제 값으로 채워져
  * 있다(`/examples/42/edit`).

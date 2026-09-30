@@ -51,6 +51,7 @@
 | `logout.ts`          | (복사·수정) 기기 쪽을 먼저 비우고 refresh 폐기를 요청                            |
 | `rotation.ts`        | (복사·수정) 회전 요청과 응답 해석                                                |
 | `protected-paths.ts` | 보호 경로 목록 하나와 로그인 주소                                                |
+| `guard-latch.ts`     | 경로 가드의 판단 - 로그아웃 중과 직후에는 보내지 않는다                          |
 | `session-store.ts`   | 저장 모양(항목 하나의 JSON)과 복원 판단                                          |
 | `session-manager.ts` | 회전의 유일한 자리, 세션 상태와 구독                                             |
 
