@@ -48,7 +48,7 @@ x-rails-build: &rails-build
   context: https://github.com/builder-shin/template-ruby-rails.git#main
   # development 스테이지여야 한다. 아래 DEV_DATABASE_* 는 database.yml 의 development
   # 블록만 읽고, production 스테이지는 development 그룹 젬을 받지 않아 부팅이 죽는다
-  # (원본 저장소의 실측).
+  # (원본 저장소의 주석).
   target: development
 
 x-rails-env: &rails-env
