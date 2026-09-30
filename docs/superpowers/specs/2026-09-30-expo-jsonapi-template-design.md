@@ -183,6 +183,13 @@ docs/superpowers/specs/ · plans/ · notes/
 > 화면 `FatalConfig` 등)을 두는 디렉터리다. React Native Reusables 복사본(`ui/`)도 자원 UI(`resource/`)도
 > 아니어서 따로 뒀다. 소유 규칙은 루트 `AGENTS.md` 의 표에 있다.
 
+> 정정(2026-09-30, D2): 루트 `_layout.tsx` 의 "세션 Provider" 는 Context Provider 가 아니다. 회전이 한
+> 곳에서 일어나야 해서(7.2) 세션 관리자는 `platform/session.ts` 에 하나뿐이고, Context 로 내려보낼 값이
+> 없다. 화면은 `useSessionStatus()`(`useSyncExternalStore`)로 상태를 읽는다. 루트 레이아웃은 설정 검증이
+> 통과했을 때만 스플래시를 붙잡고, 그 갈래에서만 그리는 자식이 `sessionManager.restore()` 를 부르며
+> `QueryClientProvider` 로 감싼다. 복원이 끝나면 스플래시를 내린다. 시작 설정의 판단은
+> `lib/config/startup.ts` 에 있다(`platform/config.ts` 는 `expo-constants` 와 설정 자리 바인딩만 한다).
+
 ## 5. 계층 소유권
 
 | 위치 | 소유하는 것 | 소유하지 않는 것 |

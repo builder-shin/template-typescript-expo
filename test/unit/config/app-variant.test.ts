@@ -32,25 +32,35 @@ describe('variantProfile', () => {
       schemeSuffix: '-dev',
       nameSuffix: ' (Dev)',
       allowCleartext: true,
+      logsHttpFailures: false,
     })
     expect(variantProfile('preview')).toEqual({
       idSuffix: '.preview',
       schemeSuffix: '-preview',
       nameSuffix: ' (Preview)',
       allowCleartext: false,
+      logsHttpFailures: false,
     })
     expect(variantProfile('production')).toEqual({
       idSuffix: '',
       schemeSuffix: '',
       nameSuffix: '',
       allowCleartext: false,
+      logsHttpFailures: false,
     })
     expect(variantProfile('e2e')).toEqual({
       idSuffix: '.e2e',
       schemeSuffix: '-e2e',
       nameSuffix: ' (E2E)',
       allowCleartext: true,
+      logsHttpFailures: true,
     })
+  })
+
+  it('HTTP 실패를 기기 로그에 남기는 것은 e2e 뿐이다 - E2E 가드의 재료(스펙 11.3)', () => {
+    expect(APP_VARIANTS.filter((variant) => variantProfile(variant).logsHttpFailures)).toEqual([
+      'e2e',
+    ])
   })
 
   it('접미사가 서로 겹치지 않는다 - 한 기기에 함께 설치할 수 있어야 한다', () => {
