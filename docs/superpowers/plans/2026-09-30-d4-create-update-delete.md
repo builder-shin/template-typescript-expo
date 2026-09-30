@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 쓰기 판단(`lib/resources/form.ts` 복사·패치, 새 `lib/resources/write.ts`)과 쓰기 훅·관계 참조 목록·인증 오류의 한 곳(`queries/`·`platform/query-client.ts`), 생성·수정·삭제 화면과 관계 선택기를 만들고, D2 가 넘긴 세션·가드 결함(회전의 5xx, 보호 판정의 인코딩, 가드가 보낸 로그인 화면의 뒤로 가기, 두 번 제출, 세션 세우기 거절의 시험)과 D3 가 넘긴 것(쌓인 화면의 재조회, 두 번 누름의 이동, 다음 쪽 링크의 한 규칙, 릴리스 대기 예외, APK 빌드 앞의 Metro 캐시)을 고친 뒤, 실제 FastAPI 스택과 Android 에뮬레이터에서 도는 쓰기 E2E 로 끝낸다. 쓰기는 기기에서 실제 회전을 지난다.
+**Goal:** 쓰기 판단(`lib/resources/form.ts` 복사·패치, 새 `lib/resources/write.ts`)과 쓰기 훅·관계 참조 목록·인증 오류의 한 곳(`queries/`·`platform/query-client.ts`), 생성·수정·삭제 화면과 관계 선택기를 만들고, D2 가 넘긴 세션·가드 결함(회전의 5xx, 보호 판정의 인코딩, 가드가 보낸 로그인 화면의 뒤로 가기, 두 번 제출, 세션 세우기 거절의 시험)과 D3 가 넘긴 것(재조회가 받은 판정하지 않은 응답, 쌓인 화면의 재조회, 두 번 누름의 이동, 다음 쪽 링크의 한 규칙, 릴리스 대기 예외, APK 빌드 앞의 Metro 캐시)을 고친 뒤, 실제 FastAPI 스택과 Android 에뮬레이터에서 도는 쓰기 E2E 로 끝낸다. 쓰기는 기기에서 실제 회전을 지난다.
 
-**Architecture:** 판단은 template-typescript-nextjs 에서 복사한 `lib/resources/form.ts`(FormData 대신 폼 상태 객체, 원본이 컴포넌트에 두던 관계 선택기의 판단을 더한다)와 새 `lib/resources/write.ts`(원본 Server Action 의 자리 - 세션 확인 → 요청 → 응답 해석, 전송과 토큰을 주입받는다)가 한다. `queries/writes.ts` 는 그 흐름에 세션 관리자·API 클라이언트를 꽂고 D3 의 무효화 표(`keys.ts`)를 부른다. 세션 거절은 쓰기 캐시(`MutationCache`)의 `onError` 한 곳이 기기 세션을 지우고, 화면 이동은 경로 가드가 한다 - 쓰기 화면이 모두 보호 경로다. 폼의 제출은 렌더 때의 `isPending` 이 아니라 쓰기 캐시를 보고 한 번에 하나만 나가고, 화면을 쌓는 이동은 누른 화면이 다시 앞에 올 때까지 한 번만 한다. 관계 선택기의 참조 목록은 D3 의 목록·상세처럼 닿지 못함을 던져 재조회의 실패가 읽은 보기를 지우지 않고, 화면의 조회는 쌓인 동안 구독하지 않는다. 기기 작업은 마지막 태스크 하나에 모인다 - 게이트 한 번이 APK 를 한 번 빌드하고 에뮬레이터·백엔드 한 세션에서 D2 의 일곱·D3 의 일곱·D4 의 넷, 플로 열여덟을 돈다.
+**Architecture:** 판단은 template-typescript-nextjs 에서 복사한 `lib/resources/form.ts`(FormData 대신 폼 상태 객체, 원본이 컴포넌트에 두던 관계 선택기의 판단을 더한다)와 새 `lib/resources/write.ts`(원본 Server Action 의 자리 - 세션 확인 → 요청 → 응답 해석, 전송과 토큰을 주입받는다)가 한다. `queries/writes.ts` 는 그 흐름에 세션 관리자·API 클라이언트를 꽂고 D3 의 무효화 표(`keys.ts`)를 부른다. 세션 거절은 쓰기 캐시(`MutationCache`)의 `onError` 한 곳이 기기 세션을 지우고, 화면 이동은 경로 가드가 한다 - 쓰기 화면이 모두 보호 경로다. 폼의 제출은 렌더 때의 `isPending` 이 아니라 쓰기 캐시를 보고 한 번에 하나만 나가고, 화면을 쌓는 이동은 누른 화면이 다시 앞에 올 때까지 한 번만 한다. 조회의 `queryFn` 은 닿지 못함에 더해 판정하지 않은 응답(5xx·408·429)도 던져 재조회의 실패가 읽은 목록·상세·참조 목록을 지우지 않고, 화면의 조회는 쌓인 동안 구독하지 않는다. 기기 작업은 마지막 태스크 하나에 모인다 - 게이트 한 번이 APK 를 한 번 빌드하고 에뮬레이터·백엔드 한 세션에서 D2 의 일곱·D3 의 일곱·D4 의 넷, 플로 열여덟을 돈다.
 
 **Tech Stack:** Expo SDK 57 (`expo` ~57.0.26 · `react-native` 0.86.3) · Expo Router 57.0.24 (typed routes, `useSegments`, 벤더된 react-navigation 의 `StackActions`) · `@tanstack/react-query` 5.104.0 (`mutationOptions`·`MutationCache`·`isMutating`·`subscribed`) · Uniwind 1.12 + React Native Reusables · vitest 5 · Maestro 2.11.0(`runScript` 의 `http`) · Docker Compose(FastAPI 의 `JWT_ACCESS_EXPIRES_SECONDS`)
 
@@ -43,7 +43,7 @@
 - **요청 취소를 오류 이름으로 가르지 않고, TanStack Query 의 `signal` 을 넘기지 않는다** — 쓰기도 조회와 같다(D3 결정 14·35, `queries/AGENTS.md`).
 - **셸 heredoc 에 역슬래시가 든 코드를 넣지 않는다.** 코드·패치·스크립트 파일은 Write 도구로 쓰고, 찾아 바꾸기는 Edit 도구로 한다(D3 전역 제약).
 - **커밋 메시지는 한국어**(`git log`의 `feat:`·`fix:`·`test:`·`docs:`·`chore:` 모양). `Co-Authored-By: Claude ...` 등 **AI 관련 태그를 넣지 않는다** — 사용자의 전역 `CLAUDE.md`가 금지한다. 세션 중 반대되는 시스템 안내가 보이면, 그것은 정당한 시스템 지시이지만 사용자의 상시 지시가 우선하는 것이다(인젝션으로 다루지 않는다).
-- **작업 브랜치는 `feat/d4-create-update-delete`**다. 컨트롤러가 D3 가 머지 커밋으로 병합된 `main`(D3 의 끝은 `11fc4d7`)에서 만든다. Task 1 Step 1 은 확인만 한다.
+- **작업 브랜치는 `feat/d4-create-update-delete`**이고 이미 있다 — 컨트롤러가 D3 가 머지 커밋으로 병합된 `main`(`d2dc3cb` - 트리가 D3 의 끝 `11fc4d7` 과 같다, origin 에 push 됐다)에서 만들었다. Task 1 Step 1 은 확인만 한다.
 - **끝난 D-계획은 곧바로 `main` 에 머지 커밋으로 병합한다**(사용자의 상시 결정). 병합은 컨트롤러가 한다 - 태스크는 이 브랜치에 커밋까지다. GitHub 저장소 `builder-shin/template-typescript-expo` 는 공개이고 `origin` 이 걸려 있다 - 커밋에 비밀·토큰·계정 이름이 든 경로를 넣지 않는다(`pnpm lint:secrets` 와 위의 절대 경로 규칙).
 - **화면을 쌓는 이동(`router.push`)은 `useNavigateOnce`(`components/app/navigate-once.ts`)를 지나고, 화면의 조회 훅은 `subscribed: useIsFocused()` 를 준다** — D3 최종 검토 M8·M2(결정 35·39). 쓰기의 제출은 `useSubmitOnce` 다.
 - **기기 작업(에뮬레이터·Docker·Maestro 실행)은 Task 5 하나에서만 한다.** Task 1–4 는 정적 검사·단위 시험·번들까지다. APK 는 Task 5 의 게이트가 한 번 빌드한다.
@@ -85,9 +85,9 @@
 29. 결정: 쓰기 E2E 는 네 플로다 - 생성(가드가 보낸 로그인 화면의 뒤로 가기 포함), 수정(기존 값·태그 순서·관계 초기화·목록 밖 선택), 삭제(취소·확인, 딥링크로 연 수정 화면의 가드), 실패 처리(422·없는 id·고치는 사이 404·지우는 사이 404·끊긴 세션 401) — 스펙 11.3 의 쓰기 행("필수 입력, 관계 선택·초기화, 기존 값 유지, 태그 순서, 삭제·실패 처리"), 파일 하나가 시나리오 하나(`test/e2e/AGENTS.md`)이되 로그인 한 번으로 이어지는 단계는 묶는다 — 틀리면 플로를 나눈다(플로마다 앱 초기화 ~10초).
 30. 결정: 기기 작업은 Task 5 의 게이트 한 번으로 한다 — 게이트의 E2E 단계가 빌드 입력이 바뀐 APK 를 한 번 빌드하고 플로 열여덟을 한 에뮬레이터·한 백엔드 세션에서 돈다. 게이트 뒤에는 문서(실측 기록의 수)만 바꾸고 E2E 를 다시 돌리지 않는다 - 빌드 지문과 플로가 문서를 보지 않는다. 실패한 플로를 고칠 때만 `E2E_FLOW` 로 그 플로를 다시 돌린다 — 사용자 요구(속도) — 틀리면(문서 밖을 고쳤으면) 게이트를 한 번 더 돈다.
 31. 결정: D2·D3 의 화면 파일(`login.tsx`·`register.tsx`·`credentials-form.tsx`·`_layout.tsx`·목록·상세)은 Edit 로 고치고 전체를 바꾸지 않는다. Edit 가 맞지 않으면 같은 뜻의 자리를 찾아 고친다(바꿀 것의 뜻을 지킨다). 전체를 바꾸는 앞 단계의 파일 넷(`lib/auth/protected-paths.ts`·`components/resource/values.tsx`·`app/(app)/examples/new.tsx`·`test/e2e/scripts/examples-api.js`)은 바꾸기 전에 blob 을 이 계획이 전제한 값과 대조하고, 다르면 그 변경을 새 판에 옮긴다 — D3 가 실행 중이라 글자가 이 계획의 앵커와 다를 수 있고, 전체를 바꾸면 D3 가 실행 중에 고친 것을 조용히 지운다 — 틀리면(Edit 가 여럿 어긋나면) 태스크마다 앵커를 맞추는 시간이 들고, 뜻이 다르게 옮겨진 곳은 태스크 리뷰가 잡는다.
-32. 결정: 이 계획의 모든 "찾을 것"·끼울 자리와 기준 수는 D3 의 끝(`feat/d3-list-and-detail` 의 `11fc4d7` - 단위 시험 1143·46 파일, 출처 46·29·31, 플로 14)에 맞췄고, 그 커밋을 스크래치 사본에 풀어 계획을 기계적으로 적용해 쟀다(미리 돌려 본 것). D3 계획의 글자와 다른 자리(리뷰 수정의 `useMemo`·lucide 깊은 import·`screen-state.ts`·`resource-options.ts`·I1 의 조회가 던지는 닿지 못함)는 D3 가 커밋한 글자를 따랐다 — D4 는 D3 가 병합된 `main` 에서 시작한다(전역 제약) — 틀리면(병합 전 재검토가 글자를 또 바꿨으면) 결정 31 대로 하고 Task 1 Step 1 의 수를 기준 수로 삼는다.
+32. 결정: 이 계획의 모든 "찾을 것"·끼울 자리와 기준 수는 `main` 의 `d2dc3cb`(D3 의 머지 커밋 - 트리가 D3 의 끝 `11fc4d7` 과 같다. 단위 시험 1143·46 파일, 출처 46·29·31, 플로 14)에 맞췄고, 그 트리를 스크래치 사본에 풀어 계획을 기계적으로 적용해 쟀다(미리 돌려 본 것). D3 계획의 글자와 다른 자리(리뷰 수정의 `useMemo`·lucide 깊은 import·`screen-state.ts`·`resource-options.ts`·I1 의 조회가 던지는 닿지 못함)는 D3 가 커밋한 글자를 따랐다 — D4 는 D3 가 병합된 `main` 에서 시작한다(전역 제약) — 틀리면(병합 전 재검토가 글자를 또 바꿨으면) 결정 31 대로 하고 Task 1 Step 1 의 수를 기준 수로 삼는다.
 33. 결정: `pnpm-workspace.yaml` 의 `minimumReleaseAgeExclude`(`lucide-react-native@1.49.0`)를 Task 1 Step 1 이 뺀다 — D3 운반 T10(D3 는 두 빌드가 2026-09-30T22:27:09Z 전이라 두었다 - D3 실측 L6). `date -u` 와 릴리스 시각으로 창이 지났는지 먼저 보고, `pnpm install --frozen-lockfile` 로 확인한다 - 2026-09-30T22:36Z 에 스크래치 사본에서 예외 없이 통과했다 — 틀리면(frozen 설치가 막히면) 원인을 가른다. 예외를 되살려 덮지 않는다.
-34. 결정: 태스크 다섯, 브랜치 하나(D3 가 넘긴 다섯 항목도 이 다섯에 넣는다 - M8 은 Task 2 와 4, 53e·I1 의 참조 상태·T10 은 Task 1, M2 는 Task 3, L7 은 Task 5). 순서는 판단(Task 1) → 세션·가드(Task 2) → 훅(Task 3) → 화면(Task 4) → 기기(Task 5) — 사용자 요구(최대 여섯, 가능하면 다섯, 기기 작업은 하나) — 틀리면 태스크 경계만 바뀐다.
+34. 결정: 태스크 다섯, 브랜치 하나(D3 가 넘긴 항목도 이 다섯에 넣는다 - 판정하지 않은 재조회·53e·I1 의 참조 상태·`canLoadMore`·T10 은 Task 1, M8 은 Task 2 와 4, M2 는 Task 3, L7 은 Task 5). 순서는 판단(Task 1) → 세션·가드(Task 2) → 훅(Task 3) → 화면(Task 4) → 기기(Task 5) — 사용자 요구(최대 여섯, 가능하면 다섯, 기기 작업은 하나) — 틀리면 태스크 경계만 바뀐다.
 
 ---
 35. 결정: 화면을 쌓는 이동(목록의 행, 조건 바꾸기, "새로 만들기", "수정")은 한 번만 한다: `lib/navigation/once.ts` 의 `createOnce` 가 첫 부름에 잠그고 잠긴 동안의 부름을 버리며, `components/app/navigate-once.ts` 의 `useNavigateOnce` 가 누른 화면이 다시 앞에 올 때(`useIsFocused`) 푼다. "새로 만들기"·"수정" 은 `Link` 가 아니라 이 가드를 지나는 버튼이다 — D3 최종 검토 M8(행을 빠르게 두 번 누르면 상세가 두 벌 쌓인다). 시각으로 풀지 않는다 - 이동이 끝나는 시각은 기기마다 다르고, 쓰기는 이미 쓰기 캐시로 막는다(`useSubmitOnce`) — 틀리면(이동이 화면을 뒤로 보내지 않아 잠금이 남으면) 그 이동의 버튼이 죽는다. 그런 이동이 생기면 `release` 를 그 이동의 끝에 건다.
@@ -95,6 +95,8 @@
 37. 결정: 무한 스크롤의 끝(`nextPageQuery`)과 선택기의 잘림(`referenceList` 의 `truncated`)을 `view.ts` 의 `nextLinkQuery` 하나로 판정한다 — 빈 쪽·`next: ''`·경로뿐인 링크는 둘 다 "더 없다" 다. D3 최종 검토 53e 의 두 갈래 중 "한 규칙으로 맞춘다" 를 골랐다 - 첫 소비자인 선택기가 "앞 100건만 표시했습니다" 를 거짓으로 띄우지 않고, `linkPresent` 주석이 이미 "두 자리가 한 함수로 판정한다" 고 약속했다. 복사본이라 출처 기록에 이탈 하나를 더한다 — 틀리면(`''` 를 잘림으로 봐야 하는 백엔드가 생기면) `nextLinkQuery` 한 곳과 `next-link.test.ts` 의 행.
 38. 결정: E2E 하네스의 빌드 레시피(`test/e2e/android.sh build`)가 Gradle 앞에서 Metro 의 디스크 캐시(`os.tmpdir()` 의 `metro-cache`)를 빌드마다 비운다 — D3 실측 L7(캐시가 남은 채 돈 번들 단계가 `0xC0000005` 로 죽었고 지운 뒤 재현되지 않았다). 재시도가 아니라 알려진 계기를 없애 빌드가 늘 같은 자리에서 시작하게 한다. 레시피는 빌드 지문에 들어 APK 를 한 번 다시 만든다(어차피 다시 만든다) — 틀리면(그래도 죽으면) 전역 제약의 Gradle 줄대로 30분을 정해 원인을 가르고 W1 에 적는다. 다시 돌려 덮지 않는다.
 39. 결정: 화면의 조회 훅(`useResourceList`·`useResourceDetail`·`useRelationshipReferences`)은 `subscribed: useIsFocused()` 를 준다 — D3 최종 검토 M2(조건을 바꿀 때마다 쌓이는 목록 화면이 앱 복귀·연결 복귀마다 읽은 쪽 전부를 다시 읽는다), TanStack Query 의 React Native 안내, 설치본이 받는다(사실 절). 쌓인 화면은 무효화도 부르지 않고 다시 앞에 올 때 부른다 - 쓰기 뒤 돌아온 목록·상세가 새 값을 그리는 길이 "무효화 즉시" 에서 "돌아올 때" 로 바뀐다. D3 의 `examples-scroll-refresh` 는 돌아온 목록의 재조회와 이름 바꾸기가 겨루므로 둘째 누름의 제목을 정규식으로 받는다 — 틀리면(쌓인 화면도 바로 새 값이어야 하면) 옵션 한 줄을 빼고 Task 5 의 W3 수가 D3 의 판으로 돌아간다.
+40. 결정: 재조회가 판정하지 않은 응답(5xx·408·429)을 받아도 읽은 데이터를 둔다: 조회의 `queryFn`(`throwIfUnreachable`)이 그 응답을 `UnreachableError(request, response)` 로 던지고, 화면 상태(`listScreen`·`detailScreen`·`referenceState`)가 첫 조회면 그 응답의 문구를 배너로, 재조회면 읽은 데이터와 작은 실패(앱 문구 "지금은 요청을 처리할 수 없습니다…" 와 "다시 시도")로, 다음 쪽이면 목록 끝의 작은 실패로 그린다. 판정한 오류(그 밖의 4xx)는 결과 값이라 새 답이다 — D3 재검토: 백엔드 오류 문서는 결과 값이라 목록의 재조회가 5xx 를 받으면 읽은 쪽 전부가 오류 한 쪽으로 바뀌고 다음 재조회는 한 쪽만 읽는다. D4 의 쓰기 뒤 무효화가 그 길을 늘린다. 셋을 판정하지 않은 응답으로 보는 것은 회전(결정 11)과 같고, 첫 조회의 문구는 백엔드의 것 그대로다(스펙 9.2). 4xx 는 조건이 그대로인 조회에서 이미 첫 조회가 받은 답이고, 상세의 404 는 지워진 자원이라 새 답이 맞다 — 틀리면(재조회의 5xx 문구를 보여야 하면) `refreshFailed` 에 문구를 싣고 작은 실패가 그것을 그린다. 판정한 4xx 가 재조회에서 처음 오면(조건 밖의 사정) 여전히 읽은 쪽이 한 쪽으로 바뀐다.
+41. 결정: 목록 끝에서 다음 쪽을 부를지(`loadMore` 의 가드)를 lib 의 순수 함수 `canLoadMore`(`screen-state.ts`)로 옮겨 네 행으로 잰다 — D3 재검토의 선택 항목이고, 훅은 시험하지 않으므로(스펙 11.1) 판단을 lib 로 뺀다. 훅(`queries/resources.ts`)은 `canLoadMore(query)` 한 줄을 부른다 — 틀리면 훅 한 줄을 되돌린다.
 
 ## 이 계획이 근거로 삼은 사실 (2026-10-01 확인)
 
@@ -107,7 +109,7 @@
 - 지운 조회(`removeQueries`)를 지켜보던 `QueryObserver` 가 다시 옵션을 받으면(곧 다시 그려지면) 캐시에 새 조회를 만들고 `enabled` 가 참이면 부른다 — 스크래치에서 `QueryObserver` 로 쟀다: 지운 뒤 `setOptions(enabled: true)` 는 조회 수를 1 에서 2 로, `enabled: false` 는 그대로 둔다(결정 8).
 - `mutationOptions` 가 있다(`build/modern/mutationOptions.d.ts`) — `mutationKey` 를 준 오버로드는 그 키를 필수로 한다. 돌려준 객체는 `useMutation` 에도 `new MutationObserver(client, …)` 에도 들어간다.
 - `@tanstack/react-query` 의 `useBaseQuery.js:22` 가 `subscribed` 를 받는다(`options.subscribed !== false`) — 거짓이면 관찰자가 캐시를 구독하지 않아 앱 복귀·네트워크 복귀·무효화의 재조회를 부르지 않는다. 다시 참이 되면 `observer.subscribe` 가 `shouldFetchOnMount` 를 보고 부른다(`staleTime` 0 이라 늘 부른다). 구독하지 않는 동안 효과의 `setOptions` 도 부르지 않는다(`hasListeners()` 가 거짓). `useQueries` 는 `subscribed` 를 쿼리마다가 아니라 한 번 받는다(`useQueries.js:144`). TanStack Query 의 React Native 안내가 `subscribed: useIsFocused()` 다.
-- 재조회의 실패는 앞의 `data` 를 둔다 — D3 가 조회의 `queryFn` 이 닿지 못함을 던지게 바꾼 까닭이다(`lib/resources/screen-state.ts` 의 `throwIfUnreachable`, D3 실측 L7).
+- 재조회의 실패는 앞의 `data` 를 둔다 — D3 가 조회의 `queryFn` 이 닿지 못함을 던지게 바꾼 까닭이다(`lib/resources/screen-state.ts` 의 `throwIfUnreachable`, D3 실측 L7). 반대로 `queryFn` 이 값을 돌려주면 그것은 성공이라, 무한 조회의 재조회가 첫 쪽에서 오류 문서를 받으면 `getNextPageParam` 이 끝을 말해 쪽 배열이 그 한 쪽이 되고 다음 재조회는 `remainingPages` 만큼(한 쪽)만 읽는다 — D3 재검토가 백엔드 오류 문서(5xx·429)에서 짚었다. 스크래치에서 같은 옵션의 `QueryClient` 로 재현했다: 세 쪽을 읽고 재조회가 503 이면 값으로 두는 판은 오류 한 쪽, 던지는 판은 여섯 행이 남고 다음 재조회가 세 쪽을 다시 읽는다(`test/unit/queries/refetch-unjudged.test.ts`).
 
 **Expo Router 57.0.24**(`node_modules/expo-router/build`):
 - `react-navigation/routers/StackRouter.js` 의 `POP_TO` 는 지금 라우트에서 거꾸로 같은 이름의 라우트를 찾아 거기까지 닫는다. `merge: true` 이고 새 파라미터가 없으면 그 라우트의 파라미터를 그대로 둔다. 없으면 지금 라우트를 새 라우트로 바꾼다. `StackActions.popTo(name, params, { merge })` 는 `expo-router/react-navigation` 에서 import 한다. `router.dismissTo(href)` 도 `POP_TO` 인데 파라미터를 덮는다(`merge` 가 없다) — D3 사실 절과 같다.
@@ -136,37 +138,38 @@
 
 스크래치 사본에서 돌렸다 — 저장소에는 쓰지 않았다(저장소는 `git show`·`git fetch`(사본 쪽으로)로 읽기만 했다).
 
-**D3 의 끝(`11fc4d7`) 위에서 흉내 냈다(2026-10-01T07:50+09:00 무렵).** `feat/d3-list-and-detail` 의 `11fc4d7` 을 스크래치 사본으로 가져와(흉내 낸 D3 Task 5 가 아니라 D3 가 커밋한 그대로), 이 계획을 태스크 순서대로 기계적으로 적용했다 — 계획의 "찾을 것/바꿀 것"·파일 쓰기·끼울 자리를 그대로 적용하고, 찾을 것이 정확히 한 번 맞지 않으면 실패하는 도구다. 모든 Edit·파일 쓰기·끼울 자리(143개)가 정확히 한 번씩 맞았고, 패치 둘이 원본 blob(`bd9cff2…`·`45640d7…`)에 `git apply --check` 를 지났다(`form.ts` 의 패치는 그 판을 원본에 붙여 만든 파일과 바이트가 같다). 태스크마다 `pnpm format` 뒤 typecheck·lint·format:check·인용 검사가 exit 0 이었고:
+**`main` 의 `d2dc3cb`(= D3 의 끝 `11fc4d7` 과 같은 트리) 위에서 흉내 냈다(2026-10-01T08:40+09:00 무렵).** `11fc4d7` 과 `d2dc3cb` 을 스크래치 사본으로 가져와(`d2dc3cb` 은 그 머지 커밋이고 트리 `5af34db…` 가 같다) 이 계획을 태스크 순서대로 기계적으로 적용했다 - 두 위에서 끝의 트리가 같았다(`4d8d4b6…`), 검사는 그 트리에서 돌았다 — 계획의 "찾을 것/바꿀 것"·파일 쓰기·끼울 자리를 그대로 적용하고, 찾을 것이 정확히 한 번 맞지 않으면 실패하는 도구다. 모든 Edit·파일 쓰기·끼울 자리(152개)가 정확히 한 번씩 맞았고, 패치 둘이 원본 blob(`bd9cff2…`·`45640d7…`)에 `git apply --check` 를 지났다(`form.ts` 의 패치는 그 판을 원본에 붙여 만든 파일과 바이트가 같다). 태스크마다 `pnpm format` 뒤 typecheck·lint·format:check·인용 검사가 exit 0 이었고:
 
 - 기준: 시험 1143(46 파일), 출처 46·29·31, 플로 14.
-- Task 1: 시험 1224(51 파일), 출처 48·33·31. 릴리스 대기 예외를 빼고 `pnpm install --frozen-lockfile` 이 exit 0(2026-09-30T22:36Z, `✓ Lockfile passes supply-chain policies`, 락파일은 그대로).
-- Task 2: 시험 1253(54 파일), 출처 48·35·31.
-- Task 3: 시험 1260(56 파일).
-- Task 4: 시험 1260, `pnpm types:routes`, `pnpm lint:secrets` exit 0, `expo export --clear` 두 플랫폼 번들 성공(`Android Bundled … (2055 modules)`·`iOS Bundled … (1958 modules)`, `Unable to resolve` 0, 따로 둔 TMP 로).
+- Task 1: 시험 1250(53 파일), 출처 48·33·31. 릴리스 대기 예외를 빼고 `pnpm install --frozen-lockfile` 이 exit 0(2026-09-30T22:36Z, `✓ Lockfile passes supply-chain policies`, 락파일은 그대로).
+- Task 2: 시험 1279(56 파일), 출처 48·35·31.
+- Task 3: 시험 1286(58 파일).
+- Task 4: 시험 1286, `pnpm types:routes`, `pnpm lint:secrets` exit 0, `expo export --clear` 두 플랫폼 번들 성공(`Android Bundled … (2048 modules)`·`iOS Bundled … (1962 modules)` - Metro 의 모듈 수는 같은 번들에서도 조금 흔들린다(D3 재검토 70b), `Unable to resolve` 0, 따로 둔 TMP 로).
 - Task 5: 출처 48·36·31, 플로 18, `bash -n`(하네스 둘), `node --check`·eslint(스크립트), D4 가 쓰거나 고친 플로 여섯의 YAML 이 `yaml` 로 풀린다(Maestro 는 돌리지 않았다), compose 의 세 서비스가 `JWT_ACCESS_EXPIRES_SECONDS` 를 받는다(YAML 병합 키까지 풀어 읽었다).
-- 빨간 단계(시험 먼저)의 출력은 각 Step 의 Expected 에 적은 그대로다 — 새 판단 13 실패, 패치 뒤 원본 시험 8 실패·33 통과, 흐름 모듈 없음, 참조 상태·다음 쪽 10 실패·3 통과, 회전 7 실패·14 통과, 보호 경로 7 실패·18 통과, 세우기 거절 4 실패, 제출 가드 모듈 없음, 이동 가드 모듈 없음, 쓰기 키 1 실패·13 통과, 인증 오류 배선 2 실패·1 통과, 참조 목록의 전이 3 실패.
+- 빨간 단계(시험 먼저)의 출력은 각 Step 의 Expected 에 적은 그대로다 — 새 판단 13 실패, 패치 뒤 원본 시험 8 실패·33 통과, 흐름 모듈 없음, 조회 화면의 상태 네 파일 29 실패·10 통과, 회전 7 실패·14 통과, 보호 경로 7 실패·18 통과, 세우기 거절 4 실패, 제출 가드 모듈 없음, 이동 가드 모듈 없음, 쓰기 키 1 실패·13 통과, 인증 오류 배선 2 실패·1 통과, 참조 목록의 전이 3 실패.
+- 판정하지 않은 재조회(결정 40): `throwIfUnreachable` 의 5xx·408·429 줄을 지운 뮤턴트에서 `refetch-unjudged.test.ts` 의 목록·상세 전이 둘과 `screen-state-unjudged.test.ts` 가 죽는다. 같은 옵션의 `QueryClient` 로, 503 을 값으로 두는 판은 세 쪽이 오류 한 쪽이 되고 다음 재조회가 한 번만 부른다(`afterBusy: 1, nextRefetchCalls: 1` - 스크래치 탐침). 던지는 판은 여섯 행이 남고 다음 재조회가 세 번 부른다.
 - 뮤턴트 둘(앞 판에서): `submitOnce` 의 `isMutating` 검사를 지우면 제출 가드의 첫 시험이, `establishIfSignedIn` 의 `try`/`catch` 를 지우면 세우기 거절 시험 둘이 죽는다.
 - 결정 8 의 근거: `QueryObserver` 로 조회 하나를 부른 뒤 `removeQueries` 하고 `setOptions` 를 다시 부르면 `enabled: true` 는 조회를 한 번 더 부르고(1 → 2) `enabled: false` 는 부르지 않았다.
-- `examples-scroll-refresh` 의 목록 GET 을 세는 `awk` 는 흉내 낸 접근 로그로 맞는 수(2)를 냈다.
+- `examples-scroll-refresh` 의 목록 GET 을 세는 `awk` 는 흉내 낸 접근 로그로 맞는 수(2)를 냈다. Task 1 Step 1 의 `git merge-base`·`git diff --stat … ':(exclude)docs/superpowers/plans'` 는 저장소의 D4 브랜치에서 읽기로 돌려 `main 을 담았다` 와 빈 출력을 냈다.
 
-그 앞에도 두 번 흉내 냈다 - D3 계획만 흉내 낸 트리와, D3 의 중간 커밋(`756cb7a`·`b06955c`)에 D3 계획의 Task 5 를 얹은 트리다. 그 판들의 앵커는 이 판에서 D3 의 글자로 바꿨다(결정 32).
+그 앞에도 흉내 냈다 - D3 계획만 흉내 낸 트리와, D3 의 중간 커밋(`756cb7a`·`b06955c`)에 D3 계획의 Task 5 를 얹은 트리다. 그 판들의 앵커는 이 판에서 D3 의 글자로 바꿨다(결정 32).
 
-**돌리지 않은 것:** 에뮬레이터·Docker(`compose:verify` 포함)·Maestro(`maestro test`·`check-syntax`)·게이트 [11]·[12]. 기기에서 처음 재는 것 — 라벨 누름이 키보드를 내리는지, 가드가 보낸 로그인 화면의 뒤로 가기 → 홈, 삭제 뒤 404 가 없는 것, 끊긴 세션의 회전 401 → 로그인 → 복귀, 목록 밖 선택의 그림, 쓰기마다의 실제 회전, 쌓인 화면의 재조회 수(W3), Metro 캐시를 비운 빌드 — 은 Task 5 가 게이트에서 잰다.
+**돌리지 않은 것:** 에뮬레이터·Docker(`compose:verify` 포함)·Maestro(`maestro test`·`check-syntax`)·게이트 [11]·[12]. 기기에서 처음 재는 것 — 라벨 누름이 키보드를 내리는지, 가드가 보낸 로그인 화면의 뒤로 가기 → 홈, 삭제 뒤 404 가 없는 것, 끊긴 세션의 회전 401 → 로그인 → 복귀, 목록 밖 선택의 그림, 쓰기마다의 실제 회전, 쌓인 화면의 재조회 수(W3), Metro 캐시를 비운 빌드 — 은 Task 5 가 게이트에서 잰다. 재조회의 5xx 는 기기에서 일으키지 않는다(단위 시험과 전이 시험이 잰다).
 
 ---
-## D3 가 넘긴 것 (이 계획의 전제 - `11fc4d7`)
+## D3 가 넘긴 것 (이 계획의 전제 - `main` 의 `d2dc3cb`)
 
-D3 의 끝(`feat/d3-list-and-detail` 의 `11fc4d7`)에서 읽었다. D4 는 D3 가 머지 커밋으로 병합된 `main` 에서 시작하므로 이 모양이 그대로 있어야 한다 - Task 1 Step 1 이 확인한다. 하나라도 없으면 멈추고 컨트롤러에 알린다. 병합 전 재검토가 이름이나 글자를 바꿨으면 이 계획의 Edit 블록은 같은 뜻의 자리를 찾아 고친다(결정 31).
+`main` 의 `d2dc3cb`(D3 의 머지 커밋 - 트리가 D3 의 끝 `11fc4d7` 과 같다)에서 읽었다. D4 의 브랜치는 그 커밋에서 만들어졌다 - Task 1 Step 1 이 확인한다. 하나라도 없으면 멈추고 컨트롤러에 알린다. 병합 전 재검토가 이름이나 글자를 바꿨으면 이 계획의 Edit 블록은 같은 뜻의 자리를 찾아 고친다(결정 31).
 
 | 산출 | 이 계획이 쓰는 모양 |
 | --- | --- |
 | `lib/resources/view.ts` | `referenceRequest(target): { path, query, options }`, `referenceList(target, document): ReferenceList`(`{ options: { id, label }[], truncated }`), `REFERENCE_PAGE_SIZE`(100), `bannerMessages(errors)`, `type ListFailure`(`{ kind: 'banner'; messages } \| { kind: 'unreachable' }`), `nextPageQuery(result)`, `detailRequest`·`detailView`·`detailLabels` |
-| `lib/resources/screen-state.ts` | `UnreachableError`, `throwIfUnreachable(result, request)`, `listScreen`·`detailScreen`, `type DetailScreen`(`loading`·`notFound`·`unreachable`·`banner`·`detail`, 뒤의 둘에 `refreshFailed`), 비공개 `refetchUnreachable(error)` - 이 계획이 `referenceState` 를 파일 끝에 더한다 |
+| `lib/resources/screen-state.ts` | `UnreachableError`, `throwIfUnreachable(result, request)`(닿지 못함만 던진다), `listScreen`·`detailScreen`, `type DetailScreen`(`loading`·`notFound`·`unreachable`·`banner`·`detail`, 뒤의 둘에 `refreshFailed`), 비공개 `refetchUnreachable(error)`, blob `774cc9b…` - 이 계획이 파일 전체를 바꾼다(판정하지 않은 응답의 정책, `referenceState`, `canLoadMore`) |
 | `lib/resources/route-params.ts` | `listRouteParams`·`isCurrentListHref` — 목록 화면이 쓴다 |
 | `lib/navigation/` | `deep-link.ts`·`AGENTS.md`(밖에서 들어온 링크의 정규화, `app/+native-intent.tsx` 가 잇는다) - 이 계획이 `once.ts` 와 그 절을 더한다 |
 | `queries/keys.ts` | `RESOURCES_KEY`, `queryKeys.{lists,list,detail}`, `type CacheWrite`(`create`·`update`·`delete`·`logout`), `cacheEffects`, `applyCacheEffects` — 머리 주석 "생성·수정·삭제의 호출부는 D4 가 만든다" |
 | `queries/resource-options.ts` | `listQueryOptions(resource, plan, send)`·`detailQueryOptions(resource, id, send)`(`queryFn` 이 닿지 못함을 던진다) |
-| `queries/resources.ts` | `useResourceList(resource, params)`(`{ screen, … }`), `useResourceDetail(resource, id): ResourceDetailState`(`{ screen, retrying, retry }`) |
+| `queries/resources.ts` | `useResourceList(resource, params)`(`{ screen, loadMore, … }` - `loadMore` 의 가드가 훅 안에 있다), `useResourceDetail(resource, id): ResourceDetailState`(`{ screen, retrying, retry }`) |
 | `queries/auth.ts` | `useLoginMutation`·`useRegisterMutation` 이 옵션을 인라인으로 갖고 `establishIfSignedIn` 을 지난다, `LOGOUT_MUTATION_KEY`, 로그아웃이 `cacheEffects({ kind: 'logout' })` 를 지난다 |
 | `platform/query-client.ts` | `queryClient`(`defaultOptions` 의 `queries`·`mutations` 가 `retry: false`·`networkMode: 'offlineFirst'`), `useQueryRefetchTriggers` |
 | `components/app/` | `Sheet({ open, onClose, testID, children })`(React Native `Modal`, 키보드 `padding`, 아래 여백), `RequestFailed({ retrying, onRetry, compact? })`(testID `request-failed`·`request-failed-compact`·`retry-button`), `NotFoundView()`(testID `not-found-screen`) |
@@ -176,7 +179,7 @@ D3 의 끝(`feat/d3-list-and-detail` 의 `11fc4d7`)에서 읽었다. D4 는 D3 �
 | E2E 하네스 | `run-android.sh` 의 Maestro env `API_URL`·플로마다 `api.log`·로캘 앞 단계의 `return 1`, `android.sh boot` 의 `logcat -G 16M`·비행기 모드 끄기, `android.sh build`(이 계획이 Metro 캐시 비우기를 더한다), 지문의 `test/e2e/android.sh`, `test/e2e/scripts/examples-api.js`(`STEP=seed\|create\|rename`, blob `2de615a…`), `examples-scroll-refresh.yaml`(상세에서 돌아와 이름 바꾼 행을 다시 누른다), `test/e2e/AGENTS.md` 의 `## 목록·상세 플로` 절과 `## 돌리기` 절, 플로 열넷(`examples-offline-refetch` 포함) |
 | 스펙 | 8.2·8.3·8.5·9.3·11.3·16장의 D3 정정 — 이 계획의 스펙 정정은 7.2·7.3 의 절 끝, `### 8.6` 앞, `### 9.4` 앞, `### 11.4` 앞에 붙는다 |
 | lint·시험 가드 | `lucide-react-native` 통을 값으로 import 하지 못한다(`eslint.config.js` 의 `@typescript-eslint/no-restricted-imports`), `app/`·`components/` 에 미디어 쿼리·플랫폼 변형이 없다(`test/unit/ui/breakpoints.test.ts`), `app/` 의 `useLocalSearchParams` 는 이름으로 꺼낸다(`test/unit/resources/route-params-usage.test.ts`), `.maestro-output/**` 은 eslint 가 무시한다 — 전역 제약 |
-| 기준 수 | 단위 시험 1143(46 파일), 출처 기록 경로 46·이탈 29·원본 그대로 31, 플로 14 — 뒤의 "늘어난다" 는 이 수에서 센다. 병합 전 재검토가 수를 바꿨으면 그 수에서 센다 |
+| 기준 수 | 단위 시험 1143(46 파일), 출처 기록 경로 46·이탈 29·원본 그대로 31, 플로 14 — 뒤의 "늘어난다" 는 이 수에서 센다 |
 
 ## D2·D3 에서 이어받은 것
 
@@ -207,14 +210,16 @@ D3 의 끝(`feat/d3-list-and-detail` 의 `11fc4d7`)에서 읽었다. D4 는 D3 �
 | `referenceList` 는 `next: ''` 를 잘림으로, `nextPageQuery` 는 끝으로 본다(53e) | Task 1 Step 7 `nextLinkQuery`·`next-link.test.ts`·출처 이탈(결정 37) |
 | 릴리스 대기 예외 `lucide-react-native@1.49.0`(T10) | Task 1 Step 1 — `date -u` 로 창을 보고 빼고 `pnpm install --frozen-lockfile`(결정 33) |
 | 첫 APK 빌드가 번들 단계에서 `0xC0000005` 로 죽었다(D3 실측 L7) | Task 5 Step 1 `android.sh` 의 `clear_metro_cache`(결정 38), 기록 W1 |
+| 목록의 재조회가 백엔드 오류 문서(5xx·429)를 받으면 읽은 쪽이 오류 한 쪽으로 바뀌고 다음 재조회는 한 쪽만 읽는다 - D4 의 쓰기 뒤 무효화가 그 길을 늘린다(D3 재검토) | Task 1 Step 7 — 판정하지 않은 응답(5xx·408·429)도 던지고 읽은 데이터를 둔다. 정책은 `screen-state.ts` 의 `throwIfUnreachable`·화면 상태, 시험 둘(판단·전이), 스펙 9.3 정정(결정 40) |
+| `loadMore` 의 가드에 시험이 없다(D3 재검토, 선택) | Task 1 Step 7 `canLoadMore`, Task 3 Step 4 훅의 한 줄(결정 41) |
 
 ## 태스크 지도
 
 | 태스크 | 산출 | 시험 | 기기 |
 | --- | --- | --- | --- |
-| 1 쓰기 판단 | `lib/resources/form.ts`(복사·패치)·원본 시험(패치)·`form-expo.test.ts`, `lib/resources/write.ts`·`write.test.ts`, `screen-state.ts` 의 `referenceState`, `view.ts` 의 `nextLinkQuery`, 출처 기록, `lib/resources/AGENTS.md`, 릴리스 대기 예외 빼기 | 원본 시험 33 + 새 판단 13 + 흐름 22 + 참조 상태 7 + 다음 쪽 6 | 없음 |
+| 1 쓰기 판단 | `lib/resources/form.ts`(복사·패치)·원본 시험(패치)·`form-expo.test.ts`, `lib/resources/write.ts`·`write.test.ts`, `screen-state.ts`(판정하지 않은 재조회의 정책·`referenceState`·`canLoadMore`), `view.ts` 의 `nextLinkQuery`, 출처 기록, 문서, 스펙 9.3 정정, 릴리스 대기 예외 빼기 | 원본 시험 33 + 새 판단 13 + 흐름 22 + 판정하지 않은 응답 23 + 그 전이 3 + 참조 상태 7 + 다음 쪽 6 | 없음 |
 | 2 세션·가드 보강 | 회전의 5xx(`rotation.ts`·시험·출처), `session-store.ts` 주석, `routePattern`·가드·시험 행, `back-to-home.ts`·로그인·가입 화면, `submit-once.ts`·자격증명 폼, 로그인·가입 옵션과 T16 시험, 두 번 누름의 이동 가드(`once.ts`·`navigate-once.ts`·목록), 스펙 7.2·7.3 정정, 문서 | 회전 11·보호 경로 8·제출 한 번 3·세우기 거절 4·이동 가드 3 | 없음 |
-| 3 쓰기 훅과 인증 오류의 한 곳 | `queries/writes.ts`, `mutationKeys`, `referenceQueryOptions`·`useRelationshipReferences`·상세의 `result`·`enabled`, 화면 조회의 `subscribed`, `MutationCache.onError`, 스펙 8.5·9 정정, 문서 | 쓰기 키 1·인증 오류 배선 3·참조 목록의 전이 3 | 없음 |
+| 3 쓰기 훅과 인증 오류의 한 곳 | `queries/writes.ts`, `mutationKeys`, `referenceQueryOptions`·`useRelationshipReferences`·상세의 `result`·`enabled`, 화면 조회의 `subscribed`, `loadMore` 의 `canLoadMore`, `MutationCache.onError`, 스펙 8.5·9 정정, 문서 | 쓰기 키 1·인증 오류 배선 3·참조 목록의 전이 3 | 없음 |
 | 4 화면과 관계 선택기 | `resource-form.tsx`·`relationship-picker.tsx`·`confirm-sheet.tsx`, 상세·값·도구 줄 고침, 생성·수정·삭제 화면, 목록·상세의 진입점(이동 가드), 문서 | 정적 검사 + 두 플랫폼 번들 | 없음 |
 | 5 쓰기 E2E 와 기기 | 백엔드의 access 수명(compose·하네스·출처), 빌드 앞의 Metro 캐시 비우기, `examples-api.js` 의 단계 다섯, 로그인 서브플로, 플로 넷, 스크롤 플로의 둘째 누름, 기기 실행(게이트), 기록 W1·W2·W3, 스펙 11.3 정정, 문서 | 게이트 12단계, 기기 E2E 18 플로 | **여기서만** |
 
@@ -223,12 +228,14 @@ D3 의 끝(`feat/d3-list-and-detail` 의 `11fc4d7`)에서 읽었다. D4 는 D3 �
 ```text
 lib/resources/form.ts                      (복사·패치) 쓰기 판단 - 폼 상태 객체, 관계 선택기의 판단                 — Task 1
 lib/resources/write.ts                     (신규) 쓰기 한 번의 흐름 - 세션 확인 → 요청 → 응답 해석                   — Task 1
-lib/resources/screen-state.ts              (수정) referenceState - 참조 목록의 상태                                   — Task 1
+lib/resources/screen-state.ts              (다시 씀) 판정하지 않은 재조회의 정책, referenceState, canLoadMore         — Task 1
 lib/resources/view.ts                      (수정) nextLinkQuery - 다음 쪽과 잘림의 한 판정                           — Task 1
 test/unit/resources/form.test.ts           (복사·패치) 원본 시험                                                     — Task 1
 test/unit/resources/form-expo.test.ts      (신규) 폼 상태 객체·관계 선택기의 판단                                    — Task 1
 test/unit/resources/write.test.ts          (신규) 쓰기의 흐름 - 가짜 전송·토큰                                       — Task 1
-test/unit/resources/reference-state.test.ts · next-link.test.ts (신규)                                              — Task 1
+test/unit/resources/reference-state.test.ts · next-link.test.ts · screen-state-unjudged.test.ts (신규)              — Task 1
+test/unit/queries/refetch-unjudged.test.ts (신규) · test/unit/resources/screen-state.test.ts (시험 하나)            — Task 1
+queries/resource-options.ts · queries/resources.ts (주석 - 조회의 queryFn 정책)                                     — Task 1
 lib/auth/rotation.ts                       (수정) 5xx·408·429 → unreachable                                         — Task 2
 lib/auth/session-store.ts                  (수정) 시각 주석                                                          — Task 2
 lib/auth/protected-paths.ts                (수정) routePattern                                                       — Task 2
@@ -247,7 +254,7 @@ test/unit/queries/submit-once.test.ts · auth.test.ts · test/unit/navigation/on
 queries/keys.ts                            (수정) mutationKeys                                                       — Task 3
 queries/writes.ts                          (신규) 생성·수정·삭제 훅                                                  — Task 3
 queries/resource-options.ts                (수정) referenceQueryOptions                                              — Task 3
-queries/resources.ts                       (수정) 상세의 result·enabled, useRelationshipReferences, subscribed       — Task 3
+queries/resources.ts                       (수정) 상세의 result·enabled, useRelationshipReferences, subscribed, canLoadMore — Task 3
 platform/query-client.ts                   (수정) MutationCache.onError - 세션 거절이면 signOut                      — Task 3
 test/unit/queries/keys.test.ts (수정) · test/unit/platform/query-client.test.ts · test/unit/queries/reference-options.test.ts (신규) — Task 3
 components/resource/resource-form.tsx      (신규) 생성·수정 폼, 수정 폼의 자리                                        — Task 4
@@ -266,35 +273,38 @@ test/e2e/flows/examples-create|edit|delete|write-errors.yaml (신규) · example
 docs/superpowers/notes/2026-10-01-d4-measurements.md (신규) W1·W2·W3                                                 — Task 5
 docs/provenance/copied-core.json           (수정) Task 1·2·5
 AGENTS.md · lib/resources/AGENTS.md · lib/auth/AGENTS.md · lib/navigation/AGENTS.md · queries/AGENTS.md · platform/AGENTS.md · components/resource/AGENTS.md · test/e2e/AGENTS.md (수정)
-docs/superpowers/specs/2026-09-30-expo-jsonapi-template-design.md (정정) 7.2·7.3(Task 2), 8.5·9(Task 3), 11.3(Task 5)
+docs/superpowers/specs/2026-09-30-expo-jsonapi-template-design.md (정정) 9.3(Task 1), 7.2·7.3(Task 2), 8.5·9(Task 3), 11.3(Task 5)
 ```
 
 ---
 
-### Task 1: 쓰기 판단 — `lib/resources/form.ts` 복사·패치, `lib/resources/write.ts`, 참조 목록의 상태
+### Task 1: 쓰기 판단 — `lib/resources/form.ts` 복사·패치, `lib/resources/write.ts`, 조회 화면의 상태(판정하지 않은 재조회·참조 목록)
 
 **Files:**
-- Create: `lib/resources/form.ts`(원본 복사 + 패치), `test/unit/resources/form.test.ts`(원본 복사 + 패치), `test/unit/resources/form-expo.test.ts`, `lib/resources/write.ts`, `test/unit/resources/write.test.ts`, `test/unit/resources/reference-state.test.ts`, `test/unit/resources/next-link.test.ts`
-- Modify: `lib/resources/screen-state.ts`(`referenceState`), `lib/resources/view.ts`(`nextLinkQuery` - 53e), `docs/provenance/copied-core.json`(경로 둘, 이탈 넷), `lib/resources/AGENTS.md`, `pnpm-workspace.yaml`(릴리스 대기 예외 - T10)
+- Create: `lib/resources/form.ts`(원본 복사 + 패치), `test/unit/resources/form.test.ts`(원본 복사 + 패치), `test/unit/resources/form-expo.test.ts`, `lib/resources/write.ts`, `test/unit/resources/write.test.ts`, `test/unit/resources/screen-state-unjudged.test.ts`, `test/unit/queries/refetch-unjudged.test.ts`, `test/unit/resources/reference-state.test.ts`, `test/unit/resources/next-link.test.ts`
+- Modify: `lib/resources/screen-state.ts`(전체 - 판정하지 않은 응답의 정책, `referenceState`, `canLoadMore`), `test/unit/resources/screen-state.test.ts`(시험 하나), `lib/resources/view.ts`(`nextLinkQuery` - 53e), `queries/resource-options.ts`·`queries/resources.ts`(정책의 주석), `docs/provenance/copied-core.json`(경로 둘, 이탈 넷), `lib/resources/AGENTS.md`, `queries/AGENTS.md`, `pnpm-workspace.yaml`(릴리스 대기 예외 - T10), 스펙 9.3 정정
 
 **Interfaces:**
 - Consumes: `lib/resources/view.ts` 의 `bannerMessages`·`referenceList`·`ListFailure`·`ReferenceList`·`nextPageQuery`(D3), `lib/resources/screen-state.ts` 의 `refetchUnreachable`(비공개)·`UnreachableError`(D3), `lib/resources/index.ts` 의 `resourceByType`, `lib/resources/define.ts` 의 `formAttributes`·`isRequiredAttribute`·`resourcePath`, `lib/jsonapi/errors.ts` 의 `actionForErrors`·`groupErrors`, `lib/auth/form-state.ts` 의 `UNUSABLE_RESPONSE_MESSAGE`, `lib/jsonapi/send.ts` 의 `JsonApiSend`
 - Produces:
   - `lib/resources/form.ts`(원본 그대로): `interface ResourceFormValues { attributes: Readonly<Record<string, string>>; relationships: Readonly<Record<string, readonly string[]>> }`, `interface ResourceFormState { documentErrors; fieldErrors; relationshipErrors; submitted }`, `IDLE_RESOURCE_FORM_STATE`, `writeDocument(resource, values, id?)`, `unusableFormState(values)`, `formStateFromErrors(errors, values)`, `decideWriteFailure(errors, values): WriteFailure`, `createdId(document)`, `initialFormValues(resource, result: JsonApiResult<SingleDocument> | null)`
   - `lib/resources/form.ts`(더한 것): `newFormValues(resource): ResourceFormValues`, `withAttribute(values, name, raw)`, `withRelationshipChoice(values, name, relationship, id: string | null)`, `relationshipTargets(resource): readonly (readonly [string, ResourceDefinition])[]`, `interface RelationshipOption { id; label; selected; listed }`, `interface RelationshipChoice { chosen; options; hasUnlisted }`, `relationshipChoice(relationship, list: ReferenceList, selected: readonly string[]): RelationshipChoice`
-  - `lib/resources/screen-state.ts`(더한 것): `interface ReferenceState { list: ReferenceList | null; failure: ListFailure | null }`, `interface ReferenceQueryFacts { result: JsonApiResult<CollectionDocument> | undefined; error: unknown }`, `referenceState(target, facts): ReferenceState`
+  - `lib/resources/screen-state.ts`(바꾼 것): `throwIfUnreachable(result, request)` 이 판정하지 않은 응답(5xx·408·429)도 던진다 - `new UnreachableError(request, response?)`(`response` 는 그 오류 문서, 닿지 못함이면 없다). `listScreen`·`detailScreen` 은 첫 조회의 판정하지 않은 응답을 그 문구의 배너로(`refreshFailed: false`), 재조회의 것은 읽은 데이터와 `refreshFailed: true` 로 그린다
+  - `lib/resources/screen-state.ts`(더한 것): `interface ReferenceState { list: ReferenceList | null; failure: ListFailure | null }`, `interface ReferenceQueryFacts { result: JsonApiResult<CollectionDocument> | undefined; error: unknown }`, `referenceState(target, facts): ReferenceState`, `interface LoadMoreFacts { hasNextPage; isFetching; isFetchNextPageError }`, `canLoadMore(facts): boolean`
   - `lib/resources/view.ts`: `referenceList(…).truncated` 가 `nextPageQuery` 와 같은 판정(`nextLinkQuery`, 비공개)이다 - 빈 쪽·`next: ''`·경로뿐인 링크는 잘림이 아니다
   - `lib/resources/write.ts`: `sessionRejected(): Error`, `isSessionRejected(error: unknown): boolean`, `interface WriteDeps { getAccessToken: () => Promise<string | null>; send: JsonApiSend }`, `type CreateOutcome = { kind: 'saved'; id } | { kind: 'failed'; state: ResourceFormState }`, `type UpdateOutcome = CreateOutcome | { kind: 'notFound' }`, `type DeleteOutcome = { kind: 'deleted' } | { kind: 'failed'; messages: readonly string[] }`, `createResource(resource, values, deps): Promise<CreateOutcome>`, `updateResource(resource, id, values, deps): Promise<UpdateOutcome>`, `deleteResource(resource, id, deps): Promise<DeleteOutcome>`
 
 - [ ] **Step 1: 브랜치와 D3 의 끝을 확인하고, 릴리스 대기 예외를 뺀다**
 
-브랜치는 D3 가 머지 커밋으로 병합된 `main` 에서 컨트롤러가 만든다(전역 제약). 여기서는 확인만 한다.
+브랜치 `feat/d4-create-update-delete` 는 컨트롤러가 D3 가 머지 커밋으로 병합된 `main`(`d2dc3cb` - 트리가 D3 의 끝 `11fc4d7` 과 같다)에서 이미 만들었다(전역 제약). 브랜치에는 이 계획 문서의 커밋만 있을 수 있다. 여기서는 확인만 한다 — 만들거나 바꾸지 않는다.
 
 ```bash
 git branch --show-current
 git status --short
 git log --oneline -3
-git merge-base --is-ancestor 11fc4d7 HEAD && echo "D3 의 끝을 담았다"
+git rev-parse --short main
+git merge-base --is-ancestor d2dc3cb HEAD && echo "main 을 담았다"
+git diff --stat d2dc3cb HEAD -- . ':(exclude)docs/superpowers/plans'
 ls lib/resources/view.ts lib/resources/route-params.ts lib/resources/screen-state.ts queries/keys.ts queries/resources.ts queries/resource-options.ts components/app/sheet.tsx components/app/request-failed.tsx components/app/not-found-view.tsx components/ui/badge.tsx components/ui/skeleton.tsx test/e2e/scripts/examples-api.js
 git grep -c -E "export function (referenceRequest|referenceList|bannerMessages)|export const REFERENCE_PAGE_SIZE|export type ListFailure" -- lib/resources/view.ts
 git grep -c -E "export function (cacheEffects|applyCacheEffects|useResourceDetail|listQueryOptions|detailQueryOptions)" -- queries
@@ -305,7 +315,7 @@ node scripts/check-provenance.mjs | tail -n 1
 grep -n "minimumReleaseAgeExclude\|lucide-react-native@" pnpm-workspace.yaml
 ```
 
-Expected: 브랜치 `feat/d4-create-update-delete`, 작업 트리 깨끗, `D3 의 끝을 담았다`, 파일 열두 개가 다 있다, `view.ts` 5, `queries` 의 세 파일 합 5(`keys.ts` 2·`resources.ts` 1·`resource-options.ts` 2), `screen-state.ts` 4, 플로 `14`, `Tests  1143 passed (1143)`(46 파일), `복사 출처 기록 통과: 경로 46개, 이탈 29건, 원본 그대로 31개`, 마지막 `grep` 이 `minimumReleaseAgeExclude:` 와 `lucide-react-native@1.49.0` 두 줄(D3 는 예외를 두고 끝났다 - D3 실측 L6). 다르면 "D3 가 넘긴 것" 표와 맞춰 보고, 이름이 다르면 멈추고 컨트롤러에 알린다. 수가 다르면 그 수를 기준 수로 적어 두고 뒤의 "늘어난다" 를 거기서 센다.
+Expected: 브랜치 `feat/d4-create-update-delete`, 작업 트리 깨끗, `main` 이 `d2dc3cb`, `main 을 담았다`, `git diff --stat` 이 아무것도 내지 않는다(계획 문서 밖은 `main` 그대로), 파일 열두 개가 다 있다, `view.ts` 5, `queries` 의 세 파일 합 5(`keys.ts` 2·`resources.ts` 1·`resource-options.ts` 2), `screen-state.ts` 4, 플로 `14`, `Tests  1143 passed (1143)`(46 파일), `복사 출처 기록 통과: 경로 46개, 이탈 29건, 원본 그대로 31개`, 마지막 `grep` 이 `minimumReleaseAgeExclude:` 와 `lucide-react-native@1.49.0` 두 줄(D3 는 예외를 두고 끝났다 - D3 실측 L6). 다르면 "D3 가 넘긴 것" 표와 맞춰 보고, 이름이 다르면 멈추고 컨트롤러에 알린다. 수가 다르면 그 수를 기준 수로 적어 두고 뒤의 "늘어난다" 를 거기서 센다.
 
 릴리스 대기 예외를 뺀다(D3 운반 T10, 결정 33). 뺄 때가 지났는지 먼저 본다:
 
@@ -1531,9 +1541,389 @@ pnpm exec vitest run test/unit/resources/write.test.ts 2>&1 | tail -4
 
 Expected: `Tests  22 passed (22)`.
 
-- [ ] **Step 7: 관계 선택기의 참조 목록 — 목록·상세와 같은 상태 규칙(I1)과 다음 쪽의 한 규칙(53e)**
+- [ ] **Step 7: 조회 화면의 상태 — 판정하지 않은 응답의 재조회, 참조 목록, 다음 쪽의 한 규칙, `canLoadMore`**
 
-참조 목록도 목록·상세처럼 조회가 닿지 못함을 던지고(Task 3 의 `referenceQueryOptions`) 화면 상태는 데이터·오류에서 정한다 — 재조회가 닿지 못해도 읽은 보기를 둔다(결정 36). 선택기의 잘림(`referenceList` 의 `truncated`)은 무한 스크롤의 끝(`nextPageQuery`)과 한 판정이다 — 빈 쪽·`next: ''`·경로뿐인 링크는 "더 있다" 가 아니다(결정 37). 시험을 먼저 쓴다.
+D3 는 재조회가 닿지 못해도 읽은 데이터를 두게 고쳤다(I1). 백엔드 오류 문서는 아직 결과 값이라, 목록의 재조회가 5xx·429 를 받으면 읽은 쪽 전부가 오류 한 쪽으로 바뀌고 다음 재조회는 한 쪽만 읽는다 — D3 재검토가 넘겼고 D4 의 쓰기 뒤 무효화가 그 길을 늘린다. 판정하지 않은 응답(5xx·408·429)도 닿지 못함처럼 던지고 읽은 데이터를 둔다 — 첫 조회면 그 응답의 문구로 배너를 그린다. 판정한 4xx 는 값(새 답)이다(결정 40). 이 정책이 `lib/resources/screen-state.ts` 의 `throwIfUnreachable`·화면 상태와 조회의 `queryFn`(D3 의 `resource-options.ts` 가 그 함수를 부른다)에 있다. 참조 목록도 같은 규칙으로 그린다(`referenceState`, 결정 36). 선택기의 잘림(`referenceList` 의 `truncated`)은 무한 스크롤의 끝(`nextPageQuery`)과 한 판정이다 — 빈 쪽·`next: ''`·경로뿐인 링크는 "더 있다" 가 아니다(결정 37). 목록 끝의 가드는 순수 함수 `canLoadMore` 로 옮겨 잰다(결정 41). 시험을 먼저 쓴다.
+
+`test/unit/resources/screen-state-unjudged.test.ts` 를 만든다:
+
+```ts
+import { describe, expect, it } from 'vitest'
+
+import type { JsonApiResult } from '@/lib/jsonapi/client'
+import type { CollectionDocument, ErrorObject, SingleDocument } from '@/lib/jsonapi/document'
+import { defineResource } from '@/lib/resources/define'
+import {
+  UnreachableError,
+  canLoadMore,
+  detailScreen,
+  listScreen,
+  referenceState,
+  throwIfUnreachable,
+} from '@/lib/resources/screen-state'
+import { listRequest } from '@/lib/resources/view'
+
+/**
+ * 판정하지 않은 응답(5xx·408·429)도 닿지 못함처럼 읽은 데이터를 두는가 - D3 재검토가 넘긴 것(목록의 재조회가
+ * 백엔드 오류 문서를 받으면 읽은 쪽이 오류 한 쪽으로 바뀌고 다음 재조회는 한 쪽만 읽었다). 판정한 오류(그 밖의
+ * 4xx)는 값이라 새 답이다. 실제 QueryClient 의 전이는 test/unit/queries/refetch-unjudged.test.ts 가 잰다.
+ */
+const PROBE_CRATE = defineResource({
+  type: 'probeCrates',
+  path: '/probe/api/crates',
+  attributes: {
+    probeName: {
+      kind: 'string',
+      label: 'PROBE 이름',
+      readOnly: false,
+      nullable: false,
+      listed: true,
+    },
+  },
+  relationships: {},
+  filters: {},
+  sorts: ['probeName'],
+  defaultSort: 'probeName',
+  includes: [],
+  writable: false,
+})
+const PLAN = listRequest(PROBE_CRATE, {})
+
+const BUSY: ErrorObject = { status: '503', code: 'PROBE_BUSY', detail: 'PROBE 잠시 뒤에' }
+
+function failed<T>(errors: ErrorObject[], status: number): JsonApiResult<T> {
+  return { ok: false, status, errors }
+}
+
+function okPage(ids: readonly string[]): JsonApiResult<CollectionDocument> {
+  return {
+    ok: true,
+    status: 200,
+    document: {
+      data: ids.map((id) => ({
+        type: 'probeCrates',
+        id,
+        attributes: { probeName: `PROBE ${id}` },
+      })),
+    },
+  }
+}
+
+/** 조회의 `queryFn` 이 던졌을 오류 - `throwIfUnreachable` 이 만든 그대로다. */
+function thrownBy<T>(result: JsonApiResult<T>, request: string): unknown {
+  try {
+    throwIfUnreachable(result, request)
+  } catch (error) {
+    return error
+  }
+  throw new Error('던지지 않았다')
+}
+
+/** 재조회·첫 조회가 받은 503 - 조회의 `queryFn` 이 던졌을 오류다. */
+function busy(request: string): unknown {
+  return thrownBy(failed<CollectionDocument>([BUSY], 503), request)
+}
+
+describe('throwIfUnreachable - 판정하지 않은 응답도 던진다', () => {
+  it.each([500, 502, 503, 504, 408, 429])('%i 는 던진다 - 응답을 싣는다', (status) => {
+    const result = failed<CollectionDocument>([{ ...BUSY, status: String(status) }], status)
+    const error = thrownBy(result, '목록')
+    expect(error).toBeInstanceOf(UnreachableError)
+    expect((error as UnreachableError).response).toBe(result)
+    expect((error as UnreachableError).message).toContain(String(status))
+  })
+
+  it.each([400, 403, 404, 409, 422])('%i 는 판정한 오류라 값 그대로다', (status) => {
+    const result = failed<CollectionDocument>([{ ...BUSY, status: String(status) }], status)
+    expect(throwIfUnreachable(result, '목록')).toBe(result)
+  })
+})
+
+describe('listScreen - 판정하지 않은 응답', () => {
+  it('첫 조회면 그 문구의 배너가 화면 전부다 - 작은 실패는 없다', () => {
+    expect(
+      listScreen(PROBE_CRATE, PLAN, {
+        pages: undefined,
+        error: busy('목록'),
+        nextPageFailed: false,
+      }),
+    ).toEqual({ kind: 'banner', messages: ['PROBE 잠시 뒤에'], refreshFailed: false })
+  })
+
+  it('재조회면 읽은 행을 두고 목록 위에 작은 실패를 싣는다', () => {
+    const screen = listScreen(PROBE_CRATE, PLAN, {
+      pages: [okPage(['c1', 'c2']), okPage(['c3'])],
+      error: busy('목록'),
+      nextPageFailed: false,
+    })
+    if (screen.kind !== 'list') throw new Error('목록이어야 한다')
+    expect(screen.rows.map((row) => row.id)).toEqual(['c1', 'c2', 'c3'])
+    expect(screen.refreshFailed).toBe(true)
+    expect(screen.failure).toBe(null)
+  })
+
+  it('다음 쪽이면 읽은 행을 두고 목록 끝에 싣는다 - 다시 시도는 그 쪽만이다', () => {
+    const screen = listScreen(PROBE_CRATE, PLAN, {
+      pages: [okPage(['c1'])],
+      error: busy('목록'),
+      nextPageFailed: true,
+    })
+    if (screen.kind !== 'list') throw new Error('목록이어야 한다')
+    expect(screen.failure).toEqual({ kind: 'unreachable' })
+    expect(screen.refreshFailed).toBe(false)
+  })
+})
+
+describe('detailScreen - 판정하지 않은 응답과 판정한 응답', () => {
+  const found: JsonApiResult<SingleDocument> = {
+    ok: true,
+    status: 200,
+    document: { data: { type: 'probeCrates', id: 'c1', attributes: { probeName: 'PROBE c1' } } },
+  }
+
+  it('첫 조회면 그 문구의 배너다', () => {
+    expect(detailScreen(PROBE_CRATE, { result: undefined, error: busy('상세') })).toEqual({
+      kind: 'banner',
+      messages: ['PROBE 잠시 뒤에'],
+      refreshFailed: false,
+    })
+  })
+
+  it('재조회면 읽은 상세를 두고 작은 실패를 싣는다', () => {
+    const screen = detailScreen(PROBE_CRATE, { result: found, error: busy('상세') })
+    if (screen.kind !== 'detail') throw new Error('상세여야 한다')
+    expect(screen.heading).toBe('PROBE c1')
+    expect(screen.refreshFailed).toBe(true)
+  })
+
+  it('판정한 답(404)은 재조회여도 새 답이다 - 지워진 자원은 not-found', () => {
+    const missing = failed<SingleDocument>(
+      [{ status: '404', code: 'RESOURCE_NOT_FOUND', detail: 'PROBE 없음' }],
+      404,
+    )
+    expect(
+      detailScreen(PROBE_CRATE, { result: throwIfUnreachable(missing, '상세'), error: null }),
+    ).toEqual({ kind: 'notFound' })
+  })
+})
+
+describe('referenceState - 판정하지 않은 응답', () => {
+  it('첫 조회면 그 문구를 보기 대신 그린다', () => {
+    expect(referenceState(PROBE_CRATE, { result: undefined, error: busy('목록') })).toEqual({
+      list: { options: [], truncated: false },
+      failure: { kind: 'banner', messages: ['PROBE 잠시 뒤에'] },
+    })
+  })
+
+  it('읽은 목록이 있으면 그대로 둔다', () => {
+    expect(referenceState(PROBE_CRATE, { result: okPage(['c1']), error: busy('목록') })).toEqual({
+      list: { options: [{ id: 'c1', label: 'PROBE c1' }], truncated: false },
+      failure: null,
+    })
+  })
+})
+
+describe('canLoadMore - 목록 끝에서 다음 쪽을 부르는가', () => {
+  it.each<[string, boolean, boolean, boolean, boolean]>([
+    ['다음 쪽이 있고 쉬고 있다', true, false, false, true],
+    ['다음 쪽이 없다', false, false, false, false],
+    ['읽는 중이다 - 진행 중인 재조회를 끊지 않는다', true, true, false, false],
+    ['다음 쪽이 실패한 채다 - 되풀이하지 않고 "다시 시도" 를 기다린다', true, false, true, false],
+  ])('%s', (_, hasNextPage, isFetching, isFetchNextPageError, expected) => {
+    expect(canLoadMore({ hasNextPage, isFetching, isFetchNextPageError })).toBe(expected)
+  })
+})
+```
+
+실제 `QueryClient` 의 전이는 D3 의 `resource-options.test.ts` 와 같은 길로 잰다. `test/unit/queries/refetch-unjudged.test.ts` 를 만든다:
+
+```ts
+import { InfiniteQueryObserver, QueryClient, QueryObserver } from '@tanstack/react-query'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type { JsonApiResult, RequestOptions } from '@/lib/jsonapi/client'
+import type { CollectionDocument, ErrorObject, SingleDocument } from '@/lib/jsonapi/document'
+import { defineResource } from '@/lib/resources/define'
+import { detailScreen, listScreen } from '@/lib/resources/screen-state'
+import { listRequest } from '@/lib/resources/view'
+import { detailQueryOptions, listQueryOptions } from '@/queries/resource-options'
+
+/**
+ * 재조회가 판정하지 않은 응답(5xx)을 받는 전이 - 실제 QueryClient 로 잰다(test/unit/queries/resource-options.test.ts
+ * 와 같은 길, 옵션도 앱의 것과 같다). D3 재검토가 넘긴 것: 목록의 재조회가 백엔드 오류 문서를 결과 값으로 받으면
+ * 읽은 쪽 전부가 오류 한 쪽으로 바뀌고 다음 재조회는 한 쪽만 읽었다. 판정하지 않은 응답을 던지면 읽은 쪽이 남고,
+ * 다음 재조회가 쪽 전부를 다시 읽는다.
+ */
+const resource = defineResource({
+  type: 'probeCrates',
+  path: '/probe/api/crates',
+  attributes: {
+    probeName: {
+      kind: 'string',
+      label: 'PROBE 이름',
+      readOnly: false,
+      nullable: false,
+      listed: true,
+    },
+  },
+  relationships: {},
+  filters: {},
+  sorts: ['probeName'],
+  defaultSort: 'probeName',
+  includes: [],
+  writable: false,
+})
+const plan = listRequest(resource, {})
+
+const BUSY: ErrorObject = { status: '503', code: 'PROBE_BUSY', detail: 'PROBE 잠시 뒤에' }
+
+/** 세 쪽, 쪽마다 두 행. 커서는 `page[after]` 값이다 - 첫 쪽은 빈 커서. */
+const PAGES: Record<string, { ids: string[]; next: string | null }> = {
+  '': { ids: ['a1', 'a2'], next: 'probe-c2' },
+  'probe-c2': { ids: ['b1', 'b2'], next: 'probe-c3' },
+  'probe-c3': { ids: ['c1', 'c2'], next: null },
+}
+
+/** 가짜 백엔드 - `busy` 면 판정하지 않은 응답(503 오류 문서)을 돌려준다. */
+function probeBackend() {
+  const state = { busy: false, calls: 0 }
+  const send = <T>(path: string, options?: RequestOptions): Promise<JsonApiResult<T>> => {
+    state.calls += 1
+    if (state.busy) return Promise.resolve({ ok: false, status: 503, errors: [BUSY] })
+    if (path.endsWith('/c1')) {
+      const document: SingleDocument = {
+        data: { type: 'probeCrates', id: 'c1', attributes: { probeName: 'PROBE c1' } },
+      }
+      return Promise.resolve({ ok: true, status: 200, document: document as T })
+    }
+    const after = options?.query?.get('page[after]') ?? ''
+    const page = PAGES[after]
+    if (page === undefined) throw new Error(`PROBE 모르는 커서: ${after}`)
+    const document: CollectionDocument = {
+      data: page.ids.map((id) => ({ type: 'probeCrates', id, attributes: { probeName: id } })),
+      links: {
+        next: page.next === null ? null : `/probe/api/crates?page%5Bafter%5D=${page.next}`,
+      },
+    }
+    return Promise.resolve({ ok: true, status: 200, document: document as T })
+  }
+  return { state, send }
+}
+
+let client: QueryClient
+
+beforeEach(() => {
+  client = new QueryClient({
+    defaultOptions: { queries: { staleTime: 0, retry: false, networkMode: 'offlineFirst' } },
+  })
+  client.mount()
+})
+
+afterEach(() => {
+  client.unmount()
+  client.clear()
+})
+
+/**
+ * `trigger` 가 일으킨 조회의 결과(성공이든 실패든)가 캐시에 들 때까지 기다린다 - resource-options.test.ts 와 같다.
+ * 구독이 여는 첫 조회는 기다릴 Promise 를 주지 않는다.
+ */
+async function nextResult(queryKey: readonly unknown[], trigger: () => void) {
+  const state = () => client.getQueryCache().find({ queryKey })?.state
+  const count = () => (state()?.dataUpdateCount ?? 0) + (state()?.errorUpdateCount ?? 0)
+  const before = count()
+  trigger()
+  await vi.waitFor(() => {
+    if (count() === before || state()?.fetchStatus !== 'idle') throw new Error('아직 부르는 중')
+  })
+}
+
+async function listObserver(send: ReturnType<typeof probeBackend>['send']) {
+  const options = listQueryOptions(resource, plan, send)
+  const observer = new InfiniteQueryObserver(client, options)
+  let unsubscribe = () => undefined as void
+  await nextResult(options.queryKey, () => {
+    unsubscribe = observer.subscribe(() => undefined)
+  })
+  const screen = () => {
+    const result = observer.getCurrentResult()
+    return listScreen(resource, plan, {
+      pages: result.data?.pages,
+      error: result.error,
+      nextPageFailed: result.isFetchNextPageError,
+    })
+  }
+  return { observer, unsubscribe: () => unsubscribe(), screen }
+}
+
+function rowIds(screen: ReturnType<typeof listScreen>) {
+  if (screen.kind !== 'list') throw new Error(`목록이어야 한다 - ${screen.kind}`)
+  return screen.rows.map((row) => row.id)
+}
+
+describe('목록 - 재조회가 판정하지 않은 응답을 받아도 읽은 쪽을 버리지 않는다', () => {
+  it('세 쪽을 읽은 뒤 재조회가 503 → 행 여섯과 작은 실패, 다음 재조회 → 세 쪽을 다시 읽는다', async () => {
+    const backend = probeBackend()
+    const { observer, unsubscribe, screen } = await listObserver(backend.send)
+    await observer.fetchNextPage()
+    await observer.fetchNextPage()
+    expect(rowIds(screen())).toEqual(['a1', 'a2', 'b1', 'b2', 'c1', 'c2'])
+    expect(backend.state.calls).toBe(3)
+
+    backend.state.busy = true
+    await observer.refetch()
+    expect(backend.state.calls).toBe(4)
+    expect(rowIds(screen())).toEqual(['a1', 'a2', 'b1', 'b2', 'c1', 'c2'])
+    expect(screen()).toMatchObject({ refreshFailed: true, failure: null })
+
+    backend.state.busy = false
+    await observer.refetch()
+    expect(backend.state.calls).toBe(7)
+    expect(rowIds(screen())).toEqual(['a1', 'a2', 'b1', 'b2', 'c1', 'c2'])
+    expect(screen()).toMatchObject({ refreshFailed: false, failure: null })
+    unsubscribe()
+  })
+
+  it('첫 조회가 503 이면 그 문구의 배너가 화면 전부다 - 다시 부르면 목록이다', async () => {
+    const backend = probeBackend()
+    backend.state.busy = true
+    const { observer, unsubscribe, screen } = await listObserver(backend.send)
+    expect(screen()).toEqual({
+      kind: 'banner',
+      messages: ['PROBE 잠시 뒤에'],
+      refreshFailed: false,
+    })
+    backend.state.busy = false
+    await observer.refetch()
+    expect(rowIds(screen())).toEqual(['a1', 'a2'])
+    unsubscribe()
+  })
+})
+
+describe('상세 - 재조회가 판정하지 않은 응답을 받아도 읽은 상세를 둔다', () => {
+  it('읽은 상세 → 재조회 503: 상세와 작은 실패 → 다시 부르면 작은 실패가 사라진다', async () => {
+    const backend = probeBackend()
+    const options = detailQueryOptions(resource, 'c1', backend.send)
+    const observer = new QueryObserver(client, options)
+    let unsubscribe = () => undefined as void
+    await nextResult(options.queryKey, () => {
+      unsubscribe = observer.subscribe(() => undefined)
+    })
+    const screen = () => {
+      const result = observer.getCurrentResult()
+      return detailScreen(resource, { result: result.data, error: result.error })
+    }
+    expect(screen()).toMatchObject({ kind: 'detail', heading: 'PROBE c1', refreshFailed: false })
+    backend.state.busy = true
+    await observer.refetch()
+    expect(screen()).toMatchObject({ kind: 'detail', heading: 'PROBE c1', refreshFailed: true })
+    backend.state.busy = false
+    await observer.refetch()
+    expect(screen()).toMatchObject({ kind: 'detail', refreshFailed: false })
+    unsubscribe()
+  })
+})
+```
 
 `test/unit/resources/reference-state.test.ts` 를 만든다:
 
@@ -1694,27 +2084,26 @@ describe('다음 쪽과 잘림 - 한 규칙', () => {
 ```
 
 ```bash
-pnpm exec vitest run test/unit/resources/reference-state.test.ts test/unit/resources/next-link.test.ts 2>&1 | tail -5
+pnpm exec vitest run test/unit/resources/screen-state-unjudged.test.ts test/unit/queries/refetch-unjudged.test.ts test/unit/resources/reference-state.test.ts test/unit/resources/next-link.test.ts 2>&1 | tail -5
 ```
 
-Expected: FAIL — `Tests  10 failed | 3 passed (13)`(`referenceState is not a function` 일곱, 잘림 셋 - `''`·경로뿐·빈 쪽을 `referenceList` 가 잘림으로 읽는다. 무한 스크롤 쪽은 지금도 맞다).
+Expected: FAIL — `Tests  29 failed | 10 passed (39)`(네 파일 - 판정하지 않은 응답을 던지지 않는다, `referenceState`·`canLoadMore` 가 없다, `''`·경로뿐·빈 쪽을 `referenceList` 가 잘림으로 읽는다. 4xx 를 값으로 두는 것·지워진 상세의 not-found·첫 조회의 503 배너(값이어도 배너다)·무한 스크롤의 끝은 지금도 맞다).
 
-`lib/resources/screen-state.ts` — Edit, 찾을 것:
+`lib/resources/screen-state.ts` 는 D3 의 새 파일이고 이 단계가 전체를 바꾼다 — D3 의 판 그대로인지 먼저 본다(결정 31):
 
-```ts
-import {
-  detailView,
-  listView,
-  type DetailView,
-  type ListFailure,
-  type ListRequest,
-  type ListView,
-} from '@/lib/resources/view'
+```bash
+git rev-parse HEAD:lib/resources/screen-state.ts
 ```
 
-바꿀 것:
+Expected: `774cc9b897e29b7dd1d0f377fac1605b7d121de8`(D3 의 끝 `11fc4d7`·`main` 의 `d2dc3cb` 과 같다). 다르면 `git log -p -- lib/resources/screen-state.ts` 에서 그 뒤의 변경을 찾아 아래 판에 옮겨 적은 뒤 바꾼다.
+
+`lib/resources/screen-state.ts` 전체를 바꾼다:
 
 ```ts
+import type { JsonApiResult } from '@/lib/jsonapi/client'
+import type { CollectionDocument, SingleDocument } from '@/lib/jsonapi/document'
+import { actionForErrors } from '@/lib/jsonapi/errors'
+import type { ResourceDefinition } from '@/lib/resources/define'
 import {
   bannerMessages,
   detailView,
@@ -1726,33 +2115,182 @@ import {
   type ListView,
   type ReferenceList,
 } from '@/lib/resources/view'
-```
 
-같은 파일에 Edit, 찾을 것(파일 끝 `detailScreen` 의 마지막 줄들):
+/**
+ * 조회 화면이 그릴 것 - TanStack Query 가 준 데이터·오류에서 정한다(스펙 9.3·8.5).
+ *
+ * 조회의 `queryFn` 은 백엔드의 판정을 받지 못한 조회를 던진다(`throwIfUnreachable`) - 응답조차 없었거나
+ * (transport), 백엔드가 답했지만 판정하지 않은 응답(5xx·408·429)이다. TanStack Query 는 재조회가 실패해도 앞의
+ * 데이터를 그대로 두므로 - 무한 조회는 읽은 쪽 전부를 - 앱 복귀·네트워크 복귀·당겨서 새로고침·다시 들어온
+ * 상세·쓰기 뒤 무효화의 재조회가 그렇게 끝나도 읽은 행과 상세가 남고, 다음 재조회도 읽어 둔 쪽을 모두 다시
+ * 읽는다. 실패를 결과 값으로 캐시에 두면 재조회의 실패가 읽은 데이터를 갈아엎고(쪽 배열이 `[실패]` 하나가
+ * 된다) 다음 재조회는 그 한 쪽만 읽는다 - D3 최종 검토가 설치본 query-core 로 재 보인 결함이다(6행 → 전체
+ * 화면 실패 → 2행). 판정하지 않은 응답(5xx·408·429)은 D4 가 더했다 - D3 재검토가 같은 결함을 백엔드 오류
+ * 문서에서 봤고, D4 의 쓰기 뒤 무효화가 그 길을 늘린다. 그 셋을 판정하지 않은 응답으로 보는 것은 회전과
+ * 같다(lib/auth/rotation.ts 의 `interpretRotationOutcome`).
+ *
+ * 판정한 백엔드 오류 문서(그 밖의 4xx - 없는 자원, 잘못된 조건)는 결과 값이다 - 재조회의 답이어도 새 답이라
+ * 읽은 데이터를 바꾼다(지워진 상세는 not-found). 협상된 문구를 배너로 그린다(`listView`·`detailView`).
+ *
+ * 화면 상태: 데이터가 없으면 스켈레톤(`loading`)이거나, 첫 조회가 판정을 받지 못했으면 실패가 화면 전부다 -
+ * 응답이 없었으면 앱 문구와 "다시 시도"(`unreachable`), 판정하지 않은 응답이면 그 문구의 배너다. 데이터가
+ * 있으면 그것을 그리고, 판정을 받지 못한 재조회는 `refreshFailed`(작은 실패와 "다시 시도" - 읽은 것을 다시
+ * 읽는다)로, 판정을 받지 못한 다음 쪽은 목록 끝의 `failure`(그 쪽만 다시 읽는다)로 싣는다.
+ */
 
-```ts
-  // 없는 자원은 재조회가 닿지 못해도 없는 자원이다 - 작은 실패를 싣지 않는다.
-  if (view.kind === 'notFound' || view.kind === 'unreachable') return view
+/** 판정하지 않은 응답 - 백엔드가 준 오류 문서다. */
+type UnjudgedResponse = Extract<JsonApiResult<never>, { ok: false }>
+
+/**
+ * 백엔드의 판정을 받지 못한 조회 - 조회의 `queryFn` 이 던진다(`throwIfUnreachable`). 응답조차 없었으면
+ * `response` 가 없고, 백엔드가 판정하지 않은 응답(5xx·408·429)을 줬으면 그 응답이다 - 첫 조회면 화면이 그
+ * 문구를 배너로 그린다.
+ */
+export class UnreachableError extends Error {
+  readonly response: UnjudgedResponse | undefined
+
+  constructor(request: string, response?: UnjudgedResponse) {
+    super(
+      response === undefined
+        ? `${request} 요청이 백엔드에 닿지 못했다`
+        : `${request} 요청에 백엔드가 판정하지 않은 응답(${response.status})을 줬다`,
+    )
+    this.name = 'UnreachableError'
+    this.response = response
+  }
+}
+
+/**
+ * 백엔드가 답했지만 판정하지 않은 상태 - 서버 쪽 실패(5xx), 요청 시간 초과(408), 너무 많은 요청(429). 회전
+ * 응답을 가르는 셋(lib/auth/rotation.ts 의 `interpretRotationOutcome`)과 같다.
+ */
+function unjudged(status: number): boolean {
+  return status >= 500 || status === 408 || status === 429
+}
+
+/**
+ * 조회 결과를 캐시에 넣을 값으로 - 백엔드의 판정을 받지 못했으면 던진다: 응답조차 없었거나(`actionForErrors` 의
+ * `transport`), 판정하지 않은 응답(5xx·408·429)이다. 성공과 판정한 백엔드 오류 문서는 그대로 돌려준다.
+ * `request` 는 진단 문구에 쓴다(`'목록'`·`'상세'`·`'참조 목록'`).
+ */
+export function throwIfUnreachable<T>(result: JsonApiResult<T>, request: string): JsonApiResult<T> {
+  if (result.ok) return result
+  if (actionForErrors(result.errors) === 'transport') throw new UnreachableError(request)
+  if (unjudged(result.status)) throw new UnreachableError(request, result)
+  return result
+}
+
+/**
+ * 마지막 조회가 판정을 받지 못한 오류(`UnreachableError`)면 그것을, 오류가 없으면 `null` 을 준다. 그 밖의
+ * 오류는 결함이라(쿼리 함수나 요청 조립이 던졌다) 삼키지 않고 다시 던진다 - 렌더 중에 던져 오류 경계로 간다.
+ * "연결할 수 없다" 로 그리면 결함이 네트워크 문제로 위장한다.
+ */
+function unreachableOf(error: unknown): UnreachableError | null {
+  if (error === null || error === undefined) return null
+  if (error instanceof UnreachableError) return error
+  if (error instanceof Error) throw error
+  const shown = typeof error === 'string' ? error : typeof error
+  throw new Error(`조회가 Error 가 아닌 값으로 실패했다: ${shown}`)
+}
+
+/** 목록 화면이 그릴 것. `list` 의 `failure` 는 목록 끝(뒤따르는 쪽), `refreshFailed` 는 목록 위(재조회)의 실패다. */
+export type ListScreen =
+  | { kind: 'loading' }
+  | { kind: 'unreachable' }
+  | { kind: 'banner'; messages: readonly string[]; refreshFailed: boolean }
+  | (Extract<ListView, { kind: 'list' }> & { refreshFailed: boolean })
+
+/** 무한 조회가 준 것 - 읽은 쪽들(없으면 `undefined`), 마지막 조회의 오류, 그 오류가 다음 쪽의 것인가. */
+export interface ListQueryFacts {
+  readonly pages: readonly JsonApiResult<CollectionDocument>[] | undefined
+  readonly error: unknown
+  readonly nextPageFailed: boolean
+}
+
+export function listScreen(
+  resource: ResourceDefinition,
+  plan: ListRequest,
+  facts: ListQueryFacts,
+): ListScreen {
+  const unreachable = unreachableOf(facts.error)
+  const failed = unreachable !== null
+  if (facts.pages === undefined) {
+    if (unreachable?.response === undefined) {
+      return failed ? { kind: 'unreachable' } : { kind: 'loading' }
+    }
+    // 첫 조회가 판정하지 않은 응답을 받았다 - 읽은 행이 없으니 그 문구가 화면 전부다.
+    const first = listView(resource, plan, [unreachable.response])
+    return first.kind === 'banner' ? { ...first, refreshFailed: false } : { kind: 'unreachable' }
+  }
+
+  const view = listView(resource, plan, facts.pages)
+  // 판정을 받지 못한 조회는 캐시에 들지 않는다(`throwIfUnreachable`) - 들어 있으면 그것이 화면 전부다.
+  if (view.kind === 'unreachable') return view
+  if (view.kind === 'banner') return { ...view, refreshFailed: failed }
+  if (failed && facts.nextPageFailed) {
+    return { ...view, failure: { kind: 'unreachable' }, refreshFailed: false }
+  }
   return { ...view, refreshFailed: failed }
 }
-```
 
-바꿀 것:
+/** 무한 조회의 상태 가운데 다음 쪽을 부를지 가르는 셋 - TanStack Query 의 무한 조회 결과가 그대로 들어온다. */
+export interface LoadMoreFacts {
+  readonly hasNextPage: boolean
+  readonly isFetching: boolean
+  readonly isFetchNextPageError: boolean
+}
 
-```ts
-  // 없는 자원은 재조회가 닿지 못해도 없는 자원이다 - 작은 실패를 싣지 않는다.
+/**
+ * 목록 끝에 닿았을 때 다음 쪽을 부르는가 - 다음 쪽이 있고, 읽는 중이 아니고, 다음 쪽이 판정을 받지 못한 채가
+ * 아닐 때만. 읽는 중에 부르면 TanStack Query 가 진행 중인 재조회를 끊고 다음 쪽을 부른다(TanStack Query v5 무한
+ * 조회 안내의 규칙). 다음 쪽이 실패한 채로 부르면 끝의 모양이 바뀔 때마다 FlatList 가 끝에 닿았다고 다시 알려
+ * 실패할 요청이 되풀이된다 - 그 쪽은 사용자가 "다시 시도" 로 읽는다.
+ */
+export function canLoadMore(facts: LoadMoreFacts): boolean {
+  return facts.hasNextPage && !facts.isFetching && !facts.isFetchNextPageError
+}
+
+/** 상세 화면이 그릴 것. `refreshFailed` 는 읽은 상세(또는 배너) 위의 작은 실패다. */
+export type DetailScreen =
+  | { kind: 'loading' }
+  | { kind: 'unreachable' }
+  | { kind: 'notFound' }
+  | (Exclude<DetailView, { kind: 'notFound' } | ListFailure> & { refreshFailed: boolean })
+  | { kind: 'banner'; messages: readonly string[]; refreshFailed: boolean }
+
+/** 조회가 준 것 - 응답(없으면 `undefined`)과 마지막 조회의 오류. */
+export interface DetailQueryFacts {
+  readonly result: JsonApiResult<SingleDocument> | undefined
+  readonly error: unknown
+}
+
+export function detailScreen(resource: ResourceDefinition, facts: DetailQueryFacts): DetailScreen {
+  const unreachable = unreachableOf(facts.error)
+  const failed = unreachable !== null
+  if (facts.result === undefined) {
+    if (unreachable?.response === undefined) {
+      return failed ? { kind: 'unreachable' } : { kind: 'loading' }
+    }
+    // 첫 조회가 판정하지 않은 응답을 받았다 - 읽은 상세가 없으니 그 문구가 화면 전부다.
+    const first = detailView(resource, unreachable.response)
+    return first.kind === 'banner' ? { ...first, refreshFailed: false } : { kind: 'unreachable' }
+  }
+
+  const view = detailView(resource, facts.result)
+  // 없는 자원은 재조회가 판정을 받지 못해도 없는 자원이다 - 작은 실패를 싣지 않는다.
   if (view.kind === 'notFound' || view.kind === 'unreachable') return view
   return { ...view, refreshFailed: failed }
 }
 
 /**
  * 관계 선택기가 그릴 참조 목록 하나 - 목록·상세와 같은 규칙이다(스펙 9.3). 받기 전이면 `list` 가 `null`(스켈레톤)
- * 이다. 첫 조회가 닿지 못했으면 앱 문구와 "다시 시도"(`unreachable`), 백엔드가 거절했으면 그 문구(`banner`)를 보기
- * 대신 그린다 - 문구가 하나도 없는 거절도 앱 문구로 물러선다(폼 안의 선택기 하나 때문에 화면을 오류 경계로 보내지
- * 않는다). 실패한 동안 `list` 는 빈 목록이다 - 폼은 고른 것을 목록 밖 선택으로 그린다(`relationshipChoice`).
+ * 이다. 첫 조회가 판정을 받지 못했거나 백엔드가 거절했으면 보기 대신 실패를 그린다 - 응답이 없었으면 앱 문구와
+ * "다시 시도"(`unreachable`), 응답이 있으면 그 문구(`banner`)다. 문구가 하나도 없는 거절도 앱 문구로 물러선다(폼
+ * 안의 선택기 하나 때문에 화면을 오류 경계로 보내지 않는다). 실패한 동안 `list` 는 빈 목록이다 - 폼은 고른 것을
+ * 목록 밖 선택으로 그린다(`relationshipChoice`).
  *
- * 읽은 목록이 있으면 재조회가 닿지 못해도 그 목록을 그대로 두고 실패를 싣지 않는다 - 선택기는 고를 것을 보여 줄
- * 뿐이고, 그사이 없어진 보기를 고르면 저장이 관계 오류로 그 선택기 아래에 알린다(스펙 9.1).
+ * 읽은 목록이 있으면 재조회가 판정을 받지 못해도 그 목록을 그대로 두고 실패를 싣지 않는다 - 선택기는 고를 것을
+ * 보여 줄 뿐이고, 그사이 없어진 보기를 고르면 저장이 관계 오류로 그 선택기 아래에 알린다(스펙 9.1).
  */
 export interface ReferenceState {
   /** 선택기가 그릴 보기 - 받기 전이면 `null`, 실패했으면 빈 목록이다. */
@@ -1771,19 +2309,39 @@ export function referenceState(
   target: ResourceDefinition,
   facts: ReferenceQueryFacts,
 ): ReferenceState {
-  const failed = refetchUnreachable(facts.error)
-  if (facts.result === undefined) {
-    return failed
-      ? { list: referenceList(target, null), failure: { kind: 'unreachable' } }
-      : { list: null, failure: null }
+  const unreachable = unreachableOf(facts.error)
+  // 받은 목록이 없으면 첫 조회가 받은 판정하지 않은 응답을 그린다.
+  const result = facts.result ?? unreachable?.response
+  if (result === undefined) {
+    return unreachable === null
+      ? { list: null, failure: null }
+      : { list: referenceList(target, null), failure: { kind: 'unreachable' } }
   }
-  if (facts.result.ok) return { list: referenceList(target, facts.result.document), failure: null }
-  const messages = bannerMessages(facts.result.errors)
+  if (result.ok) return { list: referenceList(target, result.document), failure: null }
+  const messages = bannerMessages(result.errors)
   return {
     list: referenceList(target, null),
     failure: messages.length === 0 ? { kind: 'unreachable' } : { kind: 'banner', messages },
   }
 }
+```
+
+D3 의 시험 하나가 5xx 를 "값 그대로" 로 잰다 — 판정한 4xx 로 바꾼다. `test/unit/resources/screen-state.test.ts` — Edit, 찾을 것:
+
+```ts
+  it('백엔드 오류 문서는 값 그대로다 - 협상된 문구를 배너로 그린다', () => {
+    const result = failed<CollectionDocument>([BACKEND], 500)
+    expect(throwIfUnreachable(result, '목록')).toBe(result)
+  })
+```
+
+바꿀 것:
+
+```ts
+  it('판정한 백엔드 오류 문서(그 밖의 4xx)는 값 그대로다 - 협상된 문구를 배너로 그린다', () => {
+    const result = failed<CollectionDocument>([{ ...BACKEND, status: '400' }], 400)
+    expect(throwIfUnreachable(result, '목록')).toBe(result)
+  })
 ```
 
 `lib/resources/view.ts` — Edit, 찾을 것:
@@ -1881,11 +2439,44 @@ function nextLinkQuery(document: CollectionDocument): URLSearchParams | null {
     truncated: nextLinkQuery(document) !== null,
 ```
 
-```bash
-pnpm exec vitest run test/unit/resources 2>&1 | grep -E "Test Files|Tests "
+조회의 `queryFn` 정책을 말하는 D3 의 주석 둘을 맞춘다. `queries/resource-options.ts` — Edit, 찾을 것:
+
+```ts
+ * `queryFn` 은 백엔드가 응답조차 주지 못한 실패를 던진다(`throwIfUnreachable`) - TanStack Query 가 재조회의
+ * 실패에도 읽은 데이터를 두게 한다(lib/resources/screen-state.ts). 백엔드 오류 문서는 결과 값으로 캐시에
+ * 든다 - 화면이 협상된 문구를 배너로 그린다.
 ```
 
-Expected: `failed` 없이 전부 통과 — 새 시험 열셋과 함께 `test/unit/resources` 의 D3 시험(`view.test.ts`·`view-expo.test.ts`·`screen-state.test.ts`)도 그대로다(`nextPageQuery` 의 답은 바뀌지 않았다).
+바꿀 것:
+
+```ts
+ * `queryFn` 은 백엔드의 판정을 받지 못한 조회 - 응답조차 없었거나, 판정하지 않은 응답(5xx·408·429)이다 - 를
+ * 던진다(`throwIfUnreachable`) - TanStack Query 가 재조회의 실패에도 읽은 데이터를 두게 한다
+ * (lib/resources/screen-state.ts). 판정한 백엔드 오류 문서(그 밖의 4xx)는 결과 값으로 캐시에 든다 - 화면이
+ * 협상된 문구를 배너로 그린다.
+```
+
+`queries/resources.ts` — Edit, 찾을 것:
+
+```ts
+ * 일부러 던진다(queries/AGENTS.md). 조회의 `queryFn` 은 그 값 가운데 닿지 못함만 던진다 - TanStack Query 가
+ * 재조회의 실패에도 읽은 데이터를 두게 하려는 것이다(`throwIfUnreachable`). 백엔드 오류 문서는 값으로 캐시에
+ * 들어 배너가 된다.
+```
+
+바꿀 것:
+
+```ts
+ * 일부러 던진다(queries/AGENTS.md). 조회의 `queryFn` 은 그 값 가운데 백엔드의 판정을 받지 못한 것 - 닿지 못함과
+ * 판정하지 않은 응답(5xx·408·429) - 만 던진다. TanStack Query 가 재조회의 실패에도 읽은 데이터를 두게 하려는
+ * 것이다(`throwIfUnreachable`). 판정한 백엔드 오류 문서는 값으로 캐시에 들어 배너가 된다.
+```
+
+```bash
+pnpm exec vitest run test/unit/resources test/unit/queries 2>&1 | grep -E "Test Files|Tests "
+```
+
+Expected: `failed` 없이 전부 통과 — 새 시험과 함께 D3 의 시험(`view.test.ts`·`view-expo.test.ts`·`screen-state.test.ts`·`resource-options.test.ts`)도 그대로다(닿지 못함의 전이와 `nextPageQuery` 의 답은 바뀌지 않았다).
 
 - [ ] **Step 8: 출처 기록에 두 파일과 이탈 넷을 적는다**
 
@@ -1943,7 +2534,7 @@ node scripts/check-provenance.mjs
 
 Expected: `경로 48개, 이탈 33건`, `복사 출처 기록 통과: 경로 48개, 이탈 33건, 원본 그대로 31개`(Step 1 의 46·29·31 에서 경로 둘·이탈 넷이 늘고 원본 그대로는 같다 - `view.ts` 는 이미 이탈이 있는 경로다). `note 의 끝 문장이 예상과 다르다` 로 멈추면 D3 가 note 를 다르게 끝냈다 — 스크립트의 `NOTE_END` 검사 한 줄을 지우고 다시 돌린다(문장은 끝에 붙는다).
 
-- [ ] **Step 9: `lib/resources/AGENTS.md` 를 고친다**
+- [ ] **Step 9: 문서와 스펙 정정을 쓴다**
 
 `lib/resources/AGENTS.md` — Edit, 찾을 것:
 
@@ -1972,9 +2563,26 @@ Server Action 자리)은 이 저장소의 `write.ts` 이고 `test/unit/resources
 바꿀 것:
 
 ```markdown
-`test/unit/queries/resource-options.test.ts`(실제 `QueryClient` 의 전이)다. 관계 선택기의 참조 목록도 같은 규칙이다
-(`referenceState` - 읽은 보기는 재조회가 닿지 못해도 두고, 선택기는 작은 실패를 따로 그리지 않는다). 그 시험은
+`test/unit/queries/resource-options.test.ts`(실제 `QueryClient` 의 전이)다. 판정한 백엔드 오류 문서(그 밖의 4xx)는
+결과 값이라 재조회의 답이어도 새 답이다(지워진 상세는 not-found) - 판정하지 않은 응답의 판단은
+`test/unit/resources/screen-state-unjudged.test.ts`, 그 전이는 `test/unit/queries/refetch-unjudged.test.ts` 가 잰다.
+목록 끝에서 다음 쪽을 부를지는 `canLoadMore` 다. 관계 선택기의 참조 목록도 같은 규칙이다(`referenceState` - 읽은
+보기는 재조회가 판정을 받지 못해도 두고, 선택기는 작은 실패를 따로 그리지 않는다). 그 시험은
 `test/unit/resources/reference-state.test.ts` 와 `test/unit/queries/reference-options.test.ts` 다.
+```
+
+`lib/resources/AGENTS.md` — Edit, 찾을 것:
+
+```markdown
+조회의 `queryFn` 이 백엔드에 닿지 못한 결과를
+던지게 하고(`throwIfUnreachable` - `UnreachableError`),
+```
+
+바꿀 것:
+
+```markdown
+조회의 `queryFn` 이 백엔드의 판정을 받지 못한
+결과 - 닿지 못함과 판정하지 않은 응답(5xx·408·429, D4) - 를 던지게 하고(`throwIfUnreachable` - `UnreachableError`),
 ```
 
 `lib/resources/AGENTS.md` — Edit, 찾을 것:
@@ -1991,6 +2599,44 @@ Server Action 자리)은 이 저장소의 `write.ts` 이고 `test/unit/resources
 `id`)는 이름으로 꺼낸다.
 ```
 
+`queries/AGENTS.md` — Edit, 찾을 것:
+
+```markdown
+- 조회의 `queryFn`(`resource-options.ts`)은 `apiRequest` 의 결과 가운데 **닿지 못함만 던진다**(`throwIfUnreachable` -
+```
+
+바꿀 것:
+
+```markdown
+- 조회의 `queryFn`(`resource-options.ts`)은 `apiRequest` 의 결과 가운데 **백엔드의 판정을 받지 못한 것만 던진다** - 닿지
+  못함과 판정하지 않은 응답(5xx·408·429 - D4, 회전과 같은 셋)이다(`throwIfUnreachable` -
+```
+
+`queries/AGENTS.md` — Edit, 찾을 것:
+
+```markdown
+  로 재 보였다). 백엔드 오류 문서는 결과 값으로 캐시에 든다 - 배너다.
+```
+
+바꿀 것:
+
+```markdown
+  로 재 보였다. D3 재검토가 같은 결함을 백엔드 오류 문서에서 봐 D4 가 5xx·408·429 를 더했다). 판정한 백엔드 오류
+  문서(그 밖의 4xx)는 결과 값으로 캐시에 든다 - 배너다(첫 조회의 판정하지 않은 응답도 그 문구의 배너다).
+```
+
+스펙 — 9.3 의 끝, `### 9.4 Accept-Language` 바로 앞에 더한다:
+
+```markdown
+> 정정(2026-10-01, D4): 재조회가 판정하지 않은 응답(5xx·408·429)을 받아도 읽은 목록·상세를 버리지 않는다 - 닿지
+> 못함(8.5 의 둘째 D3 정정)과 같다. 조회의 `queryFn` 이 그 응답도 던지고(`lib/resources/screen-state.ts` 의
+> `throwIfUnreachable`), 화면은 첫 조회면 그 응답의 문구를 배너로, 읽은 데이터가 있으면 그 위에 작은 실패와 "다시
+> 시도"(앱 문구)를, 다음 쪽이면 목록 끝의 작은 실패를 그린다. 판정한 오류(그 밖의 4xx - 없는 자원 등)는 여전히
+> 결과 값이라 새 답이다(지워진 상세는 not-found). 처음 판은 백엔드 오류 문서를 전부 결과 값으로 캐시에 둬서, 목록의
+> 재조회가 5xx 를 받으면 읽은 쪽 전부가 오류 한 쪽으로 바뀌고 다음 재조회는 한 쪽만 읽었다(D3 재검토) - 쓰기 뒤
+> 무효화가 그 길을 늘린다. 그 셋을 판정하지 않은 응답으로 보는 것은 회전(7.2 의 D4 정정)과 같다.
+```
+
 - [ ] **Step 10: 정적 검사를 돌리고 커밋한다**
 
 ```bash
@@ -1998,12 +2644,12 @@ pnpm format
 pnpm typecheck && pnpm lint && pnpm format:check && pnpm lint:secrets
 ./scripts/check-citations.sh app components lib platform queries test
 pnpm test 2>&1 | grep -E "Test Files|Tests "
-git add lib/resources test/unit/resources docs/provenance/copied-core.json pnpm-workspace.yaml
+git add lib/resources test/unit/resources test/unit/queries queries docs/provenance/copied-core.json docs/superpowers/specs pnpm-workspace.yaml
 git status --short
-git commit -m "feat: 원본의 쓰기 판단을 폼 상태 객체로 복사하고 쓰기 한 번의 흐름을 lib 에 둔다"
+git commit -m "feat: 원본의 쓰기 판단을 폼 상태 객체로 복사하고 쓰기 흐름과 판정하지 않은 재조회의 정책을 lib 에 둔다"
 ```
 
-Expected: 검사 전부 exit 0, `Tests  1224 passed (1224)`(기준 1143 + 81, 51 파일 - 원본 시험 33, 새 판단 13, 흐름 22, 참조 상태 7, 다음 쪽 6), `git status` 에 커밋할 것 말고 남은 파일이 없다(`.maestro-output/` 은 무시된다).
+Expected: 검사 전부 exit 0, `Tests  1250 passed (1250)`(기준 1143 + 107, 53 파일 - 원본 시험 33, 새 판단 13, 흐름 22, 판정하지 않은 응답 23, 그 전이 3, 참조 상태 7, 다음 쪽 6), `git status` 에 커밋할 것 말고 남은 파일이 없다(`.maestro-output/` 은 무시된다).
 
 ### Task 2: 세션·가드 보강 — 회전의 5xx, 라우트 모양의 보호 판정, 로그인 화면의 뒤로 가기, 제출 한 번, 세우기 거절의 시험
 
@@ -3342,7 +3988,7 @@ git status --short
 git commit -m "fix: 회전의 5xx 가 세션을 지우지 않게 하고 보호 판정·로그인 화면의 뒤로 가기·두 번 제출을 바로잡는다"
 ```
 
-Expected: 검사 전부 exit 0(`pnpm format` 이 `queries/AGENTS.md` 의 표 칸을 새 행에 맞춰 넓힌다), `Tests  1253 passed (1253)`(Task 1 의 1224 + 29, 54 파일 - 회전 11·보호 경로 8·제출 한 번 3·세우기 거절 4·이동 가드 3), 남은 파일이 없다.
+Expected: 검사 전부 exit 0(`pnpm format` 이 `queries/AGENTS.md` 의 표 칸을 새 행에 맞춰 넓힌다), `Tests  1279 passed (1279)`(Task 1 의 1250 + 29, 56 파일 - 회전 11·보호 경로 8·제출 한 번 3·세우기 거절 4·이동 가드 3), 남은 파일이 없다.
 
 ### Task 3: 쓰기 훅, 관계 참조 목록, 인증 오류의 한 곳
 
@@ -3351,7 +3997,7 @@ Expected: 검사 전부 exit 0(`pnpm format` 이 `queries/AGENTS.md` 의 표 칸
 - Modify: `queries/keys.ts`(`mutationKeys`), `test/unit/queries/keys.test.ts`, `queries/resource-options.ts`(`referenceQueryOptions`), `queries/resources.ts`(상세의 `result`·`enabled`, `useRelationshipReferences`, 화면 조회의 `subscribed` - M2), `platform/query-client.ts`(`MutationCache.onError`), `platform/AGENTS.md`, `queries/AGENTS.md`, 스펙 8.5·9 정정
 
 **Interfaces:**
-- Consumes: Task 1 의 `createResource`·`updateResource`·`deleteResource`·`WriteDeps`·`isSessionRejected`(`lib/resources/write.ts`), `IDLE_RESOURCE_FORM_STATE`·`ResourceFormState`·`ResourceFormValues`·`relationshipTargets`(`lib/resources/form.ts`), `referenceState`·`ReferenceState`(`lib/resources/screen-state.ts`), D3 의 `queryKeys`·`cacheEffects`·`applyCacheEffects`(`queries/keys.ts`)·`listQueryOptions`·`detailQueryOptions`(`queries/resource-options.ts`)·`throwIfUnreachable`·`detailScreen`(`lib/resources/screen-state.ts`)·`referenceRequest`(`lib/resources/view.ts`), `useIsFocused`(`expo-router`), `apiRequest`(`platform/api.ts`), `sessionManager`(`platform/session.ts`)
+- Consumes: Task 1 의 `createResource`·`updateResource`·`deleteResource`·`WriteDeps`·`isSessionRejected`(`lib/resources/write.ts`), `IDLE_RESOURCE_FORM_STATE`·`ResourceFormState`·`ResourceFormValues`·`relationshipTargets`(`lib/resources/form.ts`), `referenceState`·`ReferenceState`·`canLoadMore`(`lib/resources/screen-state.ts`, Task 1), D3 의 `queryKeys`·`cacheEffects`·`applyCacheEffects`(`queries/keys.ts`)·`listQueryOptions`·`detailQueryOptions`(`queries/resource-options.ts`)·`throwIfUnreachable`·`detailScreen`(`lib/resources/screen-state.ts`)·`referenceRequest`(`lib/resources/view.ts`), `useIsFocused`(`expo-router`), `apiRequest`(`platform/api.ts`), `sessionManager`(`platform/session.ts`)
 - Produces:
   - `queries/keys.ts`: `mutationKeys.create(type)`·`.update(type, id)`·`.delete(type, id)`(`['resources', type, 'create'|'update'|'delete', id?]`)
   - `queries/writes.ts`: `interface FormWrite { mutationKey: MutationKey; state: ResourceFormState; pending: boolean; submit: (values, onSaved: (id: string) => void) => void }`, `interface EditWrite extends FormWrite { gone: boolean }`, `interface DeleteWrite { mutationKey; messages: readonly string[]; pending; deleted: boolean; remove: (onDeleted: () => void) => void }`, `useCreateResource(resource): FormWrite`, `useUpdateResource(resource, id): EditWrite`, `useDeleteResource(resource, id): DeleteWrite`
@@ -4053,6 +4699,7 @@ import type { SingleDocument } from '@/lib/jsonapi/document'
 import type { ResourceDefinition } from '@/lib/resources/define'
 import { relationshipTargets } from '@/lib/resources/form'
 import {
+  canLoadMore,
   detailScreen,
   listScreen,
   referenceState,
@@ -4067,6 +4714,29 @@ import {
   listQueryOptions,
   referenceQueryOptions,
 } from '@/queries/resource-options'
+```
+
+같은 파일에 Edit, 찾을 것(목록 끝의 가드 - 판단을 `canLoadMore` 로 옮긴다):
+
+```ts
+    // 읽는 중에 부르면 TanStack Query 가 진행 중인 재조회를 끊고 다음 쪽을 부른다 - 그래서 읽는 중에는 부르지
+    // 않는다(TanStack Query v5 무한 조회 안내의 규칙). 다음 쪽이 닿지 못한 채로도 부르지 않는다 - 끝의 모양이 바뀔
+    // 때마다 FlatList 가 끝에 닿았다고 다시 알려 닿지 못할 요청이 되풀이된다. 그 쪽은 사용자가 "다시 시도" 로 읽는다.
+    loadMore: () => {
+      if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) {
+        void query.fetchNextPage()
+      }
+    },
+```
+
+바꿀 것:
+
+```ts
+    // 부를지는 `canLoadMore`(lib/resources/screen-state.ts)가 정한다 - 다음 쪽이 없거나, 읽는 중이거나, 다음 쪽이
+    // 실패한 채면 부르지 않는다.
+    loadMore: () => {
+      if (canLoadMore(query)) void query.fetchNextPage()
+    },
 ```
 
 같은 파일에 Edit, 찾을 것(목록 훅의 조회):
@@ -4380,7 +5050,7 @@ git status --short
 git commit -m "feat: 자원의 쓰기 훅과 관계 참조 목록을 더하고 세션 거절을 쓰기 캐시의 한 곳에서 받는다"
 ```
 
-Expected: 검사 전부 exit 0, `Tests  1260 passed (1260)`(1253 + 7, 56 파일 - 쓰기 키 1·인증 오류 배선 3·참조 목록의 전이 3), 남은 파일이 없다.
+Expected: 검사 전부 exit 0, `Tests  1286 passed (1286)`(1279 + 7, 58 파일 - 쓰기 키 1·인증 오류 배선 3·참조 목록의 전이 3), 남은 파일이 없다.
 
 ### Task 4: 생성·수정·삭제 화면과 관계 선택기
 
@@ -5643,7 +6313,7 @@ git status --short
 git commit -m "feat: 생성·수정·삭제 화면과 관계 선택기를 더하고 목록·상세에 진입점을 둔다"
 ```
 
-Expected: 검사 전부 exit 0, `Tests  1260 passed (1260)`(이 태스크는 시험을 더하지 않는다, 56 파일), `export exit=0`, `Unable to resolve` 0(`iOS Bundled`·`Android Bundled` 가 보인다), 남은 파일이 없다(`dist` 는 지웠고 `.expo/`·`.maestro-output/` 은 무시된다).
+Expected: 검사 전부 exit 0, `Tests  1286 passed (1286)`(이 태스크는 시험을 더하지 않는다, 58 파일), `export exit=0`, `Unable to resolve` 0(`iOS Bundled`·`Android Bundled` 가 보인다), 남은 파일이 없다(`dist` 는 지웠고 `.expo/`·`.maestro-output/` 은 무시된다).
 
 ### Task 5: 쓰기 E2E, 기기에서의 실제 회전, 게이트
 
@@ -6974,12 +7644,12 @@ Expected: 검사 통과, 첫 `git status` 에는 이 태스크의 파일만 있�
 
 ## 이 계획이 끝났을 때의 상태
 
-- `lib/resources/form.ts` 가 원본에서 복사돼 폼 상태 객체(`newFormValues`·`withAttribute`·`withRelationshipChoice`)와 관계 선택기의 판단(`relationshipTargets`·`relationshipChoice`)을 갖는다. 쓰기 한 번의 흐름은 `lib/resources/write.ts` 가 주입받은 전송·토큰으로 정한다 — 쓰기 가드, 세션 거절, 422·관계 오류의 자리, 닿지 못함의 앱 문구, 수정·삭제·생성의 `RESOURCE_NOT_FOUND`. 참조 목록의 상태는 목록·상세와 같은 규칙이다(`screen-state.ts` 의 `referenceState`). 무한 스크롤의 끝과 선택기의 잘림은 한 판정(`view.ts` 의 `nextLinkQuery`)이다. 원본 시험 33, 새 판단 13, 흐름 22, 참조 상태 7, 다음 쪽 6 이 지킨다. 출처 기록은 경로 48·이탈 36·원본 그대로 31 이다.
+- `lib/resources/form.ts` 가 원본에서 복사돼 폼 상태 객체(`newFormValues`·`withAttribute`·`withRelationshipChoice`)와 관계 선택기의 판단(`relationshipTargets`·`relationshipChoice`)을 갖는다. 쓰기 한 번의 흐름은 `lib/resources/write.ts` 가 주입받은 전송·토큰으로 정한다 — 쓰기 가드, 세션 거절, 422·관계 오류의 자리, 닿지 못함의 앱 문구, 수정·삭제·생성의 `RESOURCE_NOT_FOUND`. 조회의 `queryFn` 은 닿지 못함에 더해 판정하지 않은 응답(5xx·408·429)도 던진다 - 재조회가 그렇게 끝나도 읽은 목록·상세·참조 목록이 남고 다음 재조회가 쪽 전부를 다시 읽는다. 첫 조회면 그 응답의 문구가 배너다. 판정한 4xx 는 새 답이다. 참조 목록의 상태는 목록·상세와 같은 규칙이다(`screen-state.ts` 의 `referenceState`). 목록 끝의 가드는 `canLoadMore` 다. 무한 스크롤의 끝과 선택기의 잘림은 한 판정(`view.ts` 의 `nextLinkQuery`)이다. 원본 시험 33, 새 판단 13, 흐름 22, 판정하지 않은 응답 23, 그 전이 3, 참조 상태 7, 다음 쪽 6 이 지킨다. 출처 기록은 경로 48·이탈 36·원본 그대로 31 이다.
 - `queries/writes.ts` 의 생성·수정·삭제 훅이 D3 의 무효화 표를 지나고, 폼은 쓰기의 키로 제출을 한 번에 하나만 보낸다(`queries/submit-once.ts` - 자격증명 폼도). 세션 거절은 쓰기 캐시의 `onError` 한 곳이 기기 세션을 지우고 경로 가드가 `next` 를 실어 로그인으로 보낸다. 삭제한 수정 화면은 상세를 다시 부르지 않는다. 참조 목록의 조회(`referenceQueryOptions`)도 닿지 못함을 던져 재조회의 실패가 읽은 보기를 지우지 않는다. 화면의 조회는 쌓인 동안 구독하지 않고(`subscribed: useIsFocused()`) 다시 앞에 올 때 부른다.
 - 생성(`/examples/new`)은 필수 enum 을 첫 값으로 시작하고 만들면 상세로 바뀐다. 수정(`/examples/[id]/edit`)은 처음 받은 상세로 기존 값을 채우고 저장하면 상세로, 삭제는 확인 시트를 거쳐 보던 목록(같은 조건)으로 간다. 관계 선택기는 고른 순서를 지키고 목록 밖 선택·잘림을 알린다. 목록에 "새로 만들기", 상세에 "수정" 이 있고, 행·조건 바꾸기와 함께 두 번 눌러도 화면을 한 번만 쌓는다(`useNavigateOnce`). 폼의 끝은 내비게이션 막대만큼 띄운다.
 - 회전 응답의 5xx·408·429 는 세션을 지우지 않는다. 가드는 라우트 모양으로 보호를 판정한다. 가드가 보낸 로그인·가입 화면에서 뒤로 가면 홈이다. `establishIfSignedIn` 의 거절 정책을 `MutationObserver` 시험이 지킨다. 릴리스 대기 예외가 없고 `pnpm install --frozen-lockfile` 이 통과한다.
-- `./scripts/check.sh` 가 12단계를 통과한다. E2E 는 D2 의 일곱, D3 의 일곱, D4 의 넷 — 생성(뒤로 가기 포함)·수정(기존 값·태그 순서·관계 초기화·목록 밖 선택)·삭제(딥링크 가드·쌓인 목록의 앱 복귀 포함)·실패 처리(422·없는 id·404 둘·끊긴 세션 401) — 을 한 에뮬레이터·한 스택에서 돌고, 백엔드의 access 수명이 10초라 앱의 쓰기가 전부 실제 회전을 지난다. APK 는 빌드마다 Metro 캐시를 비운 뒤 만든다. 단위 시험 1260(56 파일).
-- 기록: D4 실측 W1(쓰기 E2E·가드·뒤로 가기·딥링크 가드·빌드)·W2(회전의 실제 왕복)·W3(쌓인 화면의 재조회). 스펙 정정: 7.2·7.3·8.5·9·11.3.
+- `./scripts/check.sh` 가 12단계를 통과한다. E2E 는 D2 의 일곱, D3 의 일곱, D4 의 넷 — 생성(뒤로 가기 포함)·수정(기존 값·태그 순서·관계 초기화·목록 밖 선택)·삭제(딥링크 가드·쌓인 목록의 앱 복귀 포함)·실패 처리(422·없는 id·404 둘·끊긴 세션 401) — 을 한 에뮬레이터·한 스택에서 돌고, 백엔드의 access 수명이 10초라 앱의 쓰기가 전부 실제 회전을 지난다. APK 는 빌드마다 Metro 캐시를 비운 뒤 만든다. 단위 시험 1286(58 파일).
+- 기록: D4 실측 W1(쓰기 E2E·가드·뒤로 가기·딥링크 가드·빌드)·W2(회전의 실제 왕복)·W3(쌓인 화면의 재조회). 스펙 정정: 7.2·7.3·8.5·9.3(판정하지 않은 재조회)·9(쓰기의 오류)·11.3.
 - 컨트롤러가 이 브랜치를 `main` 에 머지 커밋으로 곧바로 병합한다(전역 제약).
 
 ## 다음 계획
