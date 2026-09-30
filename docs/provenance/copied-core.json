@@ -35,7 +35,18 @@
     "test/e2e/seed/examples.rails.sql",
     "test/unit/e2e/seed-mirror.test.ts",
     "scripts/check-citations.sh",
-    "test/unit/scripts/check-citations.test.ts"
+    "test/unit/scripts/check-citations.test.ts",
+    "lib/auth/credentials.ts",
+    "lib/auth/flow.ts",
+    "lib/auth/form-state.ts",
+    "lib/auth/logout.ts",
+    "lib/auth/rotation.ts",
+    "test/unit/auth/credentials.test.ts",
+    "test/unit/auth/flow.test.ts",
+    "test/unit/auth/logout.test.ts",
+    "test/unit/auth/rotation.test.ts",
+    "test/e2e/probe-email.ts",
+    "test/unit/e2e/probe-email.test.ts"
   ],
   "note": "복사본이다. 원본에서 계약 버그가 고쳐지면 이 커밋과 원본을 비교해 반영 여부를 판단한다. 개별 이탈은 divergences 배열에 기록한다(스펙 6.3). 복사본의 주석이 말하는 '스펙'·'D2 Task N'·'proxy.ts' 같은 자리는 원본 저장소의 것이다. scripts/check-citations.sh 머리말의 게이트 단계 번호 '[5/9]' 도 원본 게이트의 번호다(이 저장소의 게이트에서는 [5/11]). 같은 머리말이 계약이 적혀 있다고 가리키는 '루트 AGENTS.md 의 R21 절'도 원본 저장소의 것이고 이 저장소의 루트 AGENTS.md 에는 없다(이 저장소에서 그 계약은 '사라질 자리를 인용하지 마라' 절이다). test/unit/scripts/check-citations.test.ts 의 toPosix 주석은 원본의 실측 문장(계정 이름이 든 예시 경로)을 그대로 둔 것이다. 복사한 시드 파일과 시드 시험도 원본 저장소의 것을 가리킨다 - 원본의 web 서비스와 TZ, test/e2e/*.spec.ts, lib/resources/view.ts, 원본 루트 AGENTS.md 의 문장은 이 저장소에 없다. sourceBlobs 는 원본 그대로인 경로마다 원본 커밋의 blob SHA-1 이다(git -C <원본> rev-parse <commit>:<경로>) - 그 파일을 고치면 divergences 에 적고 sourceBlobs 에서 항목을 지운다.",
   "divergences": [
@@ -88,6 +99,41 @@
       "path": "test/unit/scripts/check-citations.test.ts",
       "what": "GATE_TARGETS 를 app·components·lib·platform·test 로 바꿨고, 주석의 원본 게이트 단계 번호 [5/9] 를 이 저장소의 [5/11] 로 바꿨다.",
       "why": "이 저장소에는 proxy.ts 가 없고 platform/ 이 있다. 테스트는 check.sh 의 호출 인자와 이 목록을 맞대므로 둘이 같아야 한다. queries/ 는 첫 파일이 생길 때 두 자리에 함께 더한다."
+    },
+    {
+      "path": "lib/auth/credentials.ts",
+      "what": "credentialsFromFormData 와 그 도우미 stringField 를 뺐다. signUp·signIn·signUpThenSignIn 이 acceptLanguage(string | null) 대신 send(JsonApiSend, lib/jsonapi/send.ts)를 받아 그 함수로 요청을 보낸다 - request·withAcceptLanguage import 를 뺐다. 그 자리의 주석 둘(기본값이 없다는 절, 두 호출을 묶는 이유)을 send 에 맞게 고쳤다.",
+      "why": "RN 화면은 FormData 로 제출하지 않고 입력 상태(Credentials)를 그대로 넘긴다(스펙 6.2). Accept-Language 를 싣는 자리는 platform/ 의 API 클라이언트 한 곳이다(스펙 9.4) - 호출부마다 언어 값을 넘기던 원본에서는 그 인자를 null 로 바꾸는 뮤턴트가 게이트를 통과했다. 인증 호출은 그 클라이언트를 주입받는다."
+    },
+    {
+      "path": "test/unit/auth/credentials.test.ts",
+      "what": "credentialsFromFormData describe(3개)와 그 import 를 지웠다. signUp·signIn·signUpThenSignIn 호출의 언어 인자를 전송으로 바꿨다 - PROBE_ACCEPT_LANGUAGE 는 그 값을 싣는 전송(probeSend = request + withAcceptLanguage), null 은 request, '' 는 sendWithLanguage('') 다. 그 둘을 만드는 도우미와 import(request·withAcceptLanguage·RequestOptions·JsonApiSend)를 더했다.",
+      "why": "위 이탈을 따라간다. 헤더 맵 전체를 비교하는 원래 단언이 그대로 남아, 함수가 주입받은 전송을 쓰지 않고 request 를 직접 부르면 accept-language 가 빠져 죽는다."
+    },
+    {
+      "path": "lib/auth/logout.ts",
+      "what": "revokeSession·endSession 이 acceptLanguage 대신 send(JsonApiSend)를 받는다. endSession 의 셋째 인자 이름을 clearCookies 에서 clearLocal 로 바꾸고 그 절의 주석을 고쳤다. request·withAcceptLanguage import 를 뺐다.",
+      "why": "Accept-Language 는 주입받은 전송이 싣는다(스펙 9.4). 이 저장소에는 쿠키가 없다 - 로그아웃이 비우는 것은 기기의 세션 항목과 Query 캐시다(스펙 7.4). 부르는 곳은 lib/auth/session-manager.ts 의 logout() 하나다."
+    },
+    {
+      "path": "test/unit/auth/logout.test.ts",
+      "what": "logoutAction import 와 그 관측 한계 describe(1개)를 지웠다. LOGIN_PATH·isProtectedPath 를 lib/auth/guard·@/proxy 대신 lib/auth/protected-paths 에서 가져온다. revokeSession·endSession·rotateSession 의 언어 인자를 전송(probeSend, null 은 request)으로 바꾸고 그 도우미와 import 를 더했다. BACKEND_URL 예외 시험은 새로 들여온 client.ts 의 request 를 넘긴다.",
+      "why": "Server Action·proxy.ts·guard.ts 는 복사하지 않았다(스펙 6.2) - 보호 경로 목록은 lib/auth/protected-paths.ts 하나다(스펙 7.3). logout.ts 가 이제 request 를 import 하지 않으므로, 설정 캐시가 빈 새 모듈을 타려면 그 모듈의 request 를 인자로 넘겨야 한다."
+    },
+    {
+      "path": "lib/auth/rotation.ts",
+      "what": "RotationDecision 과 decideRotation 을 빼고 그 자리에 뺀 이유를 적은 주석을 두었다. rotateSession 이 acceptLanguage 대신 send(JsonApiSend)를 받는다. session.ts(decodeAccessCookieValue)·isAccessExpiring·request·withAcceptLanguage import 를 뺐다. rotateSession 주석의 acceptLanguage 절을 send 에 맞게 고쳤다.",
+      "why": "decideRotation 은 원본의 쿠키 두 개(session.ts 의 인코딩)를 읽는 프록시용 판단이다. 이 저장소는 세션을 SecureStore 항목 하나에 두고, 회전할지는 lib/auth/session-manager.ts 가 저장된 세션의 isAccessExpiring 으로 정한다(스펙 7.1·7.2). 전송은 credentials.ts 와 같은 이유다(스펙 9.4)."
+    },
+    {
+      "path": "test/unit/auth/rotation.test.ts",
+      "what": "decideRotation describe(7개)와 그 도우미(accessCookie)·import(decideRotation·encodeAccessCookieValue·ACCESS_EXPIRY_LEEWAY_MS)를 지웠다. rotateSession 의 언어 인자를 전송(probeSend, null 은 request)으로 바꾸고 그 도우미와 import 를 더했다.",
+      "why": "위 이탈을 따라간다. 회전할지의 판단은 test/unit/auth/session-manager.test.ts 가 잰다."
+    },
+    {
+      "path": "lib/auth/form-state.ts",
+      "what": "AuthFormAction 타입과 그 주석을 뺐다.",
+      "why": "Server Action 모양((state, formData: FormData) => Promise<AuthFormState>)이다(스펙 6.2). RN 화면은 쓰기 훅(queries/auth.ts)의 결과로 폼 상태를 바꾼다."
     }
   ],
   "sourceBlobs": {
@@ -117,6 +163,10 @@
     "test/e2e/seed/examples.sql": "fec8529213bdb0f4b041c2da580ad2651a367969",
     "test/e2e/seed/examples.rails.sql": "db8808f8a1a3e928bb55d2bdddb8afcff69dd717",
     "test/unit/e2e/seed-mirror.test.ts": "523003330904a4d411be0f656607775618566033",
-    "scripts/check-citations.sh": "d1368852d42de3db315ab78b12cebc943ed07b11"
+    "scripts/check-citations.sh": "d1368852d42de3db315ab78b12cebc943ed07b11",
+    "lib/auth/flow.ts": "62ee21b41bfb16c474252e6118108fe5d96d98f2",
+    "test/unit/auth/flow.test.ts": "1579380da841000bc6b025b64e91a3efb9c556cd",
+    "test/e2e/probe-email.ts": "70d57b3fd387f599d85dc76e3cb10f5c0032f8fb",
+    "test/unit/e2e/probe-email.test.ts": "406e0fd808767c0a605bbbf25c414eec129b165e"
   }
 }
