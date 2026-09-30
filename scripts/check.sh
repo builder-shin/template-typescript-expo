@@ -64,6 +64,8 @@ done
 echo "=== [9/11] 의존성 호환 ==="
 BACKEND_URL="$GATE_BACKEND_URL" pnpm exec expo-doctor
 
+# Windows 에서 expo export 가 대개 결과를 다 쓴 뒤 종료할 때 간헐적으로 0xC0000005(Git Bash 에서는 139)로
+# 죽는다 - 실측 기록의 M1 관찰 8. 이 단계가 139 로 끝나면 같은 명령이 다시 통과하는지 본다.
 echo "=== [10/11] 번들 ==="
 APP_VARIANT=production BACKEND_URL="$GATE_BACKEND_URL" pnpm exec expo export --platform android --platform ios --output-dir dist
 

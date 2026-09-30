@@ -714,6 +714,11 @@ npm `latest`는 1.12.0(2026-09-04)이라 고쳐진 릴리스는 아직 없다.
    ESLint의 `projectService`는 파일에서 가장 가까운 `tsconfig.json`을 쓰므로 시험 파일은 `test/tsconfig.json`으로 타입 규칙을 받는다. 임시 프로브로 확인했다. `node:fs`·`node:child_process`·`process.env`를 쓰는 시험 파일과
    `number = setTimeout(…)`을 쓰는 `lib/` 파일을 함께 두어도 `pnpm typecheck`는 exit 0이고, 같은 `setTimeout` 줄을 시험 프로브에 더하면 테스트 프로그램에서만 `TS2322`가 나며, 시험 프로브에 넣은 미대기 Promise는
    `@typescript-eslint/no-floating-promises`로 보고된다(깨끗한 프로브에서는 `no-unsafe-*`가 없다).
+8. **`expo export`가 종료할 때 간헐적으로 죽는다(게이트 [10/11]).** 2026-09-30 17:50 무렵부터 이 머신에서 `expo export --platform android --platform ios`가 `Exported: dist`까지 출력한 뒤
+   (한 번은 그 전에) `STATUS_ACCESS_VIOLATION`(0xC0000005)으로 끝나는 일이 잦았다. PowerShell의 종료 코드는 -1073741819이고 Git Bash에서는 139 `Segmentation fault`다. Metro 캐시를 그대로 둔
+   26회 중 13회가 죽었고 `--clear`를 준 10회는 모두 exit 0이었다. `pnpm exec`을 빼고 `node node_modules/expo/bin/cli export`로 돌려도, `dist`를 지우고 돌려도 죽었다. 같은 세션의 앞선 게이트
+   실행 셋은 모두 exit 0이었다. 원인은 찾지 못했다(`node.exe`의 Windows 오류 보고 이벤트가 남지 않았다). `--clear`는 `os.tmpdir()/metro-cache`(관찰 4)를 지워 같은 머신의 다른 Metro와 부딪힐 수
+   있어 게이트에 넣지 않았다. 게이트가 [10/11]에서 139로 끝나면 같은 명령이 다시 통과하는지 본다.
 
 ### 정한 것
 
