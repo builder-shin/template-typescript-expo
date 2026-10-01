@@ -75,6 +75,8 @@ appId: com.example.templateexpo.e2e
     element:
       id: lab-run-relationshipWrite
     direction: DOWN
+- assertVisible:
+    id: lab-session-note-relationshipWrite
 - tapOn:
     id: lab-run-relationshipWrite
 - extendedWaitUntil:

@@ -77,10 +77,10 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
 
 ## 계약 실험실 플로
 
-- 실험실(`/contract`)은 홈의 `home-lab-link` 로 연다. testID 끝에 실험 id 가 붙는다
-  (`components/lab/experiment-card.tsx`) - 실행 버튼 `lab-run-<id>`, 결과 `lab-result-<id>`, 상태 `lab-status-<id>`, 보낸
-  헤더 `lab-header-<id>-<이름>`, 여러 단계의 머리글·본문 `lab-step-heading-<id>-<순서>`·`lab-step-body-<id>-<순서>`(0부터),
-  한 단계 결과의 본문 `lab-body-<id>`, 맺음말 `lab-note-<id>`.
+- 실험실(`/contract`, 화면 `lab-screen`)은 홈의 `home-lab-link` 로 연다. testID 끝에 실험 id 가 붙는다
+  (`components/lab/experiment-card.tsx`) - 실행 버튼 `lab-run-<id>`, 세션 안내 `lab-session-note-<id>`(세션이 필요한 셋만),
+  결과 `lab-result-<id>`, 상태 `lab-status-<id>`, 보낸 헤더 `lab-header-<id>-<이름>`, 여러 단계의 머리글·본문
+  `lab-step-heading-<id>-<순서>`·`lab-step-body-<id>-<순서>`(0부터), 한 단계 결과의 본문 `lab-body-<id>`, 맺음말 `lab-note-<id>`.
 - 실행 버튼을 누른 뒤에는 스피너가 멈추기를 기다린다(`waitForAnimationToEnd`) - 도는 동안 스크롤하면 결과가 화면 위쪽에
   끼어 아래로 찾는 `scrollUntilVisible` 이 지나칠 수 있다.
 - 결과의 본문은 길다(offset 순회는 쪽마다 수십 줄) - 단언할 요소를 `scrollUntilVisible` 로 화면에 들인 뒤에 본다. 본문처럼
