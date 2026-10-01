@@ -105,8 +105,10 @@ type AccessToken = { readonly ok: true; readonly token: string } | { readonly ok
  * 받은 토큰의 세션이 이미 만료됐어도 `ok: false` 다(만료 가드, 이 파일 머리말) - 요청하지 않는다. 던지지 않고 로그도
  * 남기지 않는다: 오류가 아니라 백엔드가 회전을 판정하지 않는 동안의 정상 경로이고, 세션은 건드리지 않는다. 만료는
  * 세션 관리자와 같은 시계로 잰다 - 만료 시각과 같은 순간도 만료다(JWT 의 `exp` 는 그 시각부터 받아 주지 않는다).
+ *
+ * 계약 실험실의 세션이 필요한 실험도 이 길로 토큰을 받는다(lib/lab/run.ts) - 가드를 두 벌 두지 않는다.
  */
-async function accessToken(deps: WriteDeps): Promise<AccessToken> {
+export async function accessToken(deps: WriteDeps): Promise<AccessToken> {
   let token: string | null
   try {
     token = await deps.getAccessToken()

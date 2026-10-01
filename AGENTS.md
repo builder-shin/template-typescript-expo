@@ -15,7 +15,7 @@
 | `lib/jsonapi/`         | 문서 파싱, `included` 정규화, 쿼리 직렬화, 오류 분류, HTTP 협상                                                      | 자원별 지식, 화면, 네이티브 모듈          |
 | `lib/resources/`       | 자원 선언, 목록·상세·폼 판단                                                                                         | JSX, fetch, 네이티브 모듈                 |
 | `lib/auth/`            | 세션 모델과 직렬화, 만료 판정, 회전 결정, 자격증명 문서, 보호 경로 목록과 경로 가드 판단                             | 저장 매체, 화면 이동                      |
-| `lib/lab/`             | 실험 정의, 결과 표현                                                                                                 | 화면, 세션                                |
+| `lib/lab/`             | 실험 정의, 실험의 실행(전송·토큰을 주입받는다), 결과 표현                                                            | 화면, 세션                                |
 | `lib/config/`          | 설정 계약과 변형 규칙 - `app.config.ts`가 M7 제약 아래 직접 불러온다                                                 | 네이티브 모듈, 설정 자리의 바인딩         |
 | `lib/navigation/`      | 밖에서 들어온 URL·딥링크를 앱 안 주소로 바꾸는 정규화, 화면을 쌓는 이동을 한 번만 하는 가드(`once.ts`)               | 화면, fetch, 네이티브 모듈                |
 | `platform/`            | SecureStore·로캘·AppState·NetInfo·Updates·Constants 호출, React Provider, API 클라이언트 조립                        | 판단                                      |
@@ -25,6 +25,7 @@
 | `components/hooks/`    | React Native Reusables 가 받는 UI 도우미 훅(`components.json`의 `hooks` 별칭)                                        | 조회·쓰기 훅, 자원 이름, fetch, 세션      |
 | `components/app/`      | 앱 전체에 걸린 화면 조각(설정 오류 화면 `FatalConfig` 등)과 앱 전체의 이동 도우미(`useNavigateOnce`·`useBackToHome`) | 자원 UI, fetch                            |
 | `components/form/`     | 폼 조각 - 필드 오류·배너·제출 버튼·자격증명 폼                                                                       | 자원 이름, fetch, 세션                    |
+| `components/lab/`      | 계약 실험실의 조각 - 실험 카드와 결과 표시                                                                           | 요청, 세션, 자원 이름으로 분기            |
 | `components/resource/` | 선언을 읽어 만드는 획일 UI                                                                                           | 자원 이름으로 분기                        |
 
 `lib/config/`·`components/ui/`·`components/form/`·`components/app/`·`components/hooks/`는 스펙 5장의 표에
@@ -38,7 +39,8 @@
 뒀다. 자원에 매이지 않는 주소 판단이라 `lib/resources/`에 두지 않았다. `lib/config/`의 제약과 `lib/navigation/`이
 바꾸지 않는 주소는 각 디렉터리의 `AGENTS.md`에 있다.
 `settings.ts`가 읽는 설정 자리(`process.env`, 앱에서는 `extra`)를 정하는 바인딩은
-`platform/config.ts`가 한다.
+`platform/config.ts`가 한다. `components/lab/`도 스펙의 트리에 없다 - 계약 실험실 화면(`app/(lab)/contract.tsx`)의
+조각이 자원 UI 도 폼 조각도 아니어서 따로 뒀다.
 
 위반의 정의:
 
@@ -123,14 +125,15 @@ pnpm install --frozen-lockfile
 ```
 
 `./scripts/check.sh` 하나가 유일한 게이트다(typecheck · lint · format · secretlint · 인용 ·
-복사 출처 · unit · 설정 · 의존성 호환 · 번들 · compose · E2E). 전제 조건(Docker, 네트워크,
+복사 출처 · unit · 설정 · 의존성 호환 · 번들 · compose · 계약 거울 · E2E). 전제 조건(Docker, 네트워크,
 Android SDK·Maestro·에뮬레이터)은 그 파일 머리말에 있다. Windows에서는 Git Bash에서
 `./scripts/check.sh`로 돌린다 - `package.json`의 `check` 스크립트(`pnpm check`)는 pnpm이 cmd.exe로
-돌려 `./`를 못 찾고 실패한다. 실행 권한이 살아 있어야 통과한다 - `git ls-tree HEAD scripts/ test/e2e/`에서
+돌려 `./`를 못 찾고 실패한다. 실행 권한이 살아 있어야 통과한다 - `git ls-tree HEAD scripts/ test/e2e/ test/contract/`에서
 `scripts/check.sh`·`scripts/check-citations.sh`·`test/e2e/android.sh`·`test/e2e/run-android.sh`·
-`test/e2e/guard-log.sh` 다섯이 `100755`인지 확인한다(`scripts/check-provenance.mjs`는 `node`가
+`test/e2e/guard-log.sh`·`test/contract/run.sh` 여섯이 `100755`인지 확인한다(`scripts/check-provenance.mjs`는 `node`가
 부르므로 `100644`가 맞다). `core.filemode=false`인 머신에서는 권한이 빠져도 `git status`로 드러나지
-않는다. E2E 플로를 쓰는 규칙과 하네스의 환경 변수는 `test/e2e/AGENTS.md`에 있다.
+않는다. E2E 플로를 쓰는 규칙과 하네스의 환경 변수는 `test/e2e/AGENTS.md`에, 계약 거울의 규칙과 돌리는 법은
+`test/contract/AGENTS.md`에 있다.
 
 번들 단계는 `expo export --clear`라서 Metro·Uniwind 캐시를 지운다 - 게이트를 돌리기 전에 이 저장소의
 `expo start`를 끈다. 캐시를 두면 이 개발 머신(Windows)에서 `expo export`가 끝날 때 간헐적으로 죽었다(실측 기록
@@ -156,3 +159,5 @@ secretlint 단계는 `pnpm lint:secrets`다. 스크립트 이름을 `secretlint`
 `docs/superpowers/notes/2026-09-30-d3-measurements.md`에 있다.
 쓰기 E2E 와 기기에서 잰 회전의 실제 왕복·가드가 보낸 로그인 화면의 뒤로 가기와 "홈으로"·쌓인 화면의 재조회·빠른 두 번
 누름(D4 실측 W1–W4)은 `docs/superpowers/notes/2026-10-01-d4-measurements.md`에 있다.
+계약 거울의 드리프트 감지와 게이트 13단계, 계약 실험실의 기기 E2E(D5 실측 C1–C3)는
+`docs/superpowers/notes/2026-10-01-d5-measurements.md`에 있다.

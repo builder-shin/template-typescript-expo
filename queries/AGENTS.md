@@ -8,9 +8,10 @@ TanStack Query 의 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화를 소�
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `auth.ts`             | 가입·로그인·로그아웃 쓰기 훅과 로그아웃 진행 여부(`useIsLoggingOut`). `lib/auth/flow.ts`의 결정을 실행만 한다 - 세션을 세우는 데까지, 화면 이동은 화면이 한다. 로그인·가입의 옵션(`loginMutationOptions`·`registerMutationOptions`)과 키를 내보낸다 - 시험이 MutationObserver 로 돌린다                                                                            |
 | `keys.ts`             | 캐시 키(`['resources', type, 'list' \| 'detail', …]`)와 쓰기의 키(`mutationKeys` - 수정·삭제는 id 까지 좁힌다), 쓰기 뒤 무효화 표(`cacheEffects`), 표를 캐시에 옮기는 `applyCacheEffects`(스펙 8.5). 시험이 표와 실제 `QueryClient` 로 잰다                                                                                                                        |
+| `lab.ts`              | 계약 실험실의 실험 하나를 돌리는 쓰기 훅(`useLabExperiment`). 판단은 `lib/lab/run.ts` 가 한다 - 결과는 캐시에 두지 않고, 세션 거절이면 화면이 넘긴 콜백이 로그인으로 보낸다. 훅이 쓰는 옵션(`labExperimentMutationOptions`)을 내보낸다 - 시험이 MutationObserver 로 돌린다                                                                                         |
 | `resources.ts`        | 자원의 조회 훅 - 목록(`useResourceList`, 무한 스크롤)과 상세(`useResourceDetail`), 관계 선택기의 참조 목록(`useRelationshipReferences` - 조회 계획과 결과 합성은 `resource-options.ts`). 판단은 `lib/resources/view.ts`·`screen-state.ts`·`form.ts` 가 한다. 쌓인 화면은 구독하지 않는다(`subscribed`)                                                             |
 | `resource-options.ts` | 조회의 Query 옵션(키·요청·다음 쪽 - 목록·상세·관계 선택기의 참조 목록)과 화면 조회의 `gcTime`(`SCREEN_QUERY_GC_TIME`), 폼의 참조 조회들의 계획·결과 합성(`referencePlan`·`combineReferences`·`referencesOf`) - `queryFn` 이 닿지 못함을 던진다. React·기기 모듈을 모른다 - 시험이 가짜 요청과 실제 `QueryClient` 로 전이를 잰다                                    |
-| `submit-once.ts`      | 제출 한 번 가드(`submitOnce`·`useSubmitOnce`) - 폼이 부를 쓰기의 키가 진행 중이면 그 제출을 버린다                                                                                                                                                                                                                                                                 |
+| `submit-once.ts`      | 제출 한 번 가드(`submitOnce`·`useSubmitOnce`) - 폼이 부를 쓰기의 키가 진행 중이면 그 제출을 버린다. 폼 말고 삭제 확인 시트와 계약 실험실도 쓴다 - 실험실은 실험마다의 키(`['lab', id]`)로 그 실험의 둘째 누름만 버린다                                                                                                                                             |
 | `writes.ts`           | 자원의 쓰기 훅 - 생성·수정·삭제(`useCreateResource`·`useUpdateResource`·`useDeleteResource`). 흐름은 `lib/resources/write.ts`, 캐시는 `keys.ts` 의 표. 훅이 쓰는 옵션(`createResourceMutationOptions`·`updateResourceMutationOptions`·`deleteResourceMutationOptions`)과 삭제 `reset` 의 가드(`resetUnlessPending`)를 내보낸다 - 시험이 MutationObserver 로 돌린다 |
 
 - 인증이 필요한 요청은 `sessionManager.getAccessToken()`(`platform/session.ts`)으로 토큰을 얻는다.
@@ -36,6 +37,9 @@ TanStack Query 의 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화를 소�
   하나다. 렌더 때의 `isPending`으로 막지 않는다 - 둘째 누름도 같은 렌더를 본다(`submit-once.ts` 머리말). 그래서 폼을
   부르는 쓰기 훅에는 `mutationKey`가 있다. 삭제 훅의 `reset`(확인을 취소할 때)도 같은 키로 쓰기 캐시를 본다 - 진행 중인
   삭제는 지우지 않는다(`resetUnlessPending`): 지우면 `remove()` 에 넘긴 성공 콜백이 불리지 않아 화면이 남는다.
+- 계약 실험실의 실행 버튼도 같은 가드를 지난다(`useSubmitOnce(lab.mutationKey)`) - 실험마다 `['lab', id]` 키의 쓰기(`lab.ts`)라 한
+  실험의 둘째 누름만 버리고 다른 실험은 막지 않는다. 키에 id 가 없으면 한 실험이 도는 동안 나머지의 실행까지 막힌다
+  (`isMutating` 은 앞부분이 맞는 키를 모두 센다) - `test/unit/queries/lab.test.ts` 가 키가 id 를 따르는지 잰다.
 - 쓰기 뒤의 캐시는 `keys.ts` 의 표를 지난다 - 생성·수정·삭제 훅(`writes.ts`)은
   `applyCacheEffects(queryClient, cacheEffects({ kind: 'create', type }))` 처럼 표를 부른다. 키를 손으로 적지 않는다.
 - 삭제는 그 자원의 상세를 캐시에서 지운다. 지운 상세를 지켜보던 화면이 다시 그려지면 TanStack Query 가 새 조회를

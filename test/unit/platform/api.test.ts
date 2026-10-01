@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 
 import type { AppVariant } from '@/lib/config/app-variant'
 import type { JsonApiResult, RequestOptions } from '@/lib/jsonapi/client'
-import { apiRequest } from '@/platform/api'
+import { apiRequest, deviceAcceptLanguage } from '@/platform/api'
 
 /**
  * platform/api.ts 의 배선(스펙 9.4·11.3). 언어 조립(accept-language.ts)·실패 한 줄(failure-log.ts)·
@@ -90,6 +90,21 @@ describe('apiRequest - Accept-Language 를 싣는 유일한 자리(스펙 9.4)',
     await apiRequest('/api/v1/probe')
 
     expect(sentOptions().map((options) => options?.acceptLanguage)).toEqual([KO_EN, 'en-GB'])
+  })
+
+  it('호출자가 언어를 정했으면 그 값을 싣는다 - 기기 언어로 덮지 않는다(계약 실험실의 언어 협상, 스펙 8.6)', async () => {
+    await apiRequest('/api/v1/probe', { method: 'POST', acceptLanguage: 'probe-lang' })
+
+    expect(sentOptions()).toEqual([{ method: 'POST', acceptLanguage: 'probe-lang' }])
+  })
+
+  it('deviceAcceptLanguage 는 apiRequest 가 싣는 기기 언어 값이다 - 쓸 태그가 없으면 null', async () => {
+    await apiRequest('/api/v1/probe')
+
+    expect(deviceAcceptLanguage()).toBe(KO_EN)
+    expect(sentOptions()[0]?.acceptLanguage).toBe(deviceAcceptLanguage())
+    mocks.getLocales.mockReturnValue([])
+    expect(deviceAcceptLanguage()).toBeNull()
   })
 
   it.each([
