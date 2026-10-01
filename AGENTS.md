@@ -29,8 +29,9 @@
 
 `lib/config/`·`components/ui/`·`components/form/`·`components/app/`·`components/hooks/`는 스펙 5장의 표에
 없다. 앞의 셋은 스펙 4장의 트리에는 있지만 소유 규칙이 표에 없었다. `components/app/`은 트리에도 없다 -
-시작 설정 오류 화면(`FatalConfig`)처럼 앱 전체에 걸린 화면 조각이 `components/ui/`(React Native Reusables
-복사본)도 `components/resource/`(자원 UI)도 아니어서 따로 뒀다. `components/hooks/`도 트리에 없다 -
+시작 설정 오류 화면(`FatalConfig`)처럼 앱 전체에 걸린 화면 조각과 앱 전체의 이동 도우미(`useNavigateOnce`·
+`useBackToHome`)가 `components/ui/`(React Native Reusables 복사본)도 `components/resource/`(자원 UI)도
+아니어서 따로 뒀다. `components/hooks/`도 트리에 없다 -
 `components.json`의 `hooks` 별칭이 가리키는 자리다. React Native Reusables의 훅은 UI 도우미라 데이터를
 다루는 `queries/`와 섞지 않는다. `lib/navigation/`은 트리에도 없었다 - Expo Router 가 밖에서 들어온 딥링크의
 쿼리 값을 두 번 디코딩해 바꾸는 것을 막으려고(`app/+native-intent.tsx`가 잇는다, 스펙 8.2의 둘째 D3 정정) D3가
