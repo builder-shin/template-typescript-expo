@@ -1,4 +1,4 @@
-import type { NativeStackHeaderRightProps } from 'expo-router'
+import type { NativeStackHeaderItemProps } from 'expo-router'
 
 import { goHome } from '@/components/app/back-to-home'
 import { Button } from '@/components/ui/button'
@@ -33,5 +33,5 @@ export function HomeButton() {
  * `Stack.Screen` 의 `headerRight` 에 그대로 건다 - 렌더마다 새 함수를 만들지 않는다. `canGoBack` 이 참일 때만 버튼을
  * 숨긴다: 모르는 값이면 그린다 - 출구가 없는 쪽으로 실패하지 않는다.
  */
-export const renderHomeButton = ({ canGoBack }: NativeStackHeaderRightProps) =>
+export const renderHomeButton = ({ canGoBack }: NativeStackHeaderItemProps) =>
   canGoBack === true ? null : <HomeButton />
