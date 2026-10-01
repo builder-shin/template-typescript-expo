@@ -36,7 +36,8 @@ appId: com.example.templateexpo.e2e
     timeout: 15000
 - assertNotVisible:
     id: login-screen
-# subflows/login.yaml 과 같은 로그인이다 - 제출만 두 번 누른다. 로그인이 끝난 뒤에 닿은 둘째 누름은 홈의 빈 자리다.
+# subflows/login.yaml 을 부르지 않고 같은 단계를 풀어 쓴다 - 그 서브플로는 제출을 한 번 누르고, 여기서는 두 번 누른다. 로그인이
+# 끝난 뒤에 닿은 둘째 누름은 홈의 빈 자리다.
 - openLink: templateexpo-e2e://login
 - extendedWaitUntil:
     visible:

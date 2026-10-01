@@ -69,8 +69,9 @@ appId: com.example.templateexpo.e2e
     element:
       id: submit-button
     direction: DOWN
-# 제출을 빠르게 두 번 누른다 - 저장 요청(PATCH)은 하나여야 한다(이 플로의 api.log 에서 센다 - 다른 단계에는 PATCH 가 없다).
-# 404 뒤에 닿은 둘째 누름은 not-found 화면의 빈 자리다.
+# 제출을 빠르게 두 번 누른다 - 이 자리는 제출 가드를 재지 않는다. 404 가 둘째 누름보다 먼저 와서(회전 뒤 수십 ms) 둘째 누름은
+# not-found 화면의 빈 자리에 닿는다 - 가드를 모두 끈 APK 에서도 PATCH 는 하나였다(D4 실측 W4). 잰 것은 늦게 닿은 둘째 누름이
+# 아무것도 누르지 않는다는 것뿐이다.
 - tapOn:
     id: submit-button
     repeat: 2
