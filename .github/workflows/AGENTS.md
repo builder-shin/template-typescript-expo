@@ -20,8 +20,11 @@
 - 매트릭스는 `fail-fast: false` 다. 재시도는 0 이다 - 실패한 잡을 코드 변경 없이 다시 돌리지 않는다(스펙 16장).
   흔들리는 플로는 원인을 고친다. `continue-on-error` 를 쓰지 않는다.
 - 멈춘 서버 확인(`E2E_CHECKS=1`)은 백엔드와 무관해 fastapi 갈래에서만 켠다.
-- 액션은 주 판(`@v7` 등)으로 고정한다. 판을 올릴 때는 입력 이름을 액션의 `action.yml` 에서 확인하고 actionlint 를
-  돈다.
+- E2E 기록은 숨김 파일도 올린다(`include-hidden-files: true`) - Maestro 2.11.0의 상세 예외·명령 시각·스크린샷이
+  `<플로>/debug/.maestro/`에 있다. 기본 제외로 그 디렉터리를 잃으면 실패의 첫 오류를 읽지 못한다(D7 실측 K3).
+- 액션은 주 판(`@v7` 등)으로 고정한다. `astral-sh/setup-uv`는 주 판 태그 `v10`을 배포하지 않아 실제 릴리스
+  `@v10.2.0`으로 고정한다(D7 실측 K3, 컨트롤러 결정 D7-R13). 판을 올릴 때는 실제 태그와 입력 이름을 액션의
+  `action.yml` 에서 확인하고 actionlint 를 돈다.
 - Node 는 `24.19.0`, pnpm 은 `package.json` 의 `packageManager` 다. Android 는 API 36 Google Play 이미지·`pixel_7`
   (로컬 게이트의 AVD 와 같은 이미지·폭), iOS 는 러너의 기본 Xcode 와 가장 새 iOS 런타임의 iPhone 이다.
 - macOS 러너의 bash 는 3.2 다(Mac 을 쓰는 사람의 기본 bash 도 같다). macOS 잡이 부르는 스크립트(`test/e2e/ios.sh`·

@@ -233,6 +233,7 @@ jobs:
         with:
           name: e2e-android-${{ matrix.backend }}
           path: .maestro-output/e2e
+          include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 14
 
@@ -359,7 +360,7 @@ jobs:
 
       - name: uv
         if: matrix.backend == 'fastapi'
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@v10.2.0
 
       # Ruby 는 백엔드 저장소의 .ruby-version 이다. 젬은 그 저장소의 Gemfile.lock 으로 캐시한다.
       - name: Ruby
@@ -408,5 +409,6 @@ jobs:
             .maestro-output/e2e
             ${{ runner.temp }}/native-backend/*/api.log
             ${{ runner.temp }}/native-backend/postgres/postgres.log
+          include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 14

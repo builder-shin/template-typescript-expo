@@ -206,20 +206,76 @@ Maestro 2.11.0은 스크린샷을 기본 `~/.maestro/tests/2026-10-02_012132/d7-
 2026-10-01). 실행마다 무엇이 실패했고 무엇을 고쳤는지를 적는다. 같은 코드로 다시 돌린 실행은 없다(러너 할당 실패로 잡이
 시작도 못 한 경우만 예외이고, 있었으면 그 행에 적는다). 실행은 여섯 번이 상한이었다.
 
-(Task 4 Step 1–3 - 날짜, 브랜치 머리 커밋, 러너 이미지의 판이 사실 절과 달랐으면 그 판)
+**시작(2026-10-02, Asia/Seoul).** `feat/d7-ci`의 깨끗한 머리 `1d15b4d86e9a72f153ed0680615224dccb18e8ce`를
+처음 push 했다. `origin/main`은 D6 병합 `bdf06b5`였고, 보낸 D7 커밋은 여덟이었다. 원격 브랜치는 없었고 저장소는
+`public main`, Actions는 켜져 있었으며 인증 계정 `builder-shin`의 토큰에 `repo`·`workflow` 범위가 있었다.
+
+러너 이미지 README를 GitHub API로 받았다. macOS 26 arm64는 `20260907.0351.1`·Bash `3.2.57(1)-release`·기본
+Xcode `26.6`(`17F113`)·Java `21.0.12+101.0`·가장 새 iOS 런타임 `26.5`(iPhone 17 포함), Ubuntu 24.04는
+`20260920.314.1`·Docker Compose `2.38.2`·build-tools `34.0.0`–`37.0.0`·NDK `27.3.13750724`(기본),
+`28.2.13676358`, `29.0.14206865`였다. 계획의 사실 절과 같았다. README 원본은 무시된
+`.maestro-output/runner-images/`에 보존했다. 실행 1의 checks 잡은 실제 Ubuntu 이미지 `20260927.320.1`로
+README보다 새 판이었다(`Set up job` 로그). 그 잡에서 정적 게이트와 단위 87파일·1809시험, actionlint가 통과했다.
+
+`gh run list --workflow ci.yml`은 기본 브랜치에 그 파일이 아직 없어 HTTP 404였다. 브랜치·커밋·push 이벤트로
+조회해 첫 실행을 찾았다. 워크플로는 정상 발화했으므로 설정이나 트리거를 고치지 않았다.
 
 | 실행 | 커밋 | 칸별 결과 | 원인과 고친 것 |
 | --- | --- | --- | --- |
-| (Task 4 Step 4 의 첫 실행 - 번호와 주소) | (짧은 SHA) | (아홉 칸의 결론) | (Step 6 의 갈래와 고친 커밋) |
+| 1 — [36892458805](https://github.com/builder-shin/template-typescript-expo/actions/runs/36892458805) | `1d15b4d` | checks·build-android·build-ios success; android fastapi·nestjs·rails failure; ios fastapi·nestjs·rails failure | iOS 셋: 없는 `setup-uv@v10` 별칭 → D7-R13으로 `@v10.2.0` 고정. Android의 첫 상세 예외는 숨김 debug 제외로 유실 → 두 플랫폼 기록에 `include-hidden-files: true`, K3 화면 캡처 셋 추가. Android 플로 실패 원인은 아직 미확정이며 다음 실행의 원본 로그로 찾는다. |
 
-**초록.** (마지막 실행의 번호·주소·커밋, 칸마다 걸린 시간, 캐시 적중, iOS 의 Xcode·런타임·시뮬레이터, Android 의 AVD, 세
-백엔드 저장소의 커밋을 적는다)
+**실행 1의 실패 증거와 고침.** 생성 시각은 `2026-10-01T16:30:04Z`, 결론은 `failure`다. 칸마다 걸린 시간:
+
+| 칸 | 결론 | 시간 |
+| --- | --- | --- |
+| checks | success | 2분 37초 |
+| build-android | success | 26분 45초 |
+| android fastapi | failure | 40분 45초 |
+| android nestjs | failure | 36분 51초 |
+| android rails | failure | 35분 2초 |
+| build-ios | success | 16분 13초 |
+| ios fastapi | failure | 4초 |
+| ios nestjs | failure | 4초 |
+| ios rails | failure | 3초 |
+
+- iOS 셋의 첫 오류: `Unable to resolve action astral-sh/setup-uv@v10, unable to find version v10`.
+  checkout 전에 실패했다. GitHub API의 `git/ref/tags/v10`은 404, 실제 릴리스 `v10.2.0`은
+  `c18668ad3cf93ea998bef934396af7bb5c839dc7`이다. `action.yml`의 Node 24를 확인한 뒤 컨트롤러 결정 D7-R13으로
+  정확한 릴리스 태그 예외를 승인받았다. 단계의 다른 설정은 고치지 않았다.
+- Android 셋의 `auth-links`는 `submit-credentials`의 `Input text ${EMAIL}`에서 끝났다. Rails의
+  `examples-delete`도 같은 단계, NestJS의 `examples-create`는 첫 `list-empty` 단언에서 실패했다. API별 계약
+  거울은 모두 통과했다. UiAutomator의 `Active window root not found`는 Rails의 두 실패에서 각 1번, NestJS 생성
+  실패에서 9번이었지만 그 경고만으로 원인을 단정하지 않는다. FastAPI는 그 환경 흔적을 찍지 않았다.
+- Rails 아티팩트는 파일 66개(22플로 × maestro.log·logcat.txt·api.log), 스크린샷·commands.json·상세 예외가 없다.
+  Maestro는 실제 debug 경로를 `<플로>/debug/.maestro/tests/...`로 안내했고, `upload-artifact@v7`의
+  `include-hidden-files` 기본값은 false였다. 두 기록 단계에 true를 주어 유실 원인을 고쳤다. K3의 실제 카드·로그인
+  두 번 누름 관측을 위해 `home-build-info`에 화면 하나, `examples-create`의 제출 전/로그인 뒤에 화면 둘을 더했다.
+  누름·단언·타임아웃·가드는 그대로다. Android 플로의 실제 원인은 상세 예외 복구 뒤 찾는다.
+- 로컬: Rails `auth-links examples-delete`를 같은 APK(`E2E_APK`, 빌드 없음)로 한 번 돌려 두 플로가 통과했다.
+  `joon`은 9 → 9, E2E compose 잔여 0. 기록은 `.maestro-output/d7-run-1/local-rails-flows.log`,
+  `local-rails-e2e/`다. CI 실패가 로컬에서 재현된 것으로 쓰지 않는다.
+- 관측 고침의 로컬 검증: FastAPI `home-build-info examples-create`가 같은 APK로 통과했다. 캡처 PNG 셋이
+  `debug/.maestro/tests/.../takeScreenshot/`에 실제 생겼고 생성의 요청 수는 회전 1·POST 1·로그인 1이었다.
+  `joon` 9 → 9, compose 잔여 0. `.maestro-output/d7-run-1/local-capture-flows.log`·`local-capture-e2e/`에 보존했다.
+  전체 Step 7 검사(typecheck·lint·format·secretlint·인용·출처·단위 87파일/1809시험·actionlint·shellcheck)도 통과했다.
+
+실행 원본은 `.maestro-output/d7-run-1/run.json`, 잡 로그·아티팩트는 같은 디렉터리의 `*.log`·`artifacts/`,
+통합 로그는 `.maestro-output/d7-run-1-failed.log`·`d7-run-1-full.log`에 보존했다. iOS E2E 아티팩트는 checkout
+전에 실패해 생성되지 않았다. 같은 코드의 CI 재실행은 없었다.
+
+**초록.** 아직 아홉 칸이 모두 초록인 실행은 없다. iOS 기기 값·백엔드별 최종 동작·단계별 스크롤 시간은 상세 기록을
+복구한 뒤 실제 실행으로 채운다.
 
 ```text
 (Task 4 Step 5 의 잡 표를 붙인다)
 ```
 
-**Android 빌드에서 이어받은 것.** 둘째 Gradle 의 UP-TO-DATE 줄, 4GiB 힙/1GiB Metaspace, 공개 러너 RAM 16GB 와 Kotlin 데몬의 JVM 인자·최대 RSS(잴 수 없었으면 그 한계), OOM 이 있었다면 free -h·첫 오류와 대응을 적는다(결정 40·41).
+**Android 빌드에서 이어받은 것.** 실행 1의 둘째 Gradle은 `2026-10-01T16:44:12.4356025Z`에
+`> Task :app:createReleaseUpdatesResources UP-TO-DATE`를 남겼고 `BUILD SUCCESSFUL in 21m 50s`로 끝났다. APK의
+변형 `e2e`, OTA 끔·runtimeVersion 없음, 매니페스트의 `ENABLED=false`·URL/HEADERS 없음·평문 HTTP 허용 단언이
+통과했다. 빌드 레시피의 4GiB 힙/1GiB Metaspace를 그대로 썼다. 공개 Ubuntu 러너 RAM 16GB는 계획의 예산이며 이
+실행에서 `free -h`, Kotlin 데몬의 실제 JVM 인자, 최대 RSS를 수집하지 않아 관측한 메모리 사용량으로 말할 수 없다.
+OOM이나 메모리 예산 변경은 없었다. 로그는 `.maestro-output/d7-run-1/build-android.log`다(결정 40·41).
 
 **iOS 에서 처음 잰 것.** 줄마다 사실로 바꾼다 - 근거는 그 실행의 `e2e-ios-<백엔드>` 아티팩트다.
 

@@ -31,3 +31,5 @@ appId: com.example.templateexpo.e2e
     id: build-info-ota-off
 - assertNotVisible:
     id: build-info-check
+# K3의 기기 값은 단언과 함께 실제 카드 화면도 보존한다.
+- takeScreenshot: d7-build-info
