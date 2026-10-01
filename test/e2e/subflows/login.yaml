@@ -1,0 +1,14 @@
+# 로그인 화면을 열어 EMAIL·PASSWORD 로 로그인한다 - 계정은 앞 단계가 만들어 둔다(스크립트의
+# STEP=account 등). 앞 단계가 홈 화면을 기다려 두어야 한다(launchApp 직후의 딥링크는 버려진다).
+appId: com.example.templateexpo.e2e
+---
+- openLink: templateexpo-e2e://login
+- extendedWaitUntil:
+    visible:
+      id: login-screen
+    timeout: 15000
+- runFlow: submit-credentials.yaml
+- extendedWaitUntil:
+    visible:
+      id: logout-button
+    timeout: 20000

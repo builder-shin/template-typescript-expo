@@ -68,6 +68,9 @@ x-rails-env: &rails-env
   JWT_SECRET_KEY: e2e-only-jwt-secret-key-at-least-32-bytes-long
   JWT_ISSUER: template-ruby-rails
   JWT_AUDIENCE: template-ruby-rails
+  # access token 수명(초). 기본은 백엔드의 기본값과 같은 900 이다. Maestro 하네스
+  # (test/e2e/run-android.sh)는 60 이하를 줘서 앱의 쓰기가 전부 실제 회전(스펙 7.2)을 지나게 한다.
+  JWT_ACCESS_EXPIRES_SECONDS: '${E2E_ACCESS_EXPIRES_SECONDS:-900}'
   ACTIVE_STORAGE_SERVICE: local
   ACTIVE_JOB_QUEUE_ADAPTER: sidekiq
   PORT: '4000'
@@ -118,6 +121,9 @@ services:
       JWT_SECRET_KEY: e2e-only-jwt-secret-key-at-least-32-bytes-long
       JWT_ISSUER: template-python-fastapi
       JWT_AUDIENCE: template-python-fastapi
+      # access token 수명(초). 기본은 백엔드의 기본값과 같은 900 이다. Maestro 하네스
+      # (test/e2e/run-android.sh)는 60 이하를 줘서 앱의 쓰기가 전부 실제 회전(스펙 7.2)을 지나게 한다.
+      JWT_ACCESS_EXPIRES_SECONDS: '${E2E_ACCESS_EXPIRES_SECONDS:-900}'
     networks:
       default:
         aliases: [api]
@@ -183,6 +189,9 @@ services:
       JWT_SECRET_KEY: e2e-only-jwt-secret-key-at-least-32-bytes-long
       JWT_ISSUER: template-typescript-nestjs
       JWT_AUDIENCE: template-typescript-nestjs
+      # access token 수명(초). 기본은 백엔드의 기본값과 같은 900 이다. Maestro 하네스
+      # (test/e2e/run-android.sh)는 60 이하를 줘서 앱의 쓰기가 전부 실제 회전(스펙 7.2)을 지나게 한다.
+      JWT_ACCESS_EXPIRES_SECONDS: '${E2E_ACCESS_EXPIRES_SECONDS:-900}'
       # redis 불필요 - NestJS 의 api 는 REDIS_URL 을 읽지 않는다(워커 전용).
     networks:
       default:

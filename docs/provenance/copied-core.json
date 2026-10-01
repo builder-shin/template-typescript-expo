@@ -228,6 +228,11 @@
       "path": "test/unit/auth/rotation.test.ts",
       "what": "5xx·408·429 → unreachable 시험(6행), 그 밖의 4xx → destroy 시험(4행), 프록시가 준 HTML 502 가 unreachable 인 rotateSession 시험을 더했다. 422 시험의 이름 'status!==0 이면' 을 '4xx 거절이면' 으로 고쳤다.",
       "why": "위 rotation.ts 의 이탈을 따라간다."
+    },
+    {
+      "path": "docker-compose.e2e.yml",
+      "what": "세 백엔드의 환경(x-rails-env 앵커·api-fastapi·api-nestjs)에 JWT_ACCESS_EXPIRES_SECONDS 를 '${E2E_ACCESS_EXPIRES_SECONDS:-900}' 으로 더하고 그 뜻을 주석 두 줄로 적었다.",
+      "why": "E2E 하네스(test/e2e/run-android.sh)가 access token 수명을 10초로 줘서 앱의 쓰기가 전부 실제 회전(스펙 7.2)을 지나게 한다 - 세 백엔드의 기본값 900초로는 플로 안에서 회전이 한 번도 일어나지 않는다(D2 계획의 결정 5 가 실제 회전 왕복을 D4 의 쓰기 E2E 에 넘겼다). 변수를 주지 않으면(게이트의 compose 설정 검사 등) 기본값 그대로다."
     }
   ],
   "sourceBlobs": {

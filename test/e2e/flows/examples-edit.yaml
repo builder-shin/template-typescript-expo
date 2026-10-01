@@ -1,0 +1,248 @@
+# 수정 - 목록 → 상세 → "수정" 의 폼이 기존 값(속성과 관계)을 채우고 있고, 제목만 바꿔 저장하면 상세와
+# 목록이 새 제목을 그리며 나머지 값·관계·태그 순서는 그대로다 - 상세·목록 무효화(스펙 8.1·8.5·11.3).
+# 이어서 분류를 "선택 안 함" 으로, 태그를 전부 해제해 저장하면 상세에서 둘 다 사라진다(관계 초기화).
+# 끝으로 참조 목록(이름 순 100건) 밖의 분류·태그가 붙은 행을 고친다 - 폼은 그 선택을 id 로 그리고 알리며,
+# 제목만 바꿔 저장해도 관계가 그대로 남는다(원본 템플릿이 한때 여기서 관계를 지웠다).
+# 행은 이 플로가 백엔드에 직접 만든다(test/e2e/scripts/examples-api.js 의 STEP=example·unlisted) - 태그는
+# 씨앗 id 의 반대 순서로 붙였고 앱은 백엔드의 순서(씨앗 id 오름차순)를 그린다.
+appId: com.example.templateexpo.e2e
+---
+- runFlow: ../subflows/start-signed-out.yaml
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: account
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: example
+      TITLE: ${output.prefix} a
+- runFlow: ../subflows/login.yaml
+- openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=${output.prefix}
+- extendedWaitUntil:
+    visible:
+      id: resource-row-title
+      text: ${output.prefix} a
+    timeout: 20000
+# 행을 빠르게 두 번 누른다 - 상세는 하나만 쌓여야 한다(이동 가드 useNavigateOnce). 둘이면 저장 뒤의 뒤로 가기가 목록이
+# 아니라 남은 상세에 닿아 아래 목록의 단언이 실패한다. 상세가 열린 뒤에 닿은 둘째 누름은 상세의 항목 글자 자리다.
+- tapOn:
+    id: resource-row-title
+    text: ${output.prefix} a
+    repeat: 2
+    delay: 1
+- extendedWaitUntil:
+    visible:
+      id: detail-heading
+      text: ${output.prefix} a
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: edit-example-link
+    direction: DOWN
+- tapOn:
+    id: edit-example-link
+# 기존 값 - 속성 넷과 관계 둘(응답의 순서).
+- extendedWaitUntil:
+    visible:
+      id: field-input-title
+      text: ${output.prefix} a
+    timeout: 20000
+- assertVisible:
+    id: field-input-description
+    text: d4 note
+- assertVisible:
+    id: field-input-score
+    text: '55'
+- scrollUntilVisible:
+    element:
+      id: relationship-value-tags-1
+    direction: DOWN
+- assertVisible:
+    id: relationship-value-category-0
+    text: 프로브 분류 하나
+- assertVisible:
+    id: relationship-value-tags-0
+    text: 프로브 라벨 하나
+- assertVisible:
+    id: relationship-value-tags-1
+    text: 프로브 라벨 둘
+# 제목만 바꾼다. 제목이 짧아 입력을 누르면 커서가 끝에 선다 - 지우고 다시 쓴다.
+- scrollUntilVisible:
+    element:
+      id: field-input-title
+    direction: UP
+- tapOn:
+    id: field-input-title
+- eraseText: 30
+- inputText: ${output.prefix} b
+- tapOn:
+    id: field-label-title
+- scrollUntilVisible:
+    element:
+      id: submit-button
+    direction: DOWN
+- tapOn:
+    id: submit-button
+- extendedWaitUntil:
+    visible:
+      id: detail-heading
+      text: ${output.prefix} b
+    timeout: 20000
+- assertVisible:
+    id: detail-value-description
+    text: d4 note
+- assertVisible:
+    id: detail-value-status
+    text: 활성
+- assertVisible:
+    id: detail-value-score
+    text: '55'
+- scrollUntilVisible:
+    element:
+      id: detail-badge-tags-1
+    direction: DOWN
+- assertVisible:
+    id: detail-badge-category-0
+    text: 프로브 분류 하나
+- assertVisible:
+    id: detail-badge-tags-0
+    text: 프로브 라벨 하나
+- assertVisible:
+    id: detail-badge-tags-1
+    text: 프로브 라벨 둘
+# 목록도 새 제목이다 - 옛 제목은 없다.
+- pressKey: back
+- extendedWaitUntil:
+    visible:
+      id: resource-row-title
+      text: ${output.prefix} b
+    timeout: 20000
+- assertNotVisible:
+    id: resource-row-title
+    text: ${output.prefix} a
+# 관계를 비운다 - 분류는 "선택 안 함", 태그는 둘 다 해제.
+- tapOn:
+    id: resource-row-title
+    text: ${output.prefix} b
+- extendedWaitUntil:
+    visible:
+      id: detail-heading
+      text: ${output.prefix} b
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: edit-example-link
+    direction: DOWN
+- tapOn:
+    id: edit-example-link
+- extendedWaitUntil:
+    visible:
+      id: field-input-title
+      text: ${output.prefix} b
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: relationship-open-tags
+    direction: DOWN
+- tapOn:
+    id: relationship-open-category
+- extendedWaitUntil:
+    visible:
+      id: relationship-none-category
+    timeout: 20000
+- tapOn:
+    id: relationship-none-category
+- tapOn:
+    id: relationship-open-tags
+- extendedWaitUntil:
+    visible:
+      id: relationship-option-tags
+      text: 프로브 라벨 하나
+    timeout: 20000
+- tapOn:
+    id: relationship-option-tags
+    text: 프로브 라벨 하나
+- tapOn:
+    id: relationship-option-tags
+    text: 프로브 라벨 둘
+- tapOn:
+    id: relationship-done-tags
+- assertNotVisible:
+    id: relationship-value-category-0
+- assertNotVisible:
+    id: relationship-value-tags-0
+- scrollUntilVisible:
+    element:
+      id: submit-button
+    direction: DOWN
+- tapOn:
+    id: submit-button
+# 상세는 캐시를 먼저 그리고 다시 부른다 - 비워진 관계가 올 때까지 기다린다.
+- scrollUntilVisible:
+    element:
+      id: detail-value-tags
+      text: —
+    direction: DOWN
+    timeout: 20000
+- assertVisible:
+    id: detail-value-category
+    text: —
+- assertNotVisible:
+    id: detail-badge-category-0
+# 참조 목록 밖의 선택 - 딥링크로 수정 화면을 연다(로그인한 채라 가드가 막지 않는다).
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: unlisted
+      TITLE: ${output.prefix} u
+- openLink: templateexpo-e2e://examples/${output.exampleId}/edit
+- extendedWaitUntil:
+    visible:
+      id: field-input-title
+      text: ${output.prefix} u
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: relationship-unlisted-tags
+    direction: DOWN
+- assertVisible:
+    id: relationship-unlisted-category
+- assertVisible:
+    id: relationship-value-category-0
+    text: '11119999-0000-4000-8000-000000000098.*'
+- assertVisible:
+    id: relationship-value-tags-0
+    text: '22229999-0000-4000-8000-000000000098.*'
+- scrollUntilVisible:
+    element:
+      id: field-input-title
+    direction: UP
+- tapOn:
+    id: field-input-title
+- eraseText: 30
+- inputText: ${output.prefix} v
+- tapOn:
+    id: field-label-title
+- scrollUntilVisible:
+    element:
+      id: submit-button
+    direction: DOWN
+- tapOn:
+    id: submit-button
+# 저장은 상세로 돌아간다(스택의 상세 화면이 이 자원을 그린다). 관계는 그대로다 - 상세는 include 로 이름을 받는다.
+- extendedWaitUntil:
+    visible:
+      id: detail-heading
+      text: ${output.prefix} v
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: detail-badge-tags-0
+    direction: DOWN
+- assertVisible:
+    id: detail-badge-category-0
+    text: 힣넘침분류-098
+- assertVisible:
+    id: detail-badge-tags-0
+    text: 힣넘침라벨-098

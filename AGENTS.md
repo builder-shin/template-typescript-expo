@@ -153,3 +153,5 @@ secretlint 단계는 `pnpm lint:secrets`다. 스크립트 이름을 `secretlint`
 `docs/superpowers/notes/2026-09-30-d2-measurements.md`에 있다.
 목록 주소의 인코딩 규칙, Uniwind 결함의 대응, 네이티브 HTTP 캐시 아래의 신선도, 닿지 못한 재조회(D3 실측 L1–L7)는
 `docs/superpowers/notes/2026-09-30-d3-measurements.md`에 있다.
+쓰기 E2E 와 기기에서 잰 회전의 실제 왕복·가드가 보낸 로그인 화면의 뒤로 가기와 "홈으로"·쌓인 화면의 재조회·빠른 두 번
+누름(D4 실측 W1–W4)은 `docs/superpowers/notes/2026-10-01-d4-measurements.md`에 있다.

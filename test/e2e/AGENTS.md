@@ -49,12 +49,31 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
   (`probe-d3-<이메일 끝 12자>`)로 시작한다 - 실행·플로마다 달라 다른 플로의 행을 보지 않는다.
 - 씨앗의 접두사 `probe-seed` 는 읽기 전용이다 - 그 접두사로 행을 만들지 않는다.
 - 하네스는 플로마다 그 플로 동안의 백엔드 접근 로그를 `.maestro-output/e2e/<플로>/api.log` 로 남긴다 - 화면이 옛 값을
-  그릴 때 요청이 서버에 닿았는지(네이티브 HTTP 캐시인지 앱이 다시 부르지 않은 것인지) 이 로그로 가른다.
+  그릴 때 요청이 서버에 닿았는지(네이티브 HTTP 캐시인지 앱이 다시 부르지 않은 것인지) 이 로그로 가른다. 로그는 플로 시작
+  5초 앞부터 잘라(호스트와 Docker 의 시계 차이) 앞 플로의 끝 줄이 섞인다 - 요청을 셀 때는 이 플로의 첫 요청(스크립트의 가입
+  `POST /api/v1/auth/register`) 줄부터 센다.
 - 백엔드에 닿지 못하는 상황은 비행기 모드로 만든다(`setAirplaneMode`) - 에뮬레이터에서 곧바로 "Network is
   unreachable" 이 된다. 플로는 셸 명령을 부를 길이 없어 백엔드 컨테이너를 멈추는(`docker pause`) 길은 쓰지 않는다. 기기
   상태를 바꾸는 플로는 머리에 `onFlowComplete` 로 되돌린다(실패해도 돈다 - 2.11.0 에서 확인했다). 끊긴 요청은 e2e
   변형이 상태 0 실패로 남기니 머리말에 `# e2e-allow-http: 0` 을 적는다. 작은 실패는 `request-failed-compact`, 화면
   전부의 실패는 `request-failed` 다(`id:` 가 전체 일치라 서로 맞지 않는다).
+
+## 쓰기 플로
+
+- 계정은 `scripts/examples-api.js` 의 `STEP=account`(가입만 - `output.prefix` 는 `d4-<이메일 끝 8자>`)로 만들고 앱에서
+  `subflows/login.yaml` 로 로그인한다. 고치거나 지울 행은 `STEP=example`(모든 속성과 분류 하나·태그 둘)·`STEP=unlisted`(참조
+  목록 밖의 분류·태그)로 만든다. 제목은 그 접두사로 시작한다 - 씨앗의 `probe-seed`·목록 플로의 `probe-d3-` 를 쓰지 않는다.
+- 앱 밖에서 자원을 없애는 것은 `STEP=delete`, 세션을 끊는 것은 `STEP=revoke`(폐기된 refresh 를 다시 내밀어 백엔드가 그 사용자의
+  세션을 모두 폐기하게 한다)다.
+- 하네스는 백엔드의 access token 수명을 10초로 준다(`E2E_ACCESS_EXPIRES_SECONDS`) - 앱은 만료 60초 전부터 회전하므로 쓰기마다
+  실제 회전(스펙 7.2)을 지난다. 스크립트가 쓰는 토큰도 짧아서 401 이면 한 번 다시 로그인한다.
+- 입력한 뒤 아래쪽 요소(선택기·제출)를 누르기 전에 제목 라벨(`field-label-title`)을 눌러 키보드를 내린다 - 키보드가 가린 자리를
+  누르면 그 누름이 키보드로 간다. `hideKeyboard` 는 쓰지 않는다(위 절).
+- 수정 화면의 제목 칸을 누르면 커서가 누른 자리에 선다 - 접두사를 짧게 두어(입력 칸의 절반보다 짧다) 가운데를 누르면 끝에 서게
+  하고, `eraseText` 로 지운 뒤 다시 쓴다.
+- 빠른 두 번 누름은 `tapOn` 의 `repeat: 2`(`delay: 1`)로 누른다 - Maestro 는 명령마다 화면이 멈추기를 기다리므로 두 명령으로는
+  두 누름이 한 요청 안에 들지 않는다. 둘째 누름은 첫 누름이 연 다음 화면의 같은 자리에 닿을 수 있다 - 그 자리에 누를 것이 없는
+  곳에서만 쓴다(생성 폼의 제출 자리에는 상세의 "수정" 이 온다). 나간 요청은 `api.log` 로 센다.
 
 ## 돌리기
 
@@ -66,25 +85,31 @@ E2E_FLOW="register-conflict" ./test/e2e/run-android.sh       # 일부 - 개발�
 빌드 입력(시험·문서·스크립트를 뺀 파일과, `test/` 안에 있지만 빌드 레시피인 `test/e2e/android.sh`)이 지난번과
 같으면 APK 를 다시 만들지 않는다 - 플로만
 고친 실행은 빌드 없이 돈다. Windows 에서 저장소 경로가 47자를 넘으면 `E2E_STAGE_DIR`(기본
-`C:/t/e`)의 사본에서 빌드한다. 결과는 `.maestro-output/e2e/<플로>/`에 남는다.
+`C:/t/e`)의 사본에서 빌드한다. 결과는 `.maestro-output/e2e/<플로>/`에 남는다. 빌드할 때마다 Gradle 앞에서 Metro 의 디스크
+캐시(`os.tmpdir()` 의 `metro-cache`)를 비운다(`android.sh` 의 `clear_metro_cache`) - 캐시가 남은 채 돈 번들 단계가
+0xC0000005 로 죽은 적이 있고 지운 뒤에는 재현되지 않았다(`docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L7).
+재시도로 덮지 않는다. Gradle 은 데몬 없이 돈다(`--no-daemon`) - 남은 데몬이 지난 빌드의 산출물(`classes*.dex`)을 쥐고 있어
+Windows 에서 다음 빌드 앞의 사본 지우기가 "Device or resource busy" 로 멈췄다(`docs/superpowers/notes/2026-10-01-d4-measurements.md`
+의 W1). 사본 지우기가 도중에 멈춰도 표식(`.e2e-stage`)은 남아 다음 실행이 그 사본을 알아본다.
 
 하네스(`run-android.sh`·`android.sh`)가 읽는 환경 변수다.
 
-| 변수                                         | 뜻                                                                                                                                             |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ANDROID_HOME`                               | Android SDK 경로. 없으면 멈춘다                                                                                                                |
-| `E2E_AVD`                                    | 켜진 기기가 없을 때 부팅할 AVD 이름(예: `Pixel_9_API_36`)                                                                                      |
-| `ANDROID_SERIAL`                             | 기기가 여럿일 때 하나를 고르는 adb 의 표준 변수. 여럿인데 없으면 곧바로 실패한다                                                               |
-| `BOOT_TIMEOUT_SECONDS`                       | 부팅을 기다리는 초(기본 300, `android.sh boot`)                                                                                                |
-| `TMPDIR`                                     | 부팅한 에뮬레이터의 출력을 남길 디렉터리(기본 `/tmp`, `android.sh boot` - `e2e-emulator-<AVD>.log`)                                            |
-| `BACKEND_URL`                                | 앱이 볼 백엔드 주소. `android.sh build` 에 필요하다 - `run-android.sh` 는 `http://10.0.2.2:<E2E_API_PORT>` 를 스스로 넘기고 빌드 지문에 넣는다 |
-| `E2E_API_PORT`                               | 백엔드를 여는 호스트 포트(기본 4100, `docker-compose.e2e.yml` 과 같은 값)                                                                      |
-| `E2E_STAGE_DIR`                              | Windows 에서 저장소 경로가 길 때 빌드할 짧은 경로(기본 `C:/t/e`)                                                                               |
-| `E2E_FORCE_BUILD`                            | `1` 이면 빌드 입력이 같아도 APK 를 다시 만든다                                                                                                 |
-| `E2E_FLOW`                                   | 돌릴 플로 이름(공백으로 구분, 확장자 없이). 비우면 전부 - 게이트는 비우고 부른다                                                               |
-| `MAESTRO`                                    | Maestro 실행 파일(기본 PATH 의 `maestro`, 없으면 `~/.maestro/bin/maestro`). 2.11.x 가 아니면 멈춘다                                            |
-| `MAESTRO_CLI_NO_ANALYTICS`                   | 하네스가 `1` 로 export 한다 - Maestro 의 사용 통계를 끈다                                                                                      |
-| `MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED` | 하네스가 `true` 로 export 한다 - 분석 안내 상자를 끈다                                                                                         |
+| 변수                                         | 뜻                                                                                                                                                                 |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ANDROID_HOME`                               | Android SDK 경로. 없으면 멈춘다                                                                                                                                    |
+| `E2E_AVD`                                    | 켜진 기기가 없을 때 부팅할 AVD 이름(예: `Pixel_9_API_36`)                                                                                                          |
+| `ANDROID_SERIAL`                             | 기기가 여럿일 때 하나를 고르는 adb 의 표준 변수. 여럿인데 없으면 곧바로 실패한다                                                                                   |
+| `BOOT_TIMEOUT_SECONDS`                       | 부팅을 기다리는 초(기본 300, `android.sh boot`)                                                                                                                    |
+| `TMPDIR`                                     | 부팅한 에뮬레이터의 출력을 남길 디렉터리(기본 `/tmp`, `android.sh boot` - `e2e-emulator-<AVD>.log`)                                                                |
+| `BACKEND_URL`                                | 앱이 볼 백엔드 주소. `android.sh build` 에 필요하다 - `run-android.sh` 는 `http://10.0.2.2:<E2E_API_PORT>` 를 스스로 넘기고 빌드 지문에 넣는다                     |
+| `E2E_API_PORT`                               | 백엔드를 여는 호스트 포트(기본 4100, `docker-compose.e2e.yml` 과 같은 값)                                                                                          |
+| `E2E_STAGE_DIR`                              | Windows 에서 저장소 경로가 길 때 빌드할 짧은 경로(기본 `C:/t/e`)                                                                                                   |
+| `E2E_FORCE_BUILD`                            | `1` 이면 빌드 입력이 같아도 APK 를 다시 만든다                                                                                                                     |
+| `E2E_ACCESS_EXPIRES_SECONDS`                 | 백엔드의 access token 수명(초, 기본 10) - `docker-compose.e2e.yml` 이 세 백엔드의 `JWT_ACCESS_EXPIRES_SECONDS` 로 넘긴다. 60 이하라 앱의 쓰기가 전부 회전을 지난다 |
+| `E2E_FLOW`                                   | 돌릴 플로 이름(공백으로 구분, 확장자 없이). 비우면 전부 - 게이트는 비우고 부른다                                                                                   |
+| `MAESTRO`                                    | Maestro 실행 파일(기본 PATH 의 `maestro`, 없으면 `~/.maestro/bin/maestro`). 2.11.x 가 아니면 멈춘다                                                                |
+| `MAESTRO_CLI_NO_ANALYTICS`                   | 하네스가 `1` 로 export 한다 - Maestro 의 사용 통계를 끈다                                                                                                          |
+| `MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED` | 하네스가 `true` 로 export 한다 - 분석 안내 상자를 끈다                                                                                                             |
 
 `boot`는 연결된 기기의 애니메이션 배율 셋을 0 으로, 자동 완성 서비스를 null 로 바꾸고 되돌리지 않는다(화면
 전환과 "비밀번호 저장" 대화상자가 단언을 흔들지 않게) - 그 기기가 실기기면(`ANDROID_SERIAL`로 골랐든 하나뿐이라 그대로

@@ -1,0 +1,181 @@
+# 생성 - 목록의 "새로 만들기" 에서 필수 칸·분류 하나·태그 둘을 채워 만들면 새 자원의 상세로 가고, 뒤로
+# 가면 온 목록(같은 조건의 같은 화면)에 새 행이 있다 - 목록 무효화(스펙 8.1·8.5·11.3). 태그는 씨앗 id 의
+# 반대 순서(둘, 하나)로 골라 보내고, 상세는 백엔드가 정한 순서(씨앗 id 오름차순)로 그린다 - 폼은 고른
+# 순서를 바꾸지 않는다(스펙 8.1 의 "순서 유지"). 참조 목록은 이름 순 100건에서 잘리고(씨앗의 채움 행)
+# 선택기가 그 사실을 알린다. 쓰기는 먼저 회전을 지난다(하네스가 access 수명을 10초로 준다 - 스펙 7.2).
+# 앞머리는 로그인하지 않은 채 "새로 만들기" 를 누른다 - 가드가 보낸 로그인 화면에서 뒤로 가면 앱이 닫히지
+# 않고 홈이다(스펙 7.3 의 D4 정정).
+# 로그인 제출과 로그인한 뒤의 "새로 만들기" 는 빠르게 두 번 누른다(`repeat: 2`) - 로그인 요청은 하나여야 하고(이 플로의
+# api.log 에서 POST /api/v1/auth/login 을 센다 - 계정은 스크립트가 가입만 한다), 생성 화면은 하나만 쌓여야 한다(둘이면
+# 만든 뒤의 뒤로 가기가 목록이 아니라 남은 생성 화면에 닿아 끝의 단언이 실패한다). 만들기 제출은 한 번만 누른다 - 상세가
+# 그려진 뒤에 닿은 둘째 누름은 같은 자리에 오는 상세의 "수정" 을 누른다.
+appId: com.example.templateexpo.e2e
+---
+- runFlow: ../subflows/start-signed-out.yaml
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: account
+# 이 실행만의 행을 보는 목록 - 아직 비어 있다.
+- openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=${output.prefix}
+- extendedWaitUntil:
+    visible:
+      id: list-empty
+    timeout: 20000
+# 로그인하지 않았다 - 가드가 로그인으로 보내고, 거기서 뒤로 가면 홈이다(앱이 닫히면 홈이 보이지 않는다).
+- tapOn:
+    id: new-example-link
+- extendedWaitUntil:
+    visible:
+      id: login-screen
+    timeout: 15000
+- pressKey: back
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 15000
+- assertNotVisible:
+    id: login-screen
+# subflows/login.yaml 과 같은 로그인이다 - 제출만 두 번 누른다. 로그인이 끝난 뒤에 닿은 둘째 누름은 홈의 빈 자리다.
+- openLink: templateexpo-e2e://login
+- extendedWaitUntil:
+    visible:
+      id: login-screen
+    timeout: 15000
+- tapOn:
+    id: email-input
+- inputText: ${EMAIL}
+- tapOn:
+    id: password-input
+- inputText: ${PASSWORD}
+- tapOn:
+    id: submit-button
+    repeat: 2
+    delay: 1
+- extendedWaitUntil:
+    visible:
+      id: logout-button
+    timeout: 20000
+- openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=${output.prefix}
+- extendedWaitUntil:
+    visible:
+      id: list-empty
+    timeout: 20000
+# 두 번 누른다 - 둘째 누름은 이동 가드(useNavigateOnce)가 버리거나, 이미 쌓인 생성 화면의 머리(누르면 키보드만 내리는
+# 제목 라벨 자리)에 닿는다.
+- tapOn:
+    id: new-example-link
+    repeat: 2
+    delay: 1
+- extendedWaitUntil:
+    visible:
+      id: resource-form
+    timeout: 20000
+# 상태는 필수 enum 이라 첫 값(초안)이 골라진 채로 시작한다 - 활성으로 바꾼다. 입력 칸을 누르기 전이라
+# 키보드가 없다.
+- tapOn:
+    id: field-choice-status-active
+- tapOn:
+    id: field-input-title
+- inputText: ${output.prefix} c
+- tapOn:
+    id: field-input-description
+- inputText: d4 note
+# 제목 라벨을 눌러 키보드를 내린다 - 아래쪽 요소가 키보드 뒤에 있으면 누른 자리가 키보드로 간다.
+- tapOn:
+    id: field-label-title
+- tapOn:
+    id: field-input-score
+- inputText: '42'
+- tapOn:
+    id: field-label-title
+# 분류 하나 - 시트의 목록은 이름 순 100건에서 잘렸다(씨앗의 채움 행 101건).
+- scrollUntilVisible:
+    element:
+      id: relationship-open-category
+    direction: DOWN
+- tapOn:
+    id: relationship-open-category
+- extendedWaitUntil:
+    visible:
+      id: relationship-option-category
+      text: 프로브 분류 하나
+    timeout: 20000
+- assertVisible:
+    id: relationship-truncated-category
+- tapOn:
+    id: relationship-option-category
+    text: 프로브 분류 하나
+- extendedWaitUntil:
+    visible:
+      id: relationship-value-category-0
+      text: 프로브 분류 하나
+    timeout: 10000
+# 태그 둘 - 씨앗 id 의 반대 순서로 고른다. 폼은 고른 순서 그대로 그린다.
+- scrollUntilVisible:
+    element:
+      id: relationship-open-tags
+    direction: DOWN
+- tapOn:
+    id: relationship-open-tags
+- extendedWaitUntil:
+    visible:
+      id: relationship-option-tags
+      text: 프로브 라벨 둘
+    timeout: 20000
+- tapOn:
+    id: relationship-option-tags
+    text: 프로브 라벨 둘
+- tapOn:
+    id: relationship-option-tags
+    text: 프로브 라벨 하나
+- tapOn:
+    id: relationship-done-tags
+- assertVisible:
+    id: relationship-value-tags-0
+    text: 프로브 라벨 둘
+- assertVisible:
+    id: relationship-value-tags-1
+    text: 프로브 라벨 하나
+- scrollUntilVisible:
+    element:
+      id: submit-button
+    direction: DOWN
+- tapOn:
+    id: submit-button
+- extendedWaitUntil:
+    visible:
+      id: detail-heading
+      text: ${output.prefix} c
+    timeout: 20000
+- assertVisible:
+    id: detail-value-description
+    text: d4 note
+- assertVisible:
+    id: detail-value-status
+    text: 활성
+- assertVisible:
+    id: detail-value-score
+    text: '42'
+- scrollUntilVisible:
+    element:
+      id: detail-badge-tags-1
+    direction: DOWN
+- assertVisible:
+    id: detail-badge-category-0
+    text: 프로브 분류 하나
+- assertVisible:
+    id: detail-badge-tags-0
+    text: 프로브 라벨 하나
+- assertVisible:
+    id: detail-badge-tags-1
+    text: 프로브 라벨 둘
+# 생성은 상세로 바꿔 들어갔다 - 뒤로 가면 온 목록이다. 비어 있던 그 목록이 다시 불려 새 행을 그린다.
+- pressKey: back
+- extendedWaitUntil:
+    visible:
+      id: resource-row-title
+      text: ${output.prefix} c
+    timeout: 20000
+- assertNotVisible:
+    id: list-empty

@@ -1,0 +1,144 @@
+# 삭제 - 수정 화면의 삭제는 확인 시트를 거친다. 취소하면 그대로이고, 확인하면 이 자원을 보던 목록으로
+# 돌아간다(스펙 8.1·8.5·11.3). 목록에서 들어간 경우 돌아온 목록은 같은 조건의 같은 화면이고 지운 행이
+# 사라져 있다 - 상세 제거·목록 무효화. 딥링크로 곧장 연 수정 화면은 보호 경로라 로그인을 거쳐
+# 돌아오고(스펙 7.3), 거기서 지우면 목록으로 간다. 이 플로는 2xx 밖의 상태를 하나도 허용하지 않는다 -
+# 지운 자원의 상세를 다시 부르면(404) 여기서 걸린다.
+appId: com.example.templateexpo.e2e
+---
+- runFlow: ../subflows/start-signed-out.yaml
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: account
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: example
+      TITLE: ${output.prefix} d1
+# 로그인하지 않고 수정 화면을 딥링크로 연다 - 경로 가드가 로그인으로 보낸다. 헤더의 "홈으로" 가 홈으로 데려간다 - iOS 에는
+# 뒤로 가기 키가 없어 가드가 보낸 로그인 화면의 눈에 보이는 출구다(스펙 7.3 의 D4 정정).
+- openLink: templateexpo-e2e://examples/${output.exampleId}/edit
+- extendedWaitUntil:
+    visible:
+      id: login-screen
+    timeout: 15000
+- tapOn:
+    id: back-to-home-button
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 15000
+- assertNotVisible:
+    id: login-screen
+# 다시 연다 - 이번에는 로그인하고, 로그인하면 그 수정 화면으로 돌아온다.
+- openLink: templateexpo-e2e://examples/${output.exampleId}/edit
+- extendedWaitUntil:
+    visible:
+      id: login-screen
+    timeout: 15000
+- runFlow: ../subflows/submit-credentials.yaml
+- extendedWaitUntil:
+    visible:
+      id: field-input-title
+      text: ${output.prefix} d1
+    timeout: 20000
+# 취소하면 그대로다.
+- scrollUntilVisible:
+    element:
+      id: delete-button
+    direction: DOWN
+- tapOn:
+    id: delete-button
+- extendedWaitUntil:
+    visible:
+      id: delete-confirm-cancel
+    timeout: 10000
+- tapOn:
+    id: delete-confirm-cancel
+- extendedWaitUntil:
+    notVisible:
+      id: delete-confirm-cancel
+    timeout: 10000
+- assertVisible:
+    id: edit-example-screen
+# 확인하면 지운다 - 스택에 목록이 없으니 이 화면이 (조건 없는) 목록으로 바뀐다.
+- tapOn:
+    id: delete-button
+- extendedWaitUntil:
+    visible:
+      id: delete-confirm-accept
+    timeout: 10000
+- tapOn:
+    id: delete-confirm-accept
+- extendedWaitUntil:
+    visible:
+      id: examples-screen
+    timeout: 20000
+- assertNotVisible:
+    id: edit-example-screen
+# 목록에서 들어가 지운다 - 돌아온 목록은 같은 조건(이 실행의 접두사)의 같은 화면이고 지운 행이 없다.
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: example
+      TITLE: ${output.prefix} d2
+- openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=${output.prefix}
+- extendedWaitUntil:
+    visible:
+      id: resource-row-title
+      text: ${output.prefix} d2
+    timeout: 20000
+- assertNotVisible:
+    id: resource-row-title
+    text: ${output.prefix} d1
+- tapOn:
+    id: resource-row-title
+    text: ${output.prefix} d2
+- extendedWaitUntil:
+    visible:
+      id: detail-heading
+      text: ${output.prefix} d2
+    timeout: 20000
+# 앱 복귀 - 쌓인 목록은 구독을 끊어 두어 다시 부르지 않고 보이는 상세만 부른다(스펙 8.5 의 D4 정정). 수는 게이트 뒤에
+# 이 플로의 api.log 로 센다 - 이 실행의 목록 GET 은 둘(처음 열 때, 지우고 돌아왔을 때)이다.
+- pressKey: Home
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: detail-heading
+      text: ${output.prefix} d2
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: edit-example-link
+    direction: DOWN
+- tapOn:
+    id: edit-example-link
+- extendedWaitUntil:
+    visible:
+      id: field-input-title
+      text: ${output.prefix} d2
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: delete-button
+    direction: DOWN
+- tapOn:
+    id: delete-button
+- extendedWaitUntil:
+    visible:
+      id: delete-confirm-accept
+    timeout: 10000
+# 확인을 빠르게 두 번 누른다 - 삭제 요청은 하나여야 한다. 둘째 DELETE 가 나가면 이미 지운 자원이라 404 이고, 이 플로는
+# 404 를 선언하지 않아 가드가 실패로 만든다. 삭제가 끝난 뒤에 닿은 둘째 누름은 빈 목록의 빈 자리다.
+- tapOn:
+    id: delete-confirm-accept
+    repeat: 2
+    delay: 1
+- extendedWaitUntil:
+    visible:
+      id: list-empty
+    timeout: 20000
+- assertNotVisible:
+    id: detail-heading
