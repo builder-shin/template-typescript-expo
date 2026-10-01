@@ -50,9 +50,13 @@
     "lib/resources/view.ts",
     "test/unit/resources/view.test.ts",
     "lib/resources/form.ts",
-    "test/unit/resources/form.test.ts"
+    "test/unit/resources/form.test.ts",
+    "lib/lab/experiments.ts",
+    "lib/lab/result.ts",
+    "test/unit/lab/experiments.test.ts",
+    "test/unit/lab/result.test.ts"
   ],
-  "note": "복사본이다. 원본에서 계약 버그가 고쳐지면 이 커밋과 원본을 비교해 반영 여부를 판단한다. 개별 이탈은 divergences 배열에 기록한다(스펙 6.3). 복사본의 주석이 말하는 '스펙'·'D2 Task N'·'proxy.ts' 같은 자리는 원본 저장소의 것이다. scripts/check-citations.sh 머리말의 게이트 단계 번호 '[5/9]' 도 원본 게이트의 번호다(이 저장소의 게이트에서는 [5/12]). 같은 머리말이 계약이 적혀 있다고 가리키는 '루트 AGENTS.md 의 R21 절'도 원본 저장소의 것이고 이 저장소의 루트 AGENTS.md 에는 없다(이 저장소에서 그 계약은 '사라질 자리를 인용하지 마라' 절이다). test/unit/scripts/check-citations.test.ts 의 toPosix 주석은 원본의 실측 문장(계정 이름이 든 예시 경로)을 그대로 둔 것이다. 복사한 시드 파일과 시드 시험도 원본 저장소의 것을 가리킨다 - 원본의 web 서비스와 TZ, test/e2e/*.spec.ts, 원본 루트 AGENTS.md 의 문장은 이 저장소에 없다. sourceBlobs 는 원본 그대로인 경로마다 원본 커밋의 blob SHA-1 이다(git -C <원본> rev-parse <commit>:<경로>) - 그 파일을 고치면 divergences 에 적고 sourceBlobs 에서 항목을 지운다. lib/resources/view.ts 의 주석이 말하는 page.tsx·RSC·headers()·app/error.tsx·filter-bar.tsx·loading.tsx·'Task N' 같은 자리도 원본 저장소의 것이다. lib/jsonapi/query.ts 의 주석이 가리키는 view.ts 의 쪽 이동(paginationView)은 이 저장소의 view.ts 에서 뺐다 - 목록은 커서다(스펙 8.3). lib/resources/form.ts 의 주석이 말하는 Server Action·app/(app)/examples/actions.ts·useActionState·<select>·체크박스·'Task N'·'계획서 §N'·view.ts 의 줄 번호도 원본 저장소의 것이다.",
+  "note": "복사본이다. 원본에서 계약 버그가 고쳐지면 이 커밋과 원본을 비교해 반영 여부를 판단한다. 개별 이탈은 divergences 배열에 기록한다(스펙 6.3). 복사본의 주석이 말하는 '스펙'·'D2 Task N'·'proxy.ts' 같은 자리는 원본 저장소의 것이다. scripts/check-citations.sh 머리말의 게이트 단계 번호 '[5/9]' 도 원본 게이트의 번호다(이 저장소의 게이트에서는 [5/12]). 같은 머리말이 계약이 적혀 있다고 가리키는 '루트 AGENTS.md 의 R21 절'도 원본 저장소의 것이고 이 저장소의 루트 AGENTS.md 에는 없다(이 저장소에서 그 계약은 '사라질 자리를 인용하지 마라' 절이다). test/unit/scripts/check-citations.test.ts 의 toPosix 주석은 원본의 실측 문장(계정 이름이 든 예시 경로)을 그대로 둔 것이다. 복사한 시드 파일과 시드 시험도 원본 저장소의 것을 가리킨다 - 원본의 web 서비스와 TZ, test/e2e/*.spec.ts, 원본 루트 AGENTS.md 의 문장은 이 저장소에 없다. sourceBlobs 는 원본 그대로인 경로마다 원본 커밋의 blob SHA-1 이다(git -C <원본> rev-parse <commit>:<경로>) - 그 파일을 고치면 divergences 에 적고 sourceBlobs 에서 항목을 지운다. lib/resources/view.ts 의 주석이 말하는 page.tsx·RSC·headers()·app/error.tsx·filter-bar.tsx·loading.tsx·'Task N' 같은 자리도 원본 저장소의 것이다. lib/jsonapi/query.ts 의 주석이 가리키는 view.ts 의 쪽 이동(paginationView)은 이 저장소의 view.ts 에서 뺐다 - 목록은 커서다(스펙 8.3). lib/resources/form.ts 의 주석이 말하는 Server Action·app/(app)/examples/actions.ts·useActionState·<select>·체크박스·'Task N'·'계획서 §N'·view.ts 의 줄 번호도 원본 저장소의 것이다. lib/lab/ 의 experiments.ts·result.ts 는 원본의 app/(lab)/contract/ 에서, 그 시험 둘(test/unit/lab/experiments.test.ts·result.test.ts)은 원본의 test/unit/app/contract-experiments.test.ts·contract-result.test.ts 에서 옮겼다 - 이 저장소의 app/ 에는 라우트 파일만 둔다(스펙 4장). result.ts 는 옮긴 자리만 다르고 내용이 원본과 같아서 sourceBlobs 의 값이 원본 경로(app/(lab)/contract/result.ts)의 blob 이다. 그 파일들의 주석이 말하는 actions.ts·runExperiment·'use server'·page.tsx·result-view.tsx·useActionState·test/e2e/contract-lab.spec.ts·test/unit/components/contract-result.test.ts·브리핑·판정 N·스펙 8.5 도 원본 저장소의 것이다 - 이 저장소에서 실험의 실행부는 lib/lab/run.ts, 화면은 app/(lab)/contract.tsx 와 components/lab/experiment-card.tsx, E2E 는 test/e2e/flows/contract-lab-*.yaml 이다.",
   "divergences": [
     {
       "path": "lib/config/settings.ts",
@@ -238,6 +242,21 @@
       "path": "docker-compose.e2e.yml",
       "what": "세 백엔드의 환경(x-rails-env 앵커·api-fastapi·api-nestjs)에 JWT_ACCESS_EXPIRES_SECONDS 를 '${E2E_ACCESS_EXPIRES_SECONDS:-900}' 으로 더하고 그 뜻을 주석 두 줄로 적었다.",
       "why": "E2E 하네스(test/e2e/run-android.sh)가 access token 수명을 10초로 줘서 앱의 쓰기가 전부 실제 회전(스펙 7.2)을 지나게 한다 - 세 백엔드의 기본값 900초로는 플로 안에서 회전이 한 번도 일어나지 않는다(D2 계획의 결정 5 가 실제 회전 왕복을 D4 의 쓰기 E2E 에 넘겼다). 변수를 주지 않으면(게이트의 compose 설정 검사 등) 기본값 그대로다."
+    },
+    {
+      "path": "lib/lab/experiments.ts",
+      "what": "원본의 app/(lab)/contract/experiments.ts 에서 옮겼다. 커서 순회 실험(id cursorWalk, '커서 순회')을 offset 순회(id offsetWalk, 'offset 순회')로 바꾸고, proves 를 page[number]=1 에서 links.next 를 따라가는 문장과 20회 상한으로 고쳤다.",
+      "why": "스펙 8.3·8.6 - 이 앱의 목록은 커서라 실험실이 offset 을 실증한다(원본은 반대다). app/ 에는 라우트 파일만 둔다(스펙 4장)."
+    },
+    {
+      "path": "test/unit/lab/experiments.test.ts",
+      "what": "원본의 test/unit/app/contract-experiments.test.ts 에서 옮겼다. import 를 '@/app/(lab)/contract/experiments' 에서 '@/lib/lab/experiments' 로, EXPECTED_NEEDS_SESSION 의 cursorWalk 를 offsetWalk 로 바꿨다.",
+      "why": "experiments.ts 가 lib/lab/ 로 옮겨졌고 커서 순회가 offset 순회로 바뀌었다(스펙 8.6)."
+    },
+    {
+      "path": "test/unit/lab/result.test.ts",
+      "what": "원본의 test/unit/app/contract-result.test.ts 에서 옮겼다. import 와 머리말이 가리키는 파일을 app/(lab)/contract/result 에서 lib/lab/result 로 바꿨다.",
+      "why": "result.ts 가 lib/lab/ 로 옮겨졌다(스펙 4장 - app/ 에는 라우트 파일만 둔다)."
     }
   ],
   "sourceBlobs": {
@@ -271,6 +290,7 @@
     "lib/auth/flow.ts": "62ee21b41bfb16c474252e6118108fe5d96d98f2",
     "test/unit/auth/flow.test.ts": "1579380da841000bc6b025b64e91a3efb9c556cd",
     "test/e2e/probe-email.ts": "70d57b3fd387f599d85dc76e3cb10f5c0032f8fb",
-    "test/unit/e2e/probe-email.test.ts": "406e0fd808767c0a605bbbf25c414eec129b165e"
+    "test/unit/e2e/probe-email.test.ts": "406e0fd808767c0a605bbbf25c414eec129b165e",
+    "lib/lab/result.ts": "8a389e226964326ab28b8816d07c8a6d4449cb15"
   }
 }

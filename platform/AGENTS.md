@@ -6,7 +6,7 @@ Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 
 | 파일                        | 역할                                                                                                                                                                                                                                             |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `config.ts`                 | 설정 자리를 `app.config.ts`의 `extra`로 돌리고 시작할 때 검증한다. 빌드 변형과 딥링크 scheme 을 읽는다. 판단은 `lib/config/startup.ts`·`lib/navigation/deep-link.ts`                                                                             |
-| `api.ts`                    | 앱의 API 클라이언트 `apiRequest`. Accept-Language 를 싣는 유일한 자리(스펙 9.4), e2e 변형의 실패 표식                                                                                                                                            |
+| `api.ts`                    | 앱의 API 클라이언트 `apiRequest`. Accept-Language 를 싣는 유일한 자리(스펙 9.4) - 값은 기기 언어(`deviceAcceptLanguage`)이고 호출자가 정했으면 그 값이다(계약 실험실). e2e 변형의 실패 표식                                                      |
 | `secure-session-storage.ts` | 세션 항목의 SecureStore 저장 매체                                                                                                                                                                                                                |
 | `session.ts`                | 세션 관리자 `sessionManager` 하나와 상태 훅 `useSessionStatus()`                                                                                                                                                                                 |
 | `query-client.ts`           | Query 캐시 `queryClient` 하나와 기본 옵션(스펙 8.5, `networkMode: 'offlineFirst'`), 앱 복귀·네트워크 복귀의 재조회 `useQueryRefetchTriggers()`(AppState·NetInfo), 인증 오류의 한 곳(쓰기 캐시의 `onError` - 세션 거절이면 `signOut()`, 스펙 9.2) |
@@ -35,7 +35,7 @@ Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 
 
 ## 검증
 
-`api.ts`의 배선 - 요청마다 기기 언어로 Accept-Language 를 싣는 것, e2e 변형에서만 실패 표식을 남기는
+`api.ts`의 배선 - 요청마다 기기 언어로 Accept-Language 를 싣는 것, 호출자가 정한 언어는 덮지 않는 것, e2e 변형에서만 실패 표식을 남기는
 것 - 은 `test/unit/platform/api.test.ts`가 `vi.mock`으로 잰다(기기 모듈·설정 자리·`request`를 가짜로
 바꾼다). 언어 조립·실패 한 줄·변형 표의 판단은 `lib/`의 시험이 잰다. `query-client.ts`의 인증 오류 배선은
 `test/unit/platform/query-client.test.ts`가 실제 쓰기 캐시로 잰다(기기 모듈과 세션 관리자만 가짜다).

@@ -15,7 +15,7 @@
 | `lib/jsonapi/`         | 문서 파싱, `included` 정규화, 쿼리 직렬화, 오류 분류, HTTP 협상                                                      | 자원별 지식, 화면, 네이티브 모듈          |
 | `lib/resources/`       | 자원 선언, 목록·상세·폼 판단                                                                                         | JSX, fetch, 네이티브 모듈                 |
 | `lib/auth/`            | 세션 모델과 직렬화, 만료 판정, 회전 결정, 자격증명 문서, 보호 경로 목록과 경로 가드 판단                             | 저장 매체, 화면 이동                      |
-| `lib/lab/`             | 실험 정의, 결과 표현                                                                                                 | 화면, 세션                                |
+| `lib/lab/`             | 실험 정의, 실험의 실행(전송·토큰을 주입받는다), 결과 표현                                                            | 화면, 세션                                |
 | `lib/config/`          | 설정 계약과 변형 규칙 - `app.config.ts`가 M7 제약 아래 직접 불러온다                                                 | 네이티브 모듈, 설정 자리의 바인딩         |
 | `lib/navigation/`      | 밖에서 들어온 URL·딥링크를 앱 안 주소로 바꾸는 정규화, 화면을 쌓는 이동을 한 번만 하는 가드(`once.ts`)               | 화면, fetch, 네이티브 모듈                |
 | `platform/`            | SecureStore·로캘·AppState·NetInfo·Updates·Constants 호출, React Provider, API 클라이언트 조립                        | 판단                                      |
