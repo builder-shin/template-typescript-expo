@@ -226,7 +226,7 @@ version·채널은 빈 문자열이고 업데이트 ID 는 없다는 것은 설�
    `> Task :app:createReleaseUpdatesResources UP-TO-DATE`, `BUILD SUCCESSFUL in 4m 35s`.
 
 **레시피 유지 조건.** 두 단계 Gradle 은 둘째 실행에서 `createReleaseUpdatesResources` 가 UP-TO-DATE 인 것에 기댄다 - 지금
-그 단계의 입력은 문자열뿐이다. expo-updates 를 올릴 때마다 게이트 로그에 `> Task :app:createReleaseUpdatesResources UP-TO-DATE`
+그 단계의 입력은 파일 없이 문자열·문자열 목록·불리언뿐이다. expo-updates 를 올릴 때마다 게이트 로그에 `> Task :app:createReleaseUpdatesResources UP-TO-DATE`
 가 여전히 있는지 확인한다. 둘째 실행에서 다시 돌면 번들 단계가 채운 캐시 위의 Metro 로 돌아갈 수 있어 순서를 다시 검토해야
 한다. 두 번째 Metro 캐시 비우기는 번들 단계도 빈 캐시에서 시작하게 하려는 것이다(D3 실측 L7 의 불변식).
 
