@@ -17,6 +17,10 @@ vitest 다. 게이트의 `[12/13]` 이 `run.sh` 하나로 돈다.
 - 오류는 `code`·`source` 만 본다 - 문구는 세 백엔드가 갈린다.
 - 단위 시험(`pnpm test`)은 이 디렉터리를 돌지 않는다(`vitest.config.mjs` 의 `include`). 이 디렉터리는
   `vitest.contract.config.mjs` 로만 돈다.
+- `run.sh` 는 Docker 를 띄우므로 게이트 밖에서는 돌지 않지만, 불변식(compose 호출은 이 저장소의 프로젝트로만,
+  access 수명 900초, 정리 트랩은 사전 점검 뒤에만, 거울의 종료 코드 전달)은 단위 시험
+  `test/unit/scripts/contract-run.test.ts` 가 가짜 `docker`·`curl`·`pnpm` 으로 지킨다. `run.sh` 를 고치면 그
+  시험도 함께 고친다.
 
 ## 잡지 못하는 것
 
