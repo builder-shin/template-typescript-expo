@@ -14,7 +14,9 @@ import { afterAll, describe, expect, it } from 'vitest'
  * 불변식을 깨도 다음 게이트까지 드러나지 않고, 그 게이트는 몇십 분이 든다. 그래서 PATH 맨 앞에 가짜 `docker`·
  * `curl`·`pnpm` 을 두고 `run.sh` 가 그것들을 어떻게 불렀는지(인자와 환경)를 기록해 맞댄다. **진짜 Docker 는 이
  * 파일에서 한 번도 부르지 않는다** - 시험이 먼저 가짜가 맨 앞에서 잡히는지 확인하고, 아니면 `run.sh` 를 돌리기
- * 전에 멈춘다.
+ * 전에 멈춘다. 가짜를 PATH 맨 앞에 두는 일은 환경 변수가 아니라 `BASH_ENV` 로 읽히는 파일이 셸이 시작된 뒤에
+ * 한다 - Windows 에서 PowerShell·cmd 로 돌리면 bash 가 Git 의 `bin\bash.exe` 로 잡히고, 그것이 PATH 앞에
+ * `/mingw64/bin:/usr/bin` 을 붙여 Git 의 진짜 `curl` 이 가짜보다 먼저 잡힌다.
  *
  * ## 지키는 불변식
  *
@@ -49,6 +51,12 @@ const COMPOSE_FILE = 'docker-compose.e2e.yml'
 /** 이 저장소의 compose 호출이 반드시 시작하는 말. */
 const SCOPE = `compose -p ${PROJECT} -f ${COMPOSE_FILE}`
 
+/**
+ * bash 를 한 번 부르는 일의 상한. 가짜 도구는 즉시 끝나므로 이보다 오래 걸리면 `run.sh` 안에 기다리는 반복
+ * (폴링·sleep)이 생긴 것이다 - 시험이 멈춰 서는 대신 이유와 함께 빨개진다.
+ */
+const SPAWN_TIMEOUT_MS = 30_000
+
 const WORK = mkdtempSync(join(tmpdir(), 'contract-run-'))
 const SHIMS = join(WORK, 'shims')
 
@@ -72,13 +80,33 @@ function resolveBash(): string {
         ]
       : ['bash']
   for (const candidate of candidates) {
-    const probe = spawnSync(candidate, ['-c', 'printf ok'], { encoding: 'utf8' })
+    const probe = spawnSync(candidate, ['-c', 'printf ok'], {
+      encoding: 'utf8',
+      timeout: SPAWN_TIMEOUT_MS,
+    })
     if (probe.status === 0 && probe.stdout === 'ok') return candidate
   }
   throw new Error(`쓸 수 있는 bash 를 찾지 못했다 - 후보: ${candidates.join(' · ')}`)
 }
 
 const BASH = resolveBash()
+
+/**
+ * bash 가 보는 경로 - Windows 에서는 `C:/…` 가 `/c/…` 꼴이 된다. 경로는 인자로 넘긴다(따옴표나 `$` 가 든 이름이
+ * 명령 문자열로 풀리지 않게). 호출자의 `BASH_ENV` 가 끼어들지 않게 지운다.
+ */
+function bashPathOf(path: string): string {
+  const env: NodeJS.ProcessEnv = { ...process.env }
+  delete env.BASH_ENV
+  const result = spawnSync(BASH, ['-c', 'cd "$1" && pwd', 'bash', toPosix(path)], {
+    env,
+    encoding: 'utf8',
+    timeout: SPAWN_TIMEOUT_MS,
+  })
+  const resolved = result.stdout.trim()
+  if (result.status !== 0 || resolved === '') throw new Error(`bash 가 경로를 풀지 못했다: ${path}`)
+  return resolved
+}
 
 /* ------------------------------------------------------------------------- *
  * 가짜 도구
@@ -93,16 +121,16 @@ const LOGGED_ENV = [
 ] as const
 
 /**
- * 가짜 도구 하나의 본문. 받은 인자와 환경을 `SHIM_LOG` 에 한 줄로 적고(`<도구> <인자> | 이름=값 …`),
- * `__shim__` 을 받으면 자기 이름을 대고 끝난다(진짜 도구는 그 인자를 모른다). `exitVariable` 이 가리키는 환경
- * 변수로 종료 코드를 정한다.
+ * 가짜 도구 하나의 본문. 받은 인자와 환경을 `SHIM_LOG` 에 한 줄로 적고(`<도구> <인자>` 뒤에 `이름=값` 들 - 모두
+ * 탭으로 나눈다. 값에 공백이 든 경로(`PWD`)도 온전히 읽히게 한다), `__shim__` 을 받으면 자기 이름을 대고
+ * 끝난다(진짜 도구는 그 인자를 모른다). `exitVariable` 이 가리키는 환경 변수로 종료 코드를 정한다.
  */
 function shimScript(name: string, exitVariable: string, extra: readonly string[] = []): string {
-  const env = LOGGED_ENV.map((variable) => `${variable}=\${${variable}:-}`).join(' ')
+  const env = LOGGED_ENV.map((variable) => `${variable}=\${${variable}:-}`).join('\t')
   return [
     '#!/bin/sh',
     `if [ "\${1:-}" = "__shim__" ]; then echo "fake-${name}"; exit 0; fi`,
-    `echo "${name} $* | ${env}" >>"$SHIM_LOG"`,
+    `echo "${name} $*\t${env}" >>"$SHIM_LOG"`,
     ...extra,
     `exit "\${${exitVariable}:-0}"`,
     '',
@@ -123,14 +151,23 @@ for (const [name, source] of Object.entries(SHIM_FILES)) {
   chmodSync(join(SHIMS, name), 0o755)
 }
 
+/** bash 가 보는 가짜 도구의 디렉터리 - 아래 `BASH_ENV` 파일이 `SHIM_DIR` 로 읽어 PATH 맨 앞에 박는다. */
+const SHIMS_IN_BASH = bashPathOf(SHIMS)
+
 /**
- * `BASH_ENV` 로 먼저 읽혀 `HIDE_TOOL` 이 가리키는 도구가 PATH 에 없는 것처럼 `command -v` 가 답하게 한다 - 이
- * 머신에 진짜가 깔려 있어도 "docker 가 없다"·"curl 이 없다" 장면이 선다.
+ * 모든 장면의 bash 가 `BASH_ENV` 로 먼저 읽는 파일. 둘을 한다.
+ *
+ * 1. 가짜 도구의 디렉터리를 PATH 맨 앞에 박는다. 부모가 PATH 맨 앞에 둔 가짜는 Windows 의 `bin\bash.exe` 래퍼가
+ *    `/mingw64/bin:/usr/bin` 을 앞에 붙이면 Git 의 진짜 `curl` 에 밀린다(PowerShell·cmd 에서 돌릴 때). 셸이 시작된
+ *    뒤에 박으면 어느 부모에서든 가짜가 이긴다.
+ * 2. `HIDE_TOOL` 이 가리키는 도구가 PATH 에 없는 것처럼 `command -v` 가 답하게 한다 - 이 머신에 진짜가 깔려
+ *    있어도 "docker 가 없다"·"curl 이 없다" 장면이 선다.
  */
-const HIDE_FILE = join(WORK, 'hide-tool.sh')
+const BASH_ENV_FILE = join(WORK, 'bash-env.sh')
 writeFileSync(
-  HIDE_FILE,
+  BASH_ENV_FILE,
   [
+    'export PATH="$SHIM_DIR:$PATH"',
     'command() {',
     '  if [ "${1:-}" = "-v" ] && [ "${2:-}" = "${HIDE_TOOL:-}" ]; then return 1; fi',
     '  builtin command "$@"',
@@ -146,6 +183,7 @@ const SCRUBBED = [
   'E2E_ACCESS_EXPIRES_SECONDS',
   'CONTRACT_API_URL',
   'BASH_ENV',
+  'SHIM_DIR',
   'HIDE_TOOL',
   'FAKE_DOCKER_EXIT',
   'FAKE_DOCKER_INFO_EXIT',
@@ -160,6 +198,9 @@ function sceneEnv(): NodeJS.ProcessEnv {
   // Windows 의 환경 변수 이름은 대소문자를 가리지 않지만 펼친 객체의 키는 가린다 - 있는 키에 붙인다.
   const pathKey = Object.keys(env).find((key) => key.toLowerCase() === 'path') ?? 'PATH'
   env[pathKey] = `${SHIMS}${delimiter}${env[pathKey] ?? ''}`
+  // 셸이 시작된 뒤에 가짜를 PATH 맨 앞에 박는 파일 - 위의 PATH 만으로는 Git 의 래퍼 bash 에서 밀린다.
+  env.SHIM_DIR = SHIMS_IN_BASH
+  env.BASH_ENV = toPosix(BASH_ENV_FILE)
   return env
 }
 
@@ -168,6 +209,7 @@ function assertShimsAreFirst(): void {
   const probe = spawnSync(BASH, ['-c', 'docker __shim__ && curl __shim__ && pnpm __shim__'], {
     env: sceneEnv(),
     encoding: 'utf8',
+    timeout: SPAWN_TIMEOUT_MS,
   })
   if (probe.stdout !== 'fake-docker\nfake-curl\nfake-pnpm\n') {
     throw new Error(
@@ -179,11 +221,6 @@ function assertShimsAreFirst(): void {
 assertShimsAreFirst()
 
 /** bash 가 보는 저장소 루트 - Windows 에서는 `/c/…` 꼴이다. compose 가 불린 자리와 이것을 맞댄다. */
-function bashPathOf(path: string): string {
-  const result = spawnSync(BASH, ['-c', `cd "${toPosix(path)}" && pwd`], { encoding: 'utf8' })
-  return result.stdout.trim()
-}
-
 const REPO_ROOT_IN_BASH = bashPathOf(REPO_ROOT)
 
 /* ------------------------------------------------------------------------- *
@@ -214,10 +251,10 @@ function parseCalls(log: string): Call[] {
     .split('\n')
     .filter((line) => line !== '')
     .map((line) => {
-      const [head = '', tail = ''] = line.split(' | ')
+      const [head = '', ...pairs] = line.split('\t')
       const space = head.indexOf(' ')
       const env: Record<string, string> = {}
-      for (const pair of tail.split(' ')) {
+      for (const pair of pairs) {
         const equals = pair.indexOf('=')
         if (equals > 0) env[pair.slice(0, equals)] = pair.slice(equals + 1)
       }
@@ -256,13 +293,22 @@ function run(scene: Scene = {}): Outcome {
   const env = sceneEnv()
   env.SHIM_LOG = toPosix(log)
   Object.assign(env, scene.env)
-  if (scene.hide !== undefined) {
-    env.HIDE_TOOL = scene.hide
-    env.BASH_ENV = toPosix(HIDE_FILE)
-  }
+  if (scene.hide !== undefined) env.HIDE_TOOL = scene.hide
   // 저장소 루트가 아닌 곳에서 부른다 - 스크립트가 제 위치에서 루트를 찾아야 한다.
-  const result = spawnSync(BASH, [SCRIPT], { cwd: WORK, env, encoding: 'utf8' })
-  if (result.error) throw result.error
+  const result = spawnSync(BASH, [SCRIPT], {
+    cwd: WORK,
+    env,
+    encoding: 'utf8',
+    timeout: SPAWN_TIMEOUT_MS,
+  })
+  if (result.error) {
+    if ((result.error as NodeJS.ErrnoException).code === 'ETIMEDOUT') {
+      throw new Error(
+        `run.sh 가 ${String(SPAWN_TIMEOUT_MS / 1000)}초 안에 끝나지 않았다 - 가짜 도구는 즉시 끝나므로 run.sh 에 기다리는 반복(폴링·sleep)이 생겼는지 본다`,
+      )
+    }
+    throw result.error
+  }
   if (result.status === null) throw new Error(`run.sh 가 신호로 죽었다: ${String(result.signal)}`)
   const calls = parseCalls(readFileSync(log, 'utf8'))
   const unscoped = composeCalls(calls).filter((call) => !call.args.startsWith(`${SCOPE} `))
@@ -274,11 +320,19 @@ function run(scene: Scene = {}): Outcome {
   return { status: result.status, stderr: result.stderr, calls }
 }
 
-/** 같은 장면을 여러 시험이 나눠 볼 때 한 번만 돈다. */
+/** 같은 장면을 여러 시험이 나눠 볼 때 한 번만 돈다. 던졌으면 던진 것을 그대로 다시 던진다. */
 function once<T>(make: () => T): () => T {
-  let made: { value: T } | undefined
+  let made: { value: T } | { error: unknown } | undefined
   return () => {
-    made ??= { value: make() }
+    if (made === undefined) {
+      try {
+        made = { value: make() }
+      } catch (error) {
+        // 던진 것도 기억한다 - 멈춘 장면을 시험마다 30초씩 다시 돌지 않는다.
+        made = { error }
+      }
+    }
+    if ('error' in made) throw made.error
     return made.value
   }
 }
