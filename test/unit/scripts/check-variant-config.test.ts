@@ -174,6 +174,17 @@ function mutated(
   return checkConfig(config, variant, projectId)
 }
 
+/** 실패 머리말의 `(<대상>)` - 검사기가 맞댄 변형과 EAS 프로젝트. */
+function targetOf(variant: Variant, projectId: string | null): string {
+  return projectId === null ? variant : `${variant} + EAS 프로젝트 ${projectId}`
+}
+
+/** 실패 출력(stderr)을 머리말 한 줄과 위반 줄들로 나눈다. */
+function failureOf(stderr: string): { header: string; lines: string[] } {
+  const [header = '', ...lines] = stderr.trimEnd().split('\n')
+  return { header, lines }
+}
+
 function metaDataOf(config: Introspected): MetaData[] {
   const [application] = config._internal.modResults.android.manifest.manifest.application
   if (application === undefined) throw new Error('표본에 application 이 없다')
@@ -208,9 +219,7 @@ describe('변형별 설정 검사 - 게이트 [8]', { timeout: 30_000 }, () => {
       'preview' as const,
       PROJECT_ID,
       (config: Introspected) => {
-        const enabled = metaDataOf(config).find(
-          (item) => item.$['android:name'] === 'expo.modules.updates.ENABLED',
-        )
+        const enabled = metaItem(config, 'expo.modules.updates.ENABLED')
         if (enabled !== undefined) enabled.$['android:value'] = 'false'
       },
       'Android OTA(expo.modules.updates.ENABLED)',
@@ -220,10 +229,9 @@ describe('변형별 설정 검사 - 게이트 [8]', { timeout: 30_000 }, () => {
       'preview' as const,
       PROJECT_ID,
       (config: Introspected) => {
-        const headers = metaDataOf(config).find(
-          (item) =>
-            item.$['android:name'] ===
-            'expo.modules.updates.UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY',
+        const headers = metaItem(
+          config,
+          'expo.modules.updates.UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY',
         )
         if (headers !== undefined) {
           headers.$['android:value'] = JSON.stringify({ 'expo-channel-name': 'production' })
@@ -355,8 +363,8 @@ describe('변형별 설정 검사 - 게이트 [8]', { timeout: 30_000 }, () => {
       'preview' as const,
       PROJECT_ID,
       (config: Introspected) => {
-        const check = metaItem(config, 'expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH')
-        if (check !== undefined) check.$['android:value'] = 'NEVER'
+        const onLaunch = metaItem(config, 'expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH')
+        if (onLaunch !== undefined) onLaunch.$['android:value'] = 'NEVER'
       },
       'Android OTA 확인 시점',
     ],
@@ -419,19 +427,43 @@ describe('변형별 설정 검사 - 게이트 [8]', { timeout: 30_000 }, () => {
     ],
   ])('%s 면 실패하고 그 자리를 알린다', (_label, variant, projectId, mutate, where) => {
     const result = mutated(variant, projectId, mutate)
+    const { header, lines } = failureOf(result.stderr)
     expect(result.status).toBe(1)
-    expect(result.stderr).toContain(`- ${where}:`)
+    // 자리 하나만 고쳤으니 위반도 하나다 - 머리말이 대상과 건수를 말한다.
+    expect(header).toBe(`변형 설정 위반 1건 (${targetOf(variant, projectId)}):`)
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toContain(`- ${where}:`)
+  })
+
+  it.each(VARIANTS)('%s 의 설정 JSON 에 네이티브 설정이 없으면 위반으로 실패한다', (variant) => {
+    // 문법은 맞지만 expo config --type introspect 의 출력이 아닌 JSON - 빈 객체, null, 배열.
+    for (const input of ['{}', 'null', '[]']) {
+      const result = check([variant], input)
+      const { header, lines } = failureOf(result.stderr)
+      expect(result.status, input).toBe(1)
+      expect(header, input).toBe(`변형 설정 위반 ${lines.length}건 (${variant}):`)
+      // 네이티브 설정(_internal)에서 읽는 자리도 맞댄 채 위반으로 알린다.
+      expect(result.stderr, input).toContain('- Android 앱 이름:')
+      expect(result.stderr, input).toContain('- iOS 평문 HTTP(NSAllowsLocalNetworking):')
+    }
   })
 
   it('변형을 주지 않으면 사용법을 알리고 실패한다', () => {
-    const result = check([], '{}')
-    expect(result.status).toBe(1)
-    expect(result.stderr).toContain('사용법')
+    // 빈 값과 공백도 주지 않은 것이다 - 변형 파서의 기본값(development)으로 넘어가면 엉뚱한 변형을 검사한다.
+    for (const args of [[], [''], ['  ']]) {
+      const result = check(args, '{}')
+      expect(result.status, JSON.stringify(args)).toBe(1)
+      expect(result.stderr, JSON.stringify(args)).toContain('사용법')
+    }
   })
 
   it('목록 밖의 변형이나 UUID 가 아닌 프로젝트 id 는 실패한다', () => {
-    expect(check(['staging'], '{}').stderr).toContain('APP_VARIANT must be one of')
-    expect(check(['preview', 'probe'], '{}').stderr).toContain('EAS_PROJECT_ID must be a UUID')
+    const variant = check(['staging'], '{}')
+    expect(variant.status).toBe(1)
+    expect(variant.stderr).toContain('APP_VARIANT must be one of')
+    const project = check(['preview', 'probe'], '{}')
+    expect(project.status).toBe(1)
+    expect(project.stderr).toContain('EAS_PROJECT_ID must be a UUID')
   })
 
   it('JSON 이 아니면 실패한다', () => {
