@@ -48,8 +48,14 @@ function run(body: string, overrides: Record<string, string> = {}) {
     kill: `printf '%s\\n' "$*" >> kill.calls
 case "$1" in
   -0) [ "$PROCESS_MODE" != dead ] && [ ! -f stopped ] ;;
-  -INT) if [ "$PROCESS_MODE" = int ]; then : > stopped; fi ;;
-  -TERM) : > stopped ;;
+  -INT)
+    if [ "$PROCESS_MODE" = int-race ]; then : > stopped; exit 1; fi
+    if [ "$PROCESS_MODE" = int ]; then : > stopped; fi ;;
+  -TERM)
+    [ ! -f stopped ] || exit 1
+    if [ "$PROCESS_MODE" = term-race ]; then : > stopped; exit 1; fi
+    [ "$PROCESS_MODE" != term-fails ] || exit 1
+    : > stopped ;;
   *) exit 99 ;;
 esac`,
     curl: `printf '%s\\n' "$*" >> curl.calls
@@ -195,6 +201,17 @@ describe('iOS 로그 스트림 종료', () => {
     expect(read('kill.calls')).toBe('-0 424242')
   })
 
+  it.each([0, 130, 143])('생존 검사 뒤 INT 전달 전에 끝나면 wait=%s여도 실패한다', (status) => {
+    const { result, read } = run(STOP, { PROCESS_MODE: 'int-race', WAIT_STATUS: String(status) })
+    expect(result.error).toBeUndefined()
+    expect(result.status, result.stderr).toBe(1)
+    expect(result.stderr).toContain(
+      '로그 스트림이 종료 신호 전에 끝났다 - 플로의 로그가 불완전하다',
+    )
+    expect(read('kill.calls').split(/\r?\n/)).toEqual(['-0 424242', '-INT 424242'])
+    expect(read('wait.calls')).toBe('424242')
+  })
+
   it.each([0, 130])('의도한 INT 종료(exit %s)는 성공한다', (status) => {
     const { result, read } = run(STOP, { PROCESS_MODE: 'int', WAIT_STATUS: String(status) })
     expect(result.status, result.stderr).toBe(0)
@@ -209,6 +226,23 @@ describe('iOS 로그 스트림 종료', () => {
     expect(read('kill.calls')).toContain('-TERM 424242')
     expect(read('sleep.calls').split(/\r?\n/)).toEqual(['2', ...Array<string>(10).fill('0.5')])
     expect(read('wait.calls')).toBe('424242')
+  })
+
+  it('전달한 INT 뒤 TERM 직전에 끝났으면 wait=130을 성공으로 받는다', () => {
+    const { result, read } = run(STOP, { PROCESS_MODE: 'term-race', WAIT_STATUS: '130' })
+    expect(result.status, result.stderr).toBe(0)
+    expect(read('kill.calls')).toContain('-TERM 424242')
+    expect(read('wait.calls')).toBe('424242')
+    expect(result.stdout).toContain('log_pid=\n')
+  })
+
+  it('TERM도 전달하지 못했고 스트림이 아직 살아 있으면 기다리지 않고 실패한다', () => {
+    const { result, read } = run(STOP, { PROCESS_MODE: 'term-fails' })
+    expect(result.error).toBeUndefined()
+    expect(result.status, result.stderr).toBe(1)
+    expect(result.stderr).toContain('로그 스트림에 TERM 종료 신호를 보내지 못했다')
+    expect(read('kill.calls')).toContain('-TERM 424242')
+    expect(read('wait.calls')).toBe('')
   })
 
   it('종료 신호를 보내도 예상하지 않은 wait 상태면 실패한다', () => {

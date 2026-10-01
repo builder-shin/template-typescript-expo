@@ -104,21 +104,29 @@ start_device_log() {
 # 셸이 백그라운드로 띄운 명령은 SIGINT 를 무시한 채 시작한다(POSIX) - 스스로 처리기를 두지 않으면 INT 가 닿지 않아
 # wait 가 끝나지 않는다. 5초 안에 끝나지 않으면 TERM 을 보낸다.
 stop_device_log() {
-  local waited=0 rc=0
+  local waited=0 rc=0 int_sent=0 term_sent=0
   [ -n "${log_pid:-}" ] || return 0
   sleep 2 || return 1
-  if ! kill -0 "$log_pid" 2>/dev/null; then
+  # 생존 검사 직후 끝날 수 있다 - INT 를 실제로 보낸 경우에만 자체 종료로 본다.
+  if kill -0 "$log_pid" 2>/dev/null && kill -INT "$log_pid" 2>/dev/null; then
+    int_sent=1
+  fi
+  if [ "$int_sent" -eq 0 ]; then
     wait "$log_pid" 2>/dev/null || true
     log_pid=''
     echo "E2E(iOS): 로그 스트림이 종료 신호 전에 끝났다 - 플로의 로그가 불완전하다" >&2
     return 1
   fi
-  kill -INT "$log_pid" 2>/dev/null || true
   while kill -0 "$log_pid" 2>/dev/null && [ "$waited" -lt 10 ]; do
     sleep 0.5 || return 1
     waited=$((waited + 1))
   done
-  kill -TERM "$log_pid" 2>/dev/null || true
+  if kill -TERM "$log_pid" 2>/dev/null; then term_sent=1; fi
+  # 전달한 INT 뒤 이미 끝났으면 TERM 실패는 정상이다. 아직 살아 있으면 회수를 기다리지 않는다.
+  if [ "$term_sent" -eq 0 ] && kill -0 "$log_pid" 2>/dev/null; then
+    echo "E2E(iOS): 로그 스트림에 TERM 종료 신호를 보내지 못했다" >&2
+    return 1
+  fi
   wait "$log_pid" 2>/dev/null || rc=$?
   log_pid=''
   case "$rc" in
