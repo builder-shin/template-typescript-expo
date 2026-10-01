@@ -866,7 +866,10 @@ xcodebuild로 직접 빌드한다. 실제 EAS 빌드와 OTA 발행은 사용자�
 > FastAPI 스택을 띄워 `pnpm test:contract`(`vitest.contract.config.mjs` - 단위 시험과 설정이 따로다)로 돌리고 내린다.
 > 앱의 API 클라이언트를 지나지 않고 `fetch` 로 원본 응답을 받는다(`test/contract/backend.ts`, 주소는
 > `CONTRACT_API_URL`). 1 의 정렬도 양방향이다 - 선언에 없는 정렬은 `INVALID_SORT`(복사한 `mirror.ts` 가 원본의
-> 판정대로 넓혀 두었다). 3 은 선언된 제약을 넘긴 값만 보내 행을 만들지 않는다 - 선언이 백엔드보다 좁은 쪽
+> 판정대로 넓혀 두었다). 다만 정렬의 닫힘은 고정 이름 하나(`mirrorAbsentSortField`)로만 재므로 선언에서 정렬을 빼는
+> 어긋남(백엔드가 선언에 없는 실제 정렬을 여는 경우)은 잡지 못하고, 필터의 양방향도 선언된 필드 안에서만 성립한다.
+> 거울이 잡지 못하는 것은 `test/contract/AGENTS.md` 의 "잡지 못하는 것"에 있다. 3 은 선언된 제약을 넘긴 값만 보내
+> 행을 만들지 않는다 - 선언이 백엔드보다 좁은 쪽
 > (`maxLength` 를 줄이면 백엔드가 그 값을 받는다)을 잡고, 넓은 쪽은 잡지 못한다(원본과 같다). 한 번 가입·로그인한
 > 토큰으로 잰다 - access 수명은 백엔드 기본값이다(E2E 하네스의 10초를 쓰지 않는다). 거울이 선언의 어긋남을
 > 잡는지는 선언을 일부러 바꿔 재 보았다 - `docs/superpowers/notes/2026-10-01-d5-measurements.md` 의 C1.

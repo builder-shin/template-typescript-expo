@@ -13,12 +13,14 @@ import { getFrom, isSuccess, postTo, registerAndLogin, type BackendResponse } fr
  *
  * 선언의 `filters`·`sorts`·`attributes` 는 백엔드 조회 정책과 시리얼라이저를 손으로 베낀 거울이라 반드시
  * 어긋난다. 이 파일은 복사한 `lib/resources/mirror.ts` 가 계산한 프로브와 속성 키를 실제 백엔드에 보내 맞댄다
- * - 선언을 백엔드보다 넓히거나 좁히면(연산자·정렬을 열거나 닫으면, 속성 이름이나 제약을 바꾸면) 게이트
- * `[12/13]` 이 빨개진다. 원본(template-typescript-nextjs)의 `test/e2e/mirror.spec.ts` 의 검사 넷을 vitest 로
- * 옮긴 것이다 - Playwright 의 요청 컨텍스트 대신 `fetch`(`./backend.ts`)로 원본 응답을 받는다.
+ * - 아래 넷이 재는 범위 안에서 선언과 백엔드가 어긋나면(선언된 연산자·정렬을 백엔드가 거부하거나, 선언된 필드의
+ * 선언 밖 연산자를 받거나, 응답의 속성 키·선언된 제약·enum 값이 다르면) 게이트 `[12/13]` 이 빨개진다. 재지 않는
+ * 것은 `test/contract/AGENTS.md` 의 "잡지 못하는 것"에 있다 - 선언에서 정렬을 빼는 쪽이나 백엔드보다 넓은 제약은 이
+ * 파일이 초록이어도 어긋나 있을 수 있다. 원본(template-typescript-nextjs)의 `test/e2e/mirror.spec.ts` 의 검사 넷을
+ * vitest 로 옮긴 것이다 - Playwright 의 요청 컨텍스트 대신 `fetch`(`./backend.ts`)로 원본 응답을 받는다.
  *
- * 1. 조회 정책 - 선언된 (필드, 연산자)·정렬은 2xx, 선언에 없는 연산자는 `INVALID_FILTER`, 선언에 없는 정렬은
- *    `INVALID_SORT` 와 그 `source.parameter`.
+ * 1. 조회 정책 - 선언된 (필드, 연산자)·정렬은 2xx, 선언된 필드의 선언 밖 연산자는 `INVALID_FILTER`. 정렬의 닫힘은
+ *    고정된 가짜 이름(`mirrorAbsentSortField`) 하나가 `INVALID_SORT` 와 그 `source.parameter` 로 거부되는지로만 잰다.
  * 2. 응답 `data[0].attributes` 의 키 집합이 선언(`attributeKeys`)과 같다 - 씨앗이 0건이면 잴 것이 없어 실패다.
  * 3. 속성 제약 - `examples` 에만, 로그인한 뒤 POST 로. `maxLength`·`min`·`max`·enum 을 넘기면 422 와 그 필드를
  *    가리키는 `source.pointer`. 참조 자원은 쓰기 라우트가 없어 이 검사가 성립하지 않는다. 넘긴 값만 보내므로
