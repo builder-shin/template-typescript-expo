@@ -125,6 +125,29 @@ describe('Maestro 플로의 두 플랫폼 규칙', () => {
     expect(offenders).toEqual([])
   })
 
+  it('iOS Charlie 태그는 정확히 두 멤버의 두 순열만 받는다', () => {
+    const source = all.find((flow) => flow.path === 'flows/examples-browse.yaml')?.source ?? ''
+    const pattern = /text: '([^'\n]*probe-seed charlie[^'\n]*)'/.exec(source)?.[1]
+    expect(pattern).toBeDefined()
+    const matcher = new RegExp(pattern ?? '(?!)')
+    const prefix =
+      'probe-seed charlie, 상태, 보관, 점수, 0, 생성, 2026-04-05 05:06, 분류, 프로브 분류 둘, 태그, '
+    for (const tags of ['프로브 라벨 하나, 프로브 라벨 둘', '프로브 라벨 둘, 프로브 라벨 하나']) {
+      expect(matcher.test(prefix + tags), tags).toBe(true)
+    }
+    for (const tags of [
+      '프로브 라벨 하나',
+      '프로브 라벨 둘',
+      '프로브 라벨 하나, 프로브 라벨 하나',
+      '프로브 라벨 둘, 프로브 라벨 둘',
+      '프로브 라벨 하나, 프로브 라벨 둘, 세 번째',
+    ]) {
+      expect(matcher.test(prefix + tags), tags).toBe(false)
+    }
+    expect(pattern).not.toContain('.*')
+    expect(matcher.test('다른 행 ' + prefix + '프로브 라벨 하나, 프로브 라벨 둘')).toBe(false)
+  })
+
   it('모든 openLink 뒤에 iOS 시스템 확인창 처리를 잇는다', () => {
     let links = 0
     for (const flow of all) {

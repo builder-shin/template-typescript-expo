@@ -52,7 +52,10 @@ describe('app.config.ts - 스펙 10.1·10.2', () => {
     expect(config.scheme).toBe(`${BASE_SCHEME}-e2e`)
     expect(config.android?.package).toBe(`${BASE_APP_ID}.e2e`)
     expect(config.ios?.bundleIdentifier).toBe(`${BASE_APP_ID}.e2e`)
-    expect(buildProperties(config)).toEqual({ android: { usesCleartextTraffic: true } })
+    expect(buildProperties(config)).toEqual({
+      ios: { enableSceneSupport: true },
+      android: { usesCleartextTraffic: true },
+    })
     expect(config.ios?.infoPlist?.NSAppTransportSecurity).toEqual({
       NSAllowsLocalNetworking: true,
     })
@@ -67,7 +70,10 @@ describe('app.config.ts - 스펙 10.1·10.2', () => {
     expect(config.name).toBe(BASE_NAME)
     expect(config.scheme).toBe(BASE_SCHEME)
     expect(config.android?.package).toBe(BASE_APP_ID)
-    expect(buildProperties(config)).toEqual({ android: { usesCleartextTraffic: false } })
+    expect(buildProperties(config)).toEqual({
+      ios: { enableSceneSupport: true },
+      android: { usesCleartextTraffic: false },
+    })
     expect(config.ios?.infoPlist?.NSAppTransportSecurity).toEqual({
       NSAllowsLocalNetworking: false,
     })

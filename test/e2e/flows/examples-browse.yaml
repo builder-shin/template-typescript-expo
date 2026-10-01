@@ -50,7 +50,9 @@ appId: com.example.templateexpo.e2e
           text: '^probe-seed bravo, .*분류, 프로브 분류 하나,.*'
       - assertVisible:
           id: resource-row
-          text: '^probe-seed charlie, .*태그, 프로브 라벨 하나, 프로브 라벨 둘$'
+          # JSON:API linkage 배열은 순서를 보장하지 않는다. K3의 NestJS 목록은 둘·하나, tags 단독 조회는 하나·둘이었다.
+          # 두 정확한 멤버/각 한 번만 허용한다(D7-R26). 폼의 선택 순서와 앱의 응답 순서 보존은 별도로 유지한다.
+          text: '^probe-seed charlie, 상태, 보관, 점수, 0, 생성, 2026-04-05 05:06, 분류, 프로브 분류 둘, 태그, (프로브 라벨 하나, 프로브 라벨 둘|프로브 라벨 둘, 프로브 라벨 하나)$'
       - assertVisible:
           id: resource-row
           text: '^probe-seed alpha, .*생성, 2026-04-06 05:06,.*'

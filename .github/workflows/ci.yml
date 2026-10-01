@@ -241,6 +241,9 @@ jobs:
     name: build-ios (e2e .app)
     runs-on: macos-26
     timeout-minutes: 75
+    env:
+      # K3의 CI 재현 환경을 고정한다. Xcode 27의 scene lifecycle 검증은 Mac에서도 따로 했다.
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - name: 저장소 체크아웃
         uses: actions/checkout@v7
@@ -310,6 +313,7 @@ jobs:
       matrix:
         backend: [fastapi, nestjs, rails]
     env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
       # test/e2e/native-backend.sh·test/e2e/run-ios.sh 가 띄울 백엔드 - test/e2e/matrix.ts 가 검증한다.
       BACKEND_KIND: ${{ matrix.backend }}
     steps:

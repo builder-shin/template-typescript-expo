@@ -89,6 +89,35 @@ reset_app() {
   xcrun simctl keychain "$UDID" reset || return 1
 }
 
+# 제대로 서명한 앱에는 시스템의 강력한 비밀번호 추천/저장 창이 나타난다(K3 Mac 재현). E2E는 직접 입력을
+# 재므로 선택한 시뮬레이터의 AutoFill만 실행 중 끈다. 앱의 textContentType은 유지하고 원래 설정은 복원한다.
+autofill_original=''
+prepare_autofill() {
+  local original actual
+  if original=$(xcrun simctl spawn "$UDID" defaults read com.apple.WebUI AutoFillPasswords 2>/dev/null); then
+    case "$original" in
+      0|1) ;;
+      *) echo "E2E(iOS): 알 수 없는 AutoFillPasswords 값: $original" >&2; return 1 ;;
+    esac
+  else
+    original=absent
+  fi
+  autofill_original=$original
+  xcrun simctl spawn "$UDID" defaults write com.apple.WebUI AutoFillPasswords -int 0 || return 1
+  actual=$(xcrun simctl spawn "$UDID" defaults read com.apple.WebUI AutoFillPasswords) || return 1
+  [ "$actual" = 0 ] || { echo "E2E(iOS): AutoFillPasswords 설정이 적용되지 않았다: $actual" >&2; return 1; }
+}
+
+restore_autofill() {
+  [ -n "$autofill_original" ] || return 0
+  if [ "$autofill_original" = absent ]; then
+    xcrun simctl spawn "$UDID" defaults delete com.apple.WebUI AutoFillPasswords || return 1
+  else
+    xcrun simctl spawn "$UDID" defaults write com.apple.WebUI AutoFillPasswords -int "$autofill_original" || return 1
+  fi
+  autofill_original=''
+}
+
 # 시뮬레이터 로그(React Native 의 JS 줄)를 플로 동안 받는다. info 수준까지 받아야 앱의 console.log·[e2e-http] 줄이
 # 온다(--level debug).
 start_device_log() {
@@ -174,7 +203,7 @@ run_flow() {
   echo "--- $name${locale:+ ($locale)}"
   from=$(api_log_size) || return 1
   start_device_log "$out/device.ndjson" || return 1
-  "$MAESTRO" test --no-ansi --device "$UDID" --debug-output "$out/debug" \
+  "$MAESTRO" test --platform ios --no-ansi --device "$UDID" --debug-output "$out/debug" \
     -e "EMAIL=$email" -e "OTHER_EMAIL=$other_email" -e "PASSWORD=$E2E_PASSWORD" \
     -e "API_URL=http://127.0.0.1:$API_PORT" -e "APP_LOCALE=$locale" "$flow" >"$out/maestro.log" 2>&1 || rc=$?
   stop_device_log || return 1
@@ -262,8 +291,10 @@ cleanup() {
   stop_device_log || true
   stop_stall_server
   test/e2e/native-backend.sh stop || true
+  restore_autofill || fail "시뮬레이터의 원래 AutoFillPasswords 설정을 복원하지 못했다"
 }
 trap cleanup EXIT
+prepare_autofill || fail "시뮬레이터의 Password AutoFill을 끄지 못했다"
 node_quiet --input-type=module \
   -e "import { backendKind, reportKnownDivergences } from './test/e2e/matrix.ts'; reportKnownDivergences(backendKind())"
 test/e2e/native-backend.sh stop

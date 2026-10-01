@@ -143,6 +143,17 @@ function main() {
   expectValue('iOS 번들 ID', config?.ios?.bundleIdentifier, appId)
   // Expo 는 번들 ID 도 URL scheme 으로 더한다.
   expectValue('iOS URL scheme', iosSchemes, [scheme, appId])
+  expectValue('iOS scene lifecycle', ios?.infoPlist?.UIApplicationSceneManifest, {
+    UIApplicationSupportsMultipleScenes: false,
+    UISceneConfigurations: {
+      UIWindowSceneSessionRoleApplication: [
+        {
+          UISceneConfigurationName: 'Default Configuration',
+          UISceneDelegateClassName: 'EXExpoAppSceneDelegate',
+        },
+      ],
+    },
+  })
   expectValue(
     'iOS 평문 HTTP(NSAllowsLocalNetworking)',
     ios?.infoPlist?.NSAppTransportSecurity?.NSAllowsLocalNetworking,

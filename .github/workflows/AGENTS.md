@@ -13,6 +13,10 @@
 
 ## 작업 규칙
 
+- 두 iOS 잡은 `DEVELOPER_DIR=/Applications/Xcode_26.6.app/Contents/Developer`로 판을 명시한다(D7-R22b).
+  기본 Xcode가 27로 바뀌면 SDK 57의 기존 AppDelegate lifecycle은 iOS 27에서 시작 전에 종료된다. 앱은 이제
+  Expo의 공식 scene opt-in을 쓰며, Mac은 27.0으로 검증한다. CI 판을 바꾸는 날에는 두 iOS 잡을 함께 확인한다.
+
 - 잡이 하는 일은 스크립트가 정한다. 워크플로에 검사 논리를 적지 않는다 - 로컬에서 같은 스크립트로 재현할 수 있어야
   한다. 스크립트는 `bash x.sh` 처럼 우회하지 않고 `./x.sh` 로 부른다(실행 권한이 빠지면 여기서 드러난다).
 - 앱은 플랫폼마다 한 번 만든다. E2E 잡은 아티팩트를 받는다(`E2E_APK`·`E2E_APP`) - 빌드 입력이 같은 앱을 세 백엔드가
@@ -26,7 +30,7 @@
   `@v10.2.0`으로 고정한다(D7 실측 K3, 컨트롤러 결정 D7-R13). 판을 올릴 때는 실제 태그와 입력 이름을 액션의
   `action.yml` 에서 확인하고 actionlint 를 돈다.
 - Node 는 `24.19.0`, pnpm 은 `package.json` 의 `packageManager` 다. Android 는 API 36 Google Play 이미지·`pixel_7`
-  (로컬 게이트의 AVD 와 같은 이미지·폭), iOS 는 러너의 기본 Xcode 와 가장 새 iOS 런타임의 iPhone 이다.
+  (로컬 게이트의 AVD 와 같은 이미지·폭), iOS 는 명시한 Xcode 26.6과 가장 새 가용 iOS 런타임의 iPhone 이다.
 - Rails는 Ruby 설치 → `native-backend.sh lock-platform` → 기존 Ruby 젬 캐시 순서다. 사전 빌드 Ruby 3.4.8이
   `arm64-darwin-23`을 보고하므로 CI 임시 clone의 `PLATFORMS` 한 줄만 확장한다(D7-R14). 다른 잠금 변경은
   원본을 복구하고 실패한다. 백엔드 원격을 고치지 않고 frozen 설치와 캐시를 유지한다.

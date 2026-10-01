@@ -1069,12 +1069,18 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > `.app` 의 앱 설정·`Expo.plist`·`Info.plist`(`NSAllowsLocalNetworking`)를 단언한다(Android 의 `android.sh build` 와 같은
 > 자리).
 
-> 정정(2026-10-02, D7-R18): Simulator e2e `.app`은 `CODE_SIGNING_ALLOWED=NO`로 빌드한 뒤 계정 없는 ad-hoc
-> 서명을 한다. 실행 3의 linker 서명에는 entitlement가 없었고 SecureStore가 `A required entitlement isn't present`로
-> 실패했다(K3). `ios.sh`는 중첩 코드를 내부부터 서명하고 앱에 `application-identifier=com.example.templateexpo.e2e`와
-> `keychain-access-groups=[com.example.templateexpo.e2e]`를 준다. `assert-app`은 만든 앱과 `E2E_APP` 모두의
-> strict/deep 서명 검증과 정확한 두 값을 단언한다. Apple 계정·인증서·프로비저닝을 쓰지 않으며 EAS·배포·실기기의
-> 서명과 무관하다. 실행 3 첫 Keychain 오류의 원본 시각과 서명 blob 증거는 실측 K3에 있다.
+> 정정(2026-10-02, D7 Mac 재현; R18 대체): Simulator e2e `.app`은 Xcode의 `Sign to Run Locally`로 만든다
+> (`CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=`). Xcode가 iOS 권한을 Mach-O의
+> `__TEXT,__entitlements`·`__ents_der`에 연결한다. R18처럼 호스트 ad-hoc 서명에 제한 권한을 넣으면 amfid가
+> 실행을 거부한다. `assert-app`은 strict/deep 무결성, 내장 XML의 앱 식별자·명시된 경우 같은 Keychain 그룹,
+> DER section의 존재·범위, 호스트 서명의 제한 권한 부재를 잰다. Keychain 기본 그룹은 내장 application-identifier다.
+> Apple 계정·인증서·프로비저닝 없이 만들며 EAS·배포·실기기 서명과 무관하다. 실제 저장·복원은 E2E가 검증한다(K3).
+>
+> 정정(2026-10-02, D7-R22b): 모든 변형은 기존 `expo-build-properties`의 `ios.enableSceneSupport: true`로
+> [Expo SDK 57의 공식 scene lifecycle 경로](https://github.com/expo/fyi/blob/main/ios-scene-lifecycle.md)를 쓴다.
+> Xcode 27 SDK로 만든 기존 AppDelegate 앱은 iOS 27의 UIKit에서 JS 전에 종료됐다. Expo의 scene delegate가
+> 창과 React Native를 시작하고 cold/warm URL 및 생명주기 이벤트를 전달한다. 의존성을 추가하지 않으며 생성된
+> 네이티브 코드가 바뀌므로 fingerprint도 바뀐다. OTA를 켠 배포 변형은 새 네이티브 빌드가 필요하다.
 
 ## 12. 검증 게이트
 
@@ -1173,7 +1179,7 @@ e2e-ios × 3       macOS    백엔드를 네이티브로 실행 → Maestro
 > `./scripts/check.sh --static`(12장의 D7 정정)과 actionlint 1.7.12, `build-android` 는 `test/e2e/android.sh build`(APK 의
 > 변형·OTA 단언, D6 JVM 4GiB/1GiB·빈 캐시 두 단계와 둘째 UP-TO-DATE 기계 단언 포함 - 공개 ubuntu RAM 16GB, Kotlin 힙도 고려, 부족하면 측정·컨트롤러 보고), `e2e-android` 는 백엔드마다 `test/contract/run.sh` → `test/e2e/run-android.sh`(받은 APK 를
 > `E2E_APK` 로 - API 36 Google Play 이미지·`pixel_7`, 로컬 AVD 와 같은 이미지·폭), `build-ios` 는 `test/e2e/ios.sh build`
-> (러너 `macos-26` 의 기본 Xcode), `e2e-ios` 는 `test/e2e/native-backend.sh`(11.4 의 D7 정정) → `test/e2e/run-ios.sh`(받은
+> (러너 `macos-26`, Xcode 26.6 명시), `e2e-ios` 는 `test/e2e/native-backend.sh`(11.4 의 D7 정정) → `test/e2e/run-ios.sh`(받은
 > `.app` 을 `E2E_APP` 으로, 가장 새 iOS 런타임의 iPhone)다. E2E 잡은 `checks` 를 기다리지 않는다. 캐시는 pnpm·Gradle·
 > CocoaPods·AVD 스냅샷·Ruby 젬·uv 이고, 아티팩트는 앱 둘(7일)과 갈래마다의 `.maestro-output/e2e`·iOS 백엔드 로그·iOS
 > 빌드 기록(14일)이다. Maestro 는 `test/e2e/install-maestro.sh` 가 2.11.0 을 체크섬으로 확인해 푼다. 멈춘 서버 확인
@@ -1309,7 +1315,7 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > D7 정정)이고, 머리글 뒤로 버튼의 식별자(`BackButton`)는 CI 의 첫 실행이 잰다. (2) iOS 가드의 재료인 시뮬레이터 로그는
 > 스트림으로만 온다(info 수준은 저장되지 않는다) - 붙기 전과 끊은 뒤의 줄을 잃을 수 있어 하네스가 붙은 뒤 2초, 끊기 전
 > 2초를 둔다. 줄을 잃으면 가드의 "선언했는데 없다" 로 드러난다(재시도로 덮지 않는다). (3) macOS 러너의 Xcode·iOS
-> 런타임은 GitHub 이 바꾼다 - 러너 라벨(`macos-26`)의 기본 Xcode 를 따르므로 판이 바뀌면 빌드나 시뮬레이터 이름이 갈릴 수
+> 런타임은 GitHub 이 바꾼다 - Xcode 26.6은 명시하지만 러너 라벨(`macos-26`)에서 설치된 판이나 시뮬레이터 이름이 갈릴 수
 > 있다. `build-ios` 가 판을 로그에 남긴다(`xcodebuild -version`·`xcrun simctl list runtimes`). 표의 "iOS 매트릭스의
 > 네이티브 백엔드 구동은 CI에서만 검증된다" 의 대응(처음 통과할 때까지 CI 를 반복해 돌린다)은 코드를 고쳐 새 실행을 만드는
 > 것이다 - 같은 코드로 다시 돌리지 않는다(D7 실측 기록 K3). (4) macOS 러너와 Mac 의 기본 bash 는 3.2 다 - macOS 에서 도는
@@ -1322,6 +1328,11 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > `splashScreen.clearOnExitAnimationListener()`를 호출해 시스템 기본 exit를 쓴다. Expo의 splash 유지·hide 프리드로우
 > 게이트와 iOS는 보존하지만 Android의 400ms fade를 포기한다. 생성 앵커가 바뀌면 prebuild가 오류로 멈춘다. 로컬에서
 > 자연 재현되지 않은 한계를 K3에 적었으며 수정의 CI 검증은 아직 진행 중이다.
+
+> 정정(2026-10-02, D7-R22b): Xcode 27 SDK의 scene lifecycle 필수화로 SDK 57의 기본 AppDelegate 앱은 iOS 27에서
+> JS 시작 전에 SIGTRAP으로 종료된다. 11.4의 공식 Expo opt-in으로 대응하며 native fingerprint가 바뀐다.
+> SDK 58 이상으로 올릴 때 해당 opt-in은 불필요해지므로 제거를 검토한다([Expo 안내](https://github.com/expo/fyi/blob/main/ios-scene-lifecycle.md)).
+> CI의 두 iOS 잡은 재현성을 위해 Xcode 26.6의 `DEVELOPER_DIR`를 명시한다. 로컬 Mac 재현은 27.0이며 판별 증거는 K3다.
 
 ## 17. 완료 조건
 

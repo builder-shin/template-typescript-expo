@@ -500,3 +500,101 @@ Xcode26.6/17F113·Mac 이미지
 - Android 세 칸에서 `E2E: 환경 흔적` 안내0줄, JS W/E·e2e-warn0줄, 22플로/가드 모두 통과했다. FastAPI request-stall은
   두 REQUEST_TIMEOUT 정보 줄과 stall-server.log의 headers22:10:25.314Z / body22:10:41.014Z가 일치했다.
   근거는 `.maestro-output/d7-run-4/evidence-<플랫폼>-<백엔드>.jsonl`과 아티팩트다. iOS의 빈 JS 로그는 별도 실패 한계다.
+
+### Mac 재현 — 2026-10-02 (D7 Task 4b)
+
+사용자가 Mac 재현·수정과 추가 CI 두 번(실행 5·6)을 승인했다. Mac은 macOS 27.0(26A428), Xcode 27.0(27A266a),
+iOS 27.0/iPhone 17, Node 24.19.0, corepack pnpm 11.22.0, Java 17이다. frozen install은 잠금 파일을 바꾸지 않았다.
+Maestro 2.11.0은 저장소 설치기로 설치했고 ShellCheck 0.11.0·actionlint 1.7.12는 무시된 도구 디렉터리에 체크섬을
+확인해 풀었다. Homebrew 서비스는 설치하지 않았다. Xcode는 로컬 wrapper로 `-jobs 4`를 줬다. iOS 27의
+BackgroundShortcutRunner와 첫 빌드가 겹칠 때 큰 부하가 났으며 사용 중인 시뮬레이터만 재부팅했다.
+
+백엔드는 `docker-compose.e2e.yml`과 `-p template-typescript-expo-e2e`다. D7-R21에 따라 무시된 하네스 사본에서
+native-backend의 start/stop/api-log 호출만 Docker adapter로 바꿨고 플로·로그·가드·요청 수·cleanup은 유지했다.
+CI는 기존 `native-backend.sh`를 쓴다. Mac의 기존 Docker 컨테이너는 0개였고 다른 프로젝트는 조작하지 않았다.
+시뮬레이터의 원래 OS 언어는 ko-KR/ko_KR이었다. 영어 시스템 딥링크 창을 다루는 플로와 맞추려고 en/en_US로 바꾸고
+원래 값을 저장했다. 앱 로캘 플로의 AppleLanguages와는 별개다.
+
+**서명의 입증된 원인.** 실행 4의 받은 앱과 R18 그대로의 새 로컬 앱 모두 Maestro 전의 직접 simctl launch에서 실패했다.
+07:41:57 KST의 host amfid는 `The file is adhoc signed but contains restricted entitlements`(-424),
+`Unable to retrieve certificate chain`(-427)을 남겼다. R18은 iOS application-identifier/Keychain 그룹을 호스트의
+코드 서명에 넣었다. Simulator의 권한 공간은 Xcode가 연결하는 Mach-O의 `__TEXT,__entitlements`·`__ents_der`다.
+`CODE_SIGNING_ALLOWED=NO`는 이 권한 생성을 끄며, 사후 codesign은 그 대체가 아니었다.
+
+`ios.sh`는 이제 `CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=`로 Xcode의
+`Sign to Run Locally`를 쓴다. 실제 생성 XML에는 `34R3YQTSH8.com.example.templateexpo.e2e`가 있었고 호스트 서명
+plist는 빈 dict였다. Keychain 그룹을 생략하면 이 application-identifier가 기본 그룹이다. 받은 앱의 검사도
+무결성·내장 XML 앱 식별자·DER section 존재/범위·호스트 제한 권한 부재로 고쳤다. 새 검사 시험은 R18에서 3실패,
+고침 뒤 11통과였으며 Xcode 27의 실제 binary도 검사를 통과했다. 이것만으로 launch/Keychain 성공이라 쓰지 않는다.
+
+**Xcode 27의 별도 원인과 D7-R22b.** 서명 검사를 지난 로컬 앱은 UIKit의
+`UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`에서 SIGTRAP으로 종료됐다. JS 전의
+`UIScene life cycle is required for apps built with this SDK`가 원문이다. 기존 의존성에 이미 있는
+`expo-build-properties`의 `ios.enableSceneSupport: true`를 모든 변형에 켰다. 이는
+[Expo SDK 57의 공식 opt-in](https://github.com/expo/fyi/blob/main/ios-scene-lifecycle.md)이며 추가 의존성·사용자
+정의 native plugin은 없다. native fingerprint가 바뀐다. 변형 introspect 검사에 scene manifest를 더해 제거된 manifest는
+실패함을 확인했다(새 시험 1실패 → 39시험 통과). CI의 두 iOS 잡은 Xcode 26.6을 명시해 판을 고정한다.
+
+**로컬 하네스.** Maestro가 iOS UDID를 받아도 Android 기기를 먼저 열거하다 멈췄다. jstack의 main은
+`DeviceService.listAndroidDevices → AdbServer.readString`에서 기다렸다. `run-ios.sh`의 `--platform ios`가 이를
+피한다. 사용자의 adb 서버·Android 기기는 멈추지 않았다. 최초 진단 앱 실행은 한국어 OS 확인창에 막혔고,
+영어 OS 설정 뒤 실행 4의 진단 사본(호스트 제한 권한만 제거)의 FastAPI examples-empty-notfound는 통과했다.
+R20 로그에 AppState active, 404 뒤 query success/idle·observer 1, 화면 not-found를 확인했다. 이는 기존 미확정 실패의
+재현이나 원인 해결 증거가 아니며 같은 iOS 26.5 runtime을 추가로 받는다(D7-R22 승인).
+
+07:57 KST의 정적 게이트 `[1]–[11]`은 모두 통과했다. 단위 시험은 **90파일/1847시험**, Gate 8은 네 변형과
+프로젝트 ID 유무의 여덟 설정에서 scene manifest까지 통과했다. typecheck·lint·format·secrets·인용·출처,
+expo-doctor·양 플랫폼 clear export·Compose 정적 검증과 변경 셸의 bash 3.2 구문/ShellCheck 0.11.0,
+workflow의 actionlint 1.7.12도 통과했다.
+
+scene을 켠 새 앱의 iOS 27 첫 표적 실행에서 `examples-empty-notfound`는 통과했다. `auth-links`는 보호 경로에서
+로그인·가입 링크 왕복까지 이동했지만 가입의 password 검증 422로 실패했다. `register-restore-logout`도 같은 422,
+`examples-create`는 로그인 뒤 화면 단언에서 실패했다. Maestro는 비밀번호 입력 완료를 보고했으나 실패 hierarchy의
+password 값은 bullet 하나였다. 입력 문제의 원인과 SecureStore의 실제 저장·복원은 이 시점에 미확인이다.
+기존 CI의 홈 유지와 404 뒤 skeleton을 이 실패로 대체하거나 고쳤다고 쓰지 않는다.
+
+**AutoFill 원인과 SecureStore 복원.** 같은 새 앱을 iOS 26.5(23F73)에 설치해도 가입 422가 재현됐다.
+본문을 저장하지 않는 로컬 진단 proxy에서 password 길이는 **1**이었고 시험 값과 달랐다. 기기 로그에는
+`SFAutoFillStrongPasswordContainerInputView`가 있었다. 생성 흐름은 로그인 POST 200/1회였으며 실패 화면은
+`Save Password?` 시스템 창이 로그인된 홈을 덮은 모습이었다. 서명이 없는 이전 앱에서는 이 창을 관측하지 않았다.
+
+[Appium의 Simulator 구현](https://github.com/appium/appium-ios-simulator/blob/master/lib/extensions/settings.ts)의
+`setAutoFillPasswords`와 같은 `com.apple.WebUI`의 `AutoFillPasswords=0`을 적용하자 동일 입력이 **20글자/시험 값 일치**,
+가입 201·로그인 200이 됐다. 앱이나 플로는 바꾸지 않은 대조다. 컨트롤러도 하네스 환경 설정을 승인했다.
+`run-ios.sh`는 선택한 시뮬레이터에만 이를 적용하고 읽어 검증하며 EXIT에서 원래 0/1 또는 키 없음 상태를 복원한다.
+설정이 적용되지 않으면 실패한다. bash 경계 시험은 원래 상태 셋과 쓰기 무시를 검사한다(기존 초기화 시험 포함 5통과).
+
+08:08 KST 새 앱+iOS 26.5+NestJS Docker의 `register-restore-logout`은 가입·stop/launch 뒤 로그인 복원·로그아웃·
+stop/launch 뒤 비로그인·다른 계정 가입·로그아웃까지 통과했고 JS 가드도 통과했다. PID는 9147→9268→9901로 바뀌었다.
+이는 SecureStore의 실제 쓰기/읽기/삭제 증거다. 길이 관측용 proxy는 전체 실행 전에 종료했으며 전체 실행은 원래 HTTP
+경로를 쓴다. 기존 실행 4 앱의 제한된 호스트 권한만 뺀 진단 사본은 같은 iOS 26.5의 NestJS auth-links UI를 통과했지만
+`SecItemAdd`의 필수 entitlement 부재 오류를 남겼다. 원래 홈 유지 실패는 이 대조에서도 재현되지 않았다.
+
+**첫 전체 실행과 D7-R26.** 08:09에 시작한 NestJS 전체 실행은 iOS **27.0**이었다. 처음 붙인 26.5 기기 이름이
+`D7`로 시작해 하네스의 iPhone 후보에서 빠졌고, 로그·Maestro UDID로 27.0임을 확인했다. 직접 UDID를 준 위의
+비교 시험은 26.5가 맞다. 유휴 26.5는 종료하고 `iPhone 17 D7 (26.5)`로 이름을 고쳤다.
+27.0에서도 auth-links·로그인 계약 흐름·examples-create는 AutoFill 설정 뒤 통과했고 로그인 뒤 시스템 저장 창은 없었다.
+
+NestJS `examples-browse`는 Charlie 태그의 고정 순서 단언에서 실패했다. 실패 hierarchy와 동일 목록 URL의 응답은
+모두 **둘, 하나**였으며, 같은 행을 `include=tags`만으로 조회한 응답은 **하나, 둘**이었다. 증거는 NestJS browse response와
+Charlie 단독 response JSON 및 browse의 실패 hierarchy다. 앱은 응답 순서를 그대로 표시했다.
+[JSON:API 1.1의 linkage 배열 순서 설명](https://jsonapi.org/format/#document-resource-object-linkage)도 두 멤버의
+고정 정렬을 보장하지 않는다. 컨트롤러 D7-R26에 따라 전체 라벨의 두 정확한 순열만 허용했다. 각 태그 한 번, 누락·중복·
+추가 멤버 거절은 유지하며 와일드카드는 없다. 앱·Android·폼의 선택 순서·응답 순서 보존 시험은 바꾸지 않았다.
+추가 시험은 기존 단언에서 실패했고, 양 순열 및 누락/중복/추가 멤버 거절을 검증한다.
+
+**결정 43 중간 실측.** 27.0/iPhone 17의 NestJS 생성 플로에서 로그인 제출 bounds는 `[24,364][378,404]`,
+두 누름의 좌표는 논리 점 **(201,384)**였다(08:15:19.179 KST). `d7-login-before`와 `d7-login-after` 스크린샷에서
+이동 뒤 같은 좌표는 홈 `build-info-card`의 앱 버전·변형 행 사이였다. e2e에서 OTA는 꺼져 있고 카드의 그 자리는
+동작이 없다. 플로는 이후 생성과 뒤로 가기까지 통과했다. NestJS의 접근 로그는 기존 정책상 수를 세지 않으므로
+로그인 요청 1회 단언은 FastAPI 실행에서 별도로 확인한다.
+
+08:30 KST NestJS+iOS 27 전체 실행이 끝났다. 실패는 수정 전 `examples-browse` 한 건뿐이었고,
+`register-restore-logout`의 쓰기·재시작 후 복원·삭제 후 재시작도 가드와 함께 통과했다. EXIT 뒤 AutoFill 설정은
+원래의 키 없음 상태로 복원됐다. R26 수정 뒤의 전체 정적 검사는 **90파일/1852시험**이며 typecheck·lint·format·
+secrets·인용·출처, 변경 셸 bash 3.2/ShellCheck 0.11.0, actionlint 1.7.12가 통과했다.
+컨트롤러 지시에 따라 R26의 기기 검증 뒤 실행 5를 먼저 시작하고 FastAPI·Rails의 로컬 전체 실행을 병행한다.
+실행 3의 NestJS 홈 유지와 FastAPI skeleton 유지 원인은 아직 입증되지 않았고 새 CI의 R20 상태 기록으로도 확인한다.
+
+08:32 KST R26 수정 후 같은 iOS 27+NestJS에서 `E2E_FLOW=examples-browse` 하네스 전체가 exit 0이었다.
+두 태그의 정확한 멤버 검사와 나머지 목록·상세·필터·정렬 단언, JS 가드가 통과했다.

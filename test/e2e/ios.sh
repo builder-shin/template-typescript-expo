@@ -10,7 +10,7 @@
 #   test/e2e/ios.sh assert-app <.app> [<BACKEND_URL>]
 #                                     .app 이 e2e 변형인지 단언한다 - 앱 설정(EXConstants.bundle/app.config)의 변형·
 #                                     백엔드 주소·OTA 끔, Expo.plist 의 EXUpdatesEnabled, Info.plist 의 번들 ID 와
-#                                     평문 HTTP(NSAllowsLocalNetworking), strict/deep 서명·Keychain entitlement.
+#                                     평문 HTTP(NSAllowsLocalNetworking), 서명 무결성·내장 simulated entitlement.
 #                                     CI 가 내려받은 .app 을 다시 잴 때도 쓴다
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -74,47 +74,61 @@ app_path() {
   printf '%s\n' "$app"
 }
 
-# 계정 없는 Simulator e2e 앱만 서명한다(스펙 11.4의 D7 정정). CODE_SIGNING_ALLOWED=NO 빌드의 linker 서명은
-# Keychain entitlement가 없다 - SecureStore의 SecItemAdd가 errSecMissingEntitlement로 실패한다(K3 실행 3).
-# EAS·실기기·배포 서명과 무관하다. 중첩 코드를 안에서 밖으로 서명한 뒤 앱에만 두 entitlement를 준다.
-sign_simulator_app() {
-  local app=$1 work nested
-  work=$(mktemp -d .maestro-output/ios-sign.XXXXXX) || fail "서명 임시 디렉터리를 만들지 못했다"
-  plutil -create xml1 "$work/entitlements.plist" || fail "entitlement를 만들지 못했다"
-  plutil -insert application-identifier -string "$APP_ID" "$work/entitlements.plist" || fail "앱 식별자를 넣지 못했다"
-  plutil -insert keychain-access-groups -json "[\"$APP_ID\"]" "$work/entitlements.plist" || fail "Keychain 그룹을 넣지 못했다"
-  find "$app" -depth \( -type d \( -name '*.framework' -o -name '*.appex' \) -o -type f -name '*.dylib' \) \
-    -print >"$work/nested" || fail "중첩 코드를 찾지 못했다"
-  while IFS= read -r nested; do
-    codesign --force --sign - "$nested" || fail "중첩 코드의 ad-hoc 서명 실패: $nested"
-  done <"$work/nested"
-  codesign --force --sign - --entitlements "$work/entitlements.plist" --generate-entitlement-der "$app" ||
-    fail "Simulator 앱의 ad-hoc 서명 실패: $app"
-  rm "$work/entitlements.plist" "$work/nested"
-  rmdir "$work"
-}
-
-# 다운로드한 E2E_APP도 같은 서명·권한을 가져야 한다. plist 설정만 맞는 unsigned 앱을 받지 않는다.
+# Simulator 권한은 Xcode가 Mach-O의 __TEXT에 싣는다. 호스트 서명에 같은 iOS 제한 권한을 넣으면
+# macOS amfid가 실행을 거부한다(K3 Mac 재현). 코드 무결성과 두 권한 공간을 따로 잰다.
 assert_signature() {
-  local app=$1 work
+  local app=$1 work executable
   codesign --verify --strict --deep "$app" || fail ".app 의 서명 검증 실패: $app"
   work=$(mktemp -d .maestro-output/ios-sign-check.XXXXXX) || fail "서명 검사 임시 디렉터리를 만들지 못했다"
-  codesign --display --entitlements :- "$app" >"$work/entitlements.plist" || fail "서명 entitlement를 읽지 못했다"
-  if ! plutil -convert json -o - "$work/entitlements.plist" | APP_ID_EXPECTED="$APP_ID" node -e '
-    const entitlements = JSON.parse(require("fs").readFileSync(0, "utf8"))
+  executable=$(plutil -extract CFBundleExecutable raw -o - "$app/Info.plist") || fail "실행 파일 이름을 읽지 못했다"
+  xcrun otool -l "$app/$executable" >"$work/sections" || fail "Mach-O section을 읽지 못했다"
+  # ${name}은 Node 템플릿 문자열이다.
+  # shellcheck disable=SC2016
+  if ! node -e '
+    const fs = require("fs")
+    const binary = fs.readFileSync(process.argv[1])
+    const sections = fs.readFileSync(process.argv[2], "utf8")
+    let xml
+    for (const name of ["__entitlements", "__ents_der"]) {
+      const words = sections.split(/\s+/)
+      const index = words.findIndex((word, i) => word === "sectname" && words[i + 1] === name && words[i + 3] === "__TEXT")
+      if (index < 0) throw new Error(`내장 simulated entitlement section 누락: ${name}`)
+      const size = Number(words[index + 7])
+      const offset = Number(words[index + 9])
+      if (!Number.isSafeInteger(size) || !Number.isSafeInteger(offset) || size <= 0 || offset < 0 || offset + size > binary.length) {
+        throw new Error(`simulated entitlement section 범위 오류: ${name}`)
+      }
+      if (name === "__entitlements") xml = binary.subarray(offset, offset + size)
+    }
+    process.stdout.write(xml)' "$app/$executable" "$work/sections" >"$work/simulated.plist"
+  then
+    fail ".app 의 내장 simulated entitlement를 읽지 못했다: $app"
+  fi
+  codesign --display --entitlements - --xml "$app" >"$work/host.plist" || fail "호스트 서명 entitlement를 읽지 못했다"
+  # linker 서명은 plist 출력이 없을 수 있다. 무결성은 위에서 이미 확인했다.
+  if [ -s "$work/host.plist" ]; then
+    plutil -convert json -o "$work/host.json" "$work/host.plist" || fail "호스트 entitlement 변환 실패"
+  else
+    echo '{}' >"$work/host.json"
+  fi
+  if ! plutil -convert json -o - "$work/simulated.plist" | APP_ID_EXPECTED="$APP_ID" node -e '
+    const fs = require("fs")
+    const entitlements = JSON.parse(fs.readFileSync(0, "utf8"))
+    const host = JSON.parse(fs.readFileSync(process.argv[1], "utf8"))
     const id = process.env.APP_ID_EXPECTED
-    if (entitlements["application-identifier"] !== id ||
-        JSON.stringify(entitlements["keychain-access-groups"]) !== JSON.stringify([id])) {
-      console.error(".app 의 Keychain entitlement가 e2e 앱 식별자와 다르다")
+    const appId = entitlements["application-identifier"]
+    const validId = appId === id || (typeof appId === "string" && /^[A-Z0-9]{10}$/.test(appId.slice(0, 10)) && appId.slice(10) === "." + id)
+    const groups = entitlements["keychain-access-groups"]
+    if (!validId || (groups !== undefined && JSON.stringify(groups) !== JSON.stringify([appId])) ||
+        "application-identifier" in host || "keychain-access-groups" in host) {
+      console.error("Simulator 권한 또는 호스트 제한 entitlement가 잘못됐다")
       process.exit(1)
-    }'; then
-    rm "$work/entitlements.plist"
-    rmdir "$work"
+    }' "$work/host.json"; then
     fail ".app 의 Keychain entitlement 검증 실패: $app"
   fi
-  rm "$work/entitlements.plist"
+  rm "$work/sections" "$work/simulated.plist" "$work/host.plist" "$work/host.json"
   rmdir "$work"
-  echo ".app 의 Keychain 서명: strict/deep 검증 · application-identifier=$APP_ID · keychain-access-groups=[$APP_ID]" >&2
+  echo ".app 의 Simulator 서명: strict/deep · 내장 XML 앱 식별자와 DER section · 호스트 제한 권한 없음" >&2
 }
 
 # Xcode 빌드의 expo-constants 단계가 app.config.ts 를 그 셸의 환경으로 다시 평가해 .app 의
@@ -168,13 +182,13 @@ build() {
   echo "xcodebuild: $workspace ($scheme, Release, iphonesimulator $(uname -m)) - 기록은 $BUILD_LOG" >&2
   if ! xcodebuild -workspace "$workspace" -scheme "$scheme" -configuration Release -sdk iphonesimulator \
     -destination 'generic/platform=iOS Simulator' -derivedDataPath "$DERIVED_DATA" \
-    ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO \
+    ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= \
+    COMPILER_INDEX_STORE_ENABLE=NO \
     build >"$BUILD_LOG" 2>&1; then
     tail -n 80 "$BUILD_LOG" >&2
     fail "xcodebuild 가 실패했다 - 전체 기록은 $BUILD_LOG"
   fi
   app=$(app_path)
-  sign_simulator_app "$app"
   assert_app "$app" "$BACKEND_URL"
   printf '%s\n' "$app"
 }

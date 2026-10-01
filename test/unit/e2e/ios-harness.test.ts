@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -37,5 +37,63 @@ describe('iOS 로캘 초기화', () => {
       'simctl terminate probe-ios-device com.example.templateexpo.e2e',
       'simctl uninstall probe-ios-device com.example.templateexpo.e2e',
     ])
+  })
+})
+
+describe('iOS 시스템 비밀번호 자동완성의 실행 범위', () => {
+  it.each([
+    ['absent', false],
+    ['0', false],
+    ['1', false],
+    ['1', true],
+  ] as const)('원래 설정 %s를 복원하고 쓰기 무시(%s)를 탐지한다', (original, ignoreWrite) => {
+    const directory = join(WORK, `autofill-${original}-${String(ignoreWrite)}`)
+    mkdirSync(directory)
+    writeFileSync(join(directory, 'setting'), original)
+    const xcrun = join(directory, 'xcrun')
+    writeFileSync(
+      xcrun,
+      `#!/bin/sh
+case "$1 $2 $3 $4 $6 $7" in
+  'simctl spawn probe-ios-device defaults com.apple.WebUI AutoFillPasswords') ;;
+  *) exit 90 ;;
+esac
+case "$5" in
+  read) value=$(cat setting); [ "$value" != absent ] || exit 1; echo "$value" ;;
+  write) [ "$8" = -int ] || exit 91; [ "$IGNORE_WRITE" = 1 ] || echo "$9" > setting ;;
+  delete) echo absent > setting ;;
+  *) exit 92 ;;
+esac
+`,
+    )
+    chmodSync(xcrun, 0o755)
+    const functions = ['prepare_autofill', 'restore_autofill'].map((name) => {
+      const block = new RegExp(`^${name}\\(\\) \\{$[\\s\\S]*?^\\}`, 'm').exec(SOURCE)?.[0]
+      if (block === undefined) throw new Error(`${name} 이 없다`)
+      return block
+    })
+    const env: NodeJS.ProcessEnv = { ...process.env, IGNORE_WRITE: ignoreWrite ? '1' : '0' }
+    delete env.BASH_ENV
+    const result = spawnSync(
+      resolveBash(),
+      [
+        '-c',
+        `set -euo pipefail
+export PATH="$PWD:$PATH"
+UDID=probe-ios-device
+autofill_original=''
+${functions.join('\n')}
+result=0
+prepare_autofill || result=$?
+if [ "$result" = 0 ]; then [ "$(cat setting)" = 0 ] || exit 93; fi
+restore_autofill
+restore_autofill
+exit "$result"
+`,
+      ],
+      { cwd: directory, env, encoding: 'utf8', timeout: BASH_TIMEOUT_MS },
+    )
+    expect(result.status, result.stderr).toBe(ignoreWrite ? 1 : 0)
+    expect(readFileSync(join(directory, 'setting'), 'utf8').trim()).toBe(original)
   })
 })

@@ -72,7 +72,14 @@ export default function appConfig({ config }: ConfigContext): ExpoConfig {
         'expo-splash-screen',
         { backgroundColor: '#E6F4FE', image: './assets/splash-icon.png', imageWidth: 76 },
       ],
-      ['expo-build-properties', { android: { usesCleartextTraffic: profile.allowCleartext } }],
+      // SDK 57의 공식 opt-in: Xcode 27/iOS 27은 scene lifecycle이 없으면 시작 전에 종료한다(K3).
+      [
+        'expo-build-properties',
+        {
+          ios: { enableSceneSupport: true },
+          android: { usesCleartextTraffic: profile.allowCleartext },
+        },
+      ],
       // 세션 항목(SecureStore)을 Android 자동 백업에서 뺀다 - 복원된 백업은 키 저장소의 키가 없어
       // 풀 수 없다. 생체 인증을 쓰지 않으므로(스펙 1.2) Face ID 사용 문구를 넣지 않는다(스펙 7.1).
       ['expo-secure-store', { configureAndroidBackup: true, faceIDPermission: false }],

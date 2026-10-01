@@ -41,8 +41,11 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
 - iOS의 접근성 버튼은 자식 배지의 ID·문구를 개별 노드로 내지 않을 수 있다(K3 실행 3). 생성·수정의 현재 선택은
   `relationship-open-<관계>`의 `accessibilityValue.text`로 잰다 - 태그는 쉼표로 이은 전체 값의 순서를 단언하고,
   비운 선택도 부모의 `선택 안 함`을 단언한다. Android는 기존 `relationship-value-<관계>-<위치>`를 쓴다.
-  목록의 두 번째 태그는 iOS의 `resource-row`와 행 전체 접근성 라벨로 찾는다 - charlie 행의 태그 둘과 순서를 함께 잰다.
-  상세 배지는 버튼 자식이 아니므로 기존 ID를 쓴다. 앱의 접근성 묶음을 풀거나 데이터·순서 단언을 생략하지 않는다.
+  목록의 두 번째 태그는 iOS의 `resource-row`와 행 전체 접근성 라벨로 찾는다 - charlie 행의 태그 둘을 각각 한 번만 허용한다.
+  JSON:API의 to-many linkage 배열은 순서 의미를 보장하지 않는다. K3의 NestJS는 같은 행도 목록 URL에서 둘·하나,
+  tags 단독 조회에서 하나·둘을 돌려줬다. 전체 라벨을 고정하고 태그 끝부분의 정확한 두 순열만 허용한다(D7-R26).
+  폼에서 고른 순서와 앱이 받은 응답 순서를 보존하는 시험은 유지한다.
+  상세 배지는 버튼 자식이 아니므로 기존 ID를 쓴다. 앱의 접근성 묶음을 풀거나 멤버 단언을 생략하지 않는다.
 - 딥링크의 대괄호는 퍼센트 인코딩한다(`filter%5Btitle%5D%5Bcontains%5D=…`) - 앱이 만드는 주소와 같은 모양이다
   (`docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L1). 값의 `+`·`&`·`=`·`#`·한글도 인코딩한다(`%2B`·`%26`·
   `%3D`·`%23`, 한글은 UTF-8 바이트) - 인코딩하지 않은 `+` 는 공백으로, `&` 는 다음 파라미터로, `#` 는 조각으로
@@ -92,7 +95,8 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
 - `examples-create` 의 로그인 제출 둘째 누름은 홈의 `build-info-card` 안에서 행 사이에 닿는다는 전제로 쓴다 - Pixel 9 AVD 의
   로그인 전 홈 덤프에서 버전 행은 y≈975px 까지, 변형 값은 y≈996px 부터이고 누름은 (540, 993) 이었다(D6 실측 O4).
   OTA 를 끈 카드에는 누를 수 있는 노드가 없어 늦은 누름도 아무 일도 하지 않는다. 그 자리에 버튼이 생기면 다시 잰다.
-  iOS 시뮬레이터의 같은 누름 좌표는 아직 재지 않았다 - CI 에서 examples-create 가 실패하면 첫 누름 전/이동 뒤의
+  iOS 27.0/iPhone 17에서도 (201,384) 논리 점이 이동 뒤 같은 카드의 앱 버전·변형 행 사이였다(K3 Mac 재현).
+  CI 에서 examples-create 가 실패하면 첫 누름 전/이동 뒤의
   스크린샷·계층·둘째 누름 좌표와 api.log 의 로그인 한 번을 함께 확인한다(D7 결정 43·실측 기록 K3).
 
 ## 계약 실험실 플로
@@ -266,13 +270,21 @@ Android 와 같고, 다른 것은 이렇다.
   평가한다. `ios.sh assert-app` 이 `.app` 의 앱 설정(`EXConstants.bundle/app.config` - 변형·주소·OTA 끔), `Expo.plist`
   (`EXUpdatesEnabled`), `Info.plist`(번들 ID·`NSAllowsLocalNetworking`)를 단언한다 - `E2E_APP` 으로 받은 `.app` 도
   설치 전에 다시 잰다. 빌드 기록은 `.maestro-output/ios-build.log` 다.
-  D7-R18(결정14 보완): `CODE_SIGNING_ALLOWED=NO`의 linker 서명만으로는 SecureStore가 Keychain entitlement를
-  받지 못했다(K3 실행 3, `A required entitlement isn't present`). 빌드 뒤 Simulator e2e `.app`의 중첩 코드를
-  안에서 밖으로 ad-hoc 서명하고 앱에 `application-identifier=com.example.templateexpo.e2e`와
-  `keychain-access-groups=[com.example.templateexpo.e2e]`를 준다. 만든 앱과 받은 앱 모두
-  `codesign --verify --strict --deep` 및 정확한 두 값을 단언한다. Apple 계정·인증서·프로비저닝을 쓰지 않는다.
-  EAS·배포·실기기 서명과 무관하며 `clearKeychain`과 SecureStore 가드는 그대로다. 실제 bash 시험은 서명 검증 실패,
-  entitlement 누락/오류/추가 그룹, 중첩 서명 순서와 실패 전파를 잰다(`test/unit/e2e/ios-signature.test.ts`).
+  D7 Mac 재현의 정정: `CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=`로 Xcode의
+  `Sign to Run Locally`를 쓴다. Xcode가 Simulator 권한을 Mach-O의 `__TEXT,__entitlements`·`__ents_der`에 싣고
+  호스트 서명과 구분한다. R18의 사후 서명은 iOS 제한 권한을 호스트 서명에 넣어 macOS amfid가 실행을 거부했다.
+  만든 앱과 받은 앱 모두 strict/deep 무결성, 내장 XML의 앱 식별자(없거나 다른 앱이면 실패), DER section의 존재·범위,
+  호스트 서명의 제한 권한 부재를 단언한다. Keychain 그룹이 생략되면 application-identifier가 기본 그룹이고,
+  명시했다면 그 식별자 하나와 같아야 한다. Apple 계정·인증서·프로비저닝과 EAS·실기기 서명을 쓰지 않는다.
+  실제 Keychain 저장/복원은 `register-restore-logout` 플로가 잰다. bash 시험은 이 권한 공간과 실패 전달을 잰다.
+  SDK 57의 Xcode 27 호환은 기존 `expo-build-properties`의 `ios.enableSceneSupport`로 켠다(D7-R22b, 모든 변형).
+  CI는 Xcode 26.6을 명시하며 Mac의 27.0과 함께 검증한다. iOS Maestro 호출은 `--platform ios`로 Android 기기
+  열거를 막는다 - 연결된 Android 기기가 응답하지 않아 iOS 실행도 시작 못 한 사례가 K3에 있다.
+- Password AutoFill: `run-ios.sh`는 선택한 시뮬레이터의 `com.apple.WebUI AutoFillPasswords`를 실행 중 0으로
+  설정하고 다시 읽어 0이 아니면 실패한다. 종료 시 원래 값 또는 키 없음 상태로 복원한다. K3 Mac 재현에서
+  강력한 비밀번호 추천 UI가 직접 입력을 한 글자로 잘랐고, 로그인 뒤 `Save Password?` 창이 홈을 덮었다.
+  설정을 끈 대조에서는 20글자 전체가 전달됐고 가입·로그인·SecureStore 재시작 복원이 통과했다.
+  앱의 자동완성 속성이나 플로·가드·목적 화면 단언은 바꾸지 않는다. CI와 로컬 모두 같은 준비 단계를 쓴다.
 - D7-R20의 e2e 전용 `[e2e-state]` 정보 줄은 라우트·AppState·상세 조회 상태와 관찰자 수만 기록한다.
   `device.ndjson` 원본과 `device.log`의 `I/ReactNativeJS` 줄로 함께 보존한다. 앱 동작이나 가드를 바꾸지 않으며,
   딥링크 뒤 홈 유지/완료된 404 뒤 스켈레톤 유지의 경계를 찾기 위한 관측이다(실측 K3 실행 3).
