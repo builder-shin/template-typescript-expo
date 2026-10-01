@@ -10,8 +10,10 @@ import type { BuildInfoCardState } from '@/queries/updates'
  *
  * testID 는 E2E(test/e2e/flows/home-build-info.yaml)가 찾는 이름이다 - 행은 `build-info-<키>`.
  *
- * 결과 문구는 확인이 끝난 뒤 새로 나타나므로 `role="status"` 로 스크린 리더가 읽게 한다(제출 오류를 알리는 폼
- * 배너는 `alert` 다 - components/form/form-banner.tsx).
+ * 결과 문구는 확인이 끝난 뒤 새로 나타난다. Android 에서는 `accessibilityLiveRegion="polite"` 가 그 문구를 스크린 리더가
+ * 읽게 한다. `role="status"` 는 의미 표지로 둔다 - React Native 0.86 은 이 role 을 Android 에서 접근성 역할로 옮기지
+ * 않고 iOS 에서는 trait 이 없다(`UIAccessibilityTraitNone`). iOS 에는 live region 이 없다 - 거기서 읽게 하려면
+ * `AccessibilityInfo.announceForAccessibility` 라는 플랫폼 호출이 필요하고, 그 호출은 이 컴포넌트에 둘 것이 아니다.
  */
 export function BuildInfoCard({ rows, canCheck, busy, message, check }: BuildInfoCardState) {
   return (
@@ -40,7 +42,12 @@ export function BuildInfoCard({ rows, canCheck, busy, message, check }: BuildInf
         </Text>
       )}
       {message === null ? null : (
-        <Text testID="build-info-message" role="status" className="text-sm">
+        <Text
+          testID="build-info-message"
+          role="status"
+          accessibilityLiveRegion="polite"
+          className="text-sm"
+        >
           {message}
         </Text>
       )}
