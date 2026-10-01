@@ -149,6 +149,20 @@ describe('app.config.ts 의 OTA - 스펙 10.1·10.6', () => {
     expect(config.extra?.eas).toEqual({ projectId: PROBE_PROJECT_ID })
   })
 
+  it.each(['EAS_PROJECT_ID', 'EAS_BUILD_PROJECT_ID'])(
+    '대문자로 적은 %s 도 extra.eas.projectId 와 업데이트 주소에는 소문자로 싣는다 - EAS 빌드 서버가 EAS_BUILD_PROJECT_ID 와 글자 그대로 맞댄다',
+    (name) => {
+      const upper = PROBE_PROJECT_ID.toUpperCase()
+      expect(upper).not.toBe(PROBE_PROJECT_ID)
+      const config = evaluate({ BACKEND_URL: HTTPS, APP_VARIANT: 'preview', [name]: upper })
+      expect(config.extra?.eas).toEqual({ projectId: PROBE_PROJECT_ID })
+      expect(config.updates).toMatchObject({
+        enabled: true,
+        url: `https://u.expo.dev/${PROBE_PROJECT_ID}`,
+      })
+    },
+  )
+
   it('UUID 가 아닌 EAS_PROJECT_ID 는 설정 평가를 멈춘다', () => {
     expect(() =>
       evaluate({ BACKEND_URL: HTTPS, APP_VARIANT: 'preview', EAS_PROJECT_ID: 'my-project' }),
