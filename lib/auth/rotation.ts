@@ -79,6 +79,12 @@ export interface AuthTokensDocument {
  * 오직 `status === 0`(백엔드가 아예 판정을 내지 못함)만 unreachable 이다 -
  * 세션이 죽었다는 증거가 없으므로 파기하지 않는다. 파기하면 백엔드가
  * 잠깐 죽었을 때 그 순간 회전이 필요했던 모든 사용자가 로그아웃된다.
+ *
+ * (template-typescript-expo) 5xx·408·429 도 unreachable 이다 - 백엔드(나 그 앞의 프록시)가 응답은
+ * 했지만 이 refresh token 을 판정하지 않았다(서버 오류·시간 초과·요청 과다). 원본처럼 파기로 모으면
+ * 세션이 30일인 앱에서 회전 순간의 502 하나가 사용자를 로그아웃시킨다. 대가: 서버가 회전을 마친 뒤
+ * 5xx 를 냈다면 옛 refresh 를 들고 있다가 다음 회전의 재사용 감지로 그 사용자의 세션이 전부 끊긴다 -
+ * 로그아웃이 쓰기 한 번만큼 늦게 오고 다른 기기의 세션도 함께 끊긴다. 나머지 4xx 는 원본대로 파기한다.
  */
 export function interpretRotationOutcome(
   result: JsonApiResult<AuthTokensDocument>,
@@ -104,6 +110,14 @@ export function interpretRotationOutcome(
     return {
       kind: 'unreachable',
       reason: `백엔드에 닿지 못했다: ${result.errors[0]?.code ?? 'UNKNOWN'}`,
+    }
+  }
+
+  // (template-typescript-expo) 판정하지 않은 응답 - 위 주석의 마지막 문단.
+  if (result.status >= 500 || result.status === 408 || result.status === 429) {
+    return {
+      kind: 'unreachable',
+      reason: `백엔드가 회전을 판정하지 못했다(status ${result.status}, code ${result.errors[0]?.code ?? 'UNKNOWN'})`,
     }
   }
 

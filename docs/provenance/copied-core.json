@@ -218,6 +218,16 @@
       "path": "lib/resources/view.ts",
       "what": "nextPageQuery 의 본문 판정(빈 쪽·없는 링크·읽을 수 없는 링크·쿼리가 빈 링크)을 nextLinkQuery 로 빼고, referenceList 의 truncated 를 linkPresent(links.next) 대신 nextLinkQuery(document) !== null 로 판정한다 - 빈 쪽과 쿼리가 빈 링크('' 이거나 경로뿐)는 잘림이 아니다. ReferenceList.truncated·linkPresent·referenceList 의 주석을 그에 맞췄다.",
       "why": "D3 최종 검토 53e - 같은 next 를 무한 스크롤은 끝으로, 관계 선택기는 잘림으로 읽었다('' 이면). 첫 소비자인 D4 의 관계 선택기에서 한 규칙으로 맞춘다. 세 백엔드는 그런 링크를 보내지 않는다. test/unit/resources/next-link.test.ts 가 같은 응답을 두 함수에 넣어 잰다."
+    },
+    {
+      "path": "lib/auth/rotation.ts",
+      "what": "interpretRotationOutcome 이 5xx·408·429 도 unreachable 로 돌려준다(원본은 status 0 만) - 그 갈래 하나와 함수 주석 끝의 (template-typescript-expo) 문단을 더했다.",
+      "why": "스펙 7.2 의 D4 정정 - 그 셋은 백엔드가 refresh token 을 판정하지 않은 응답이라 \"인증 거절\" 이 아니다. 원본처럼 파기로 모으면 세션이 30일인 앱에서 회전 순간의 502 하나가 사용자를 로그아웃시킨다(docs/superpowers/notes/2026-10-01-d2-carry-forward.md 의 D4 절)."
+    },
+    {
+      "path": "test/unit/auth/rotation.test.ts",
+      "what": "5xx·408·429 → unreachable 시험(6행), 그 밖의 4xx → destroy 시험(4행), 프록시가 준 HTML 502 가 unreachable 인 rotateSession 시험을 더했다. 422 시험의 이름 'status!==0 이면' 을 '4xx 거절이면' 으로 고쳤다.",
+      "why": "위 rotation.ts 의 이탈을 따라간다."
     }
   ],
   "sourceBlobs": {

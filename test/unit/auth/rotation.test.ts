@@ -108,7 +108,7 @@ describe('interpretRotationOutcome', () => {
     expect(outcome.reason).toMatch(/TOKEN_REVOKED/)
   })
 
-  it('다른 거절 코드(422 VALIDATION_ERROR)도 destroy - status!==0 이면 코드와 무관하게 파기한다', () => {
+  it('다른 거절 코드(422 VALIDATION_ERROR)도 destroy - 4xx 거절이면 코드와 무관하게 파기한다', () => {
     // 판단(보고서 참고): "백엔드가 응답해서 거절했다"는 사실 자체가 결론이다.
     // 재시도하지 않는 정책 아래, 이 refreshToken 은 다음 요청에서도 똑같이
     // 거절된다 - code 별 특별 취급은 새 거절 코드가 추가될 때마다 이 함수를
@@ -141,6 +141,33 @@ describe('interpretRotationOutcome', () => {
     if (outcome.kind !== 'unreachable') throw new Error('unreachable')
     expect(outcome.reason).toMatch(/NETWORK_ERROR/)
   })
+
+  it.each([500, 502, 503, 504, 408, 429])(
+    '(template-typescript-expo) 백엔드가 토큰을 판정하지 않은 응답(%i) → unreachable - 세션을 파기하지 않는다',
+    (status) => {
+      const result: JsonApiResult<AuthTokensDocument> = {
+        ok: false,
+        status,
+        errors: [{ status: String(status), code: 'NON_JSONAPI_RESPONSE' }],
+      }
+      const outcome = interpretRotationOutcome(result, NOW)
+      expect(outcome.kind).toBe('unreachable')
+      if (outcome.kind !== 'unreachable') throw new Error('unreachable')
+      expect(outcome.reason).toContain(`status ${status}`)
+    },
+  )
+
+  it.each([400, 403, 404, 409])(
+    '(template-typescript-expo) 그 밖의 4xx(%i) 는 원본대로 destroy 다',
+    (status) => {
+      const result: JsonApiResult<AuthTokensDocument> = {
+        ok: false,
+        status,
+        errors: [{ status: String(status), code: 'PROBE_REJECTED' }],
+      }
+      expect(interpretRotationOutcome(result, NOW).kind).toBe('destroy')
+    },
+  )
 
   it('200 인데 본문이 없다(204 갈래) → destroy - 계약 위반에 대한 방어', () => {
     // client.ts 의 JsonApiResult<T> 는 204 갈래를 status 로 좁히지 못한다
@@ -274,6 +301,20 @@ describe('rotateSession — 실제 fetch 호출', () => {
 
   it('fetch 가 던지면(네트워크 실패) → unreachable, 재시도하지 않는다(정확히 1회)', async () => {
     fetchMock.mockRejectedValue(new TypeError('fetch failed'))
+
+    const outcome = await rotateSession('refresh-token', probeSend, NOW)
+
+    expect(outcome.kind).toBe('unreachable')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('(template-typescript-expo) 프록시가 준 HTML 502 → unreachable, 재시도하지 않는다(정확히 1회)', async () => {
+    fetchMock.mockResolvedValue(
+      new Response('<html>probe bad gateway</html>', {
+        status: 502,
+        headers: { 'content-type': 'text/html' },
+      }),
+    )
 
     const outcome = await rotateSession('refresh-token', probeSend, NOW)
 

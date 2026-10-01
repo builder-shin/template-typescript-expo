@@ -2,6 +2,7 @@ import { Link, Stack, router, useLocalSearchParams, type Href } from 'expo-route
 import { useState } from 'react'
 import { View } from 'react-native'
 
+import { useBackToHome } from '@/components/app/back-to-home'
 import { CredentialsForm } from '@/components/form/credentials-form'
 import { Text } from '@/components/ui/text'
 import { authLinkHref } from '@/lib/auth/flow'
@@ -11,17 +12,19 @@ import {
   type AuthFormState,
 } from '@/lib/auth/form-state'
 import { LOGIN_REDIRECT_PARAM } from '@/lib/auth/protected-paths'
-import { useLoginMutation } from '@/queries/auth'
+import { LOGIN_MUTATION_KEY, useLoginMutation } from '@/queries/auth'
 
 /**
  * 로그인 화면(스펙 7.4). `next` 는 경로 가드가 붙인 원래 경로다 - 값을 검사하지 않고 그대로
  * 넘긴다. 검사는 decideAfterLogin 안의 safeRedirectTarget 한 곳에서만 한다(lib/auth/flow.ts) -
- * 딥링크로 들어온 외부 URL 은 거기서 홈으로 바뀐다.
+ * 딥링크로 들어온 외부 URL 은 거기서 홈으로 바뀐다. 가드가 보낸 이 화면에서 뒤로 가면 홈이다
+ * (useBackToHome - 가드가 루트를 이 화면 하나로 바꿔 끼운다).
  */
 export default function LoginScreen() {
   const rawNext = useLocalSearchParams()[LOGIN_REDIRECT_PARAM]
   const login = useLoginMutation(rawNext)
   const [state, setState] = useState<AuthFormState>(IDLE_AUTH_FORM_STATE)
+  useBackToHome()
   // authLinkHref 는 런타임에 만든 앱 안 경로다 - 타입드 라우트가 모르는 문자열이라 단언한다. 단언은
   // 변수에 담는다: prop·인자 자리에 두면 타입드 라우트를 만들기 전(새 체크아웃)의 lint 가 받는 쪽이
   // string 을 받는다며 "불필요한 단언"으로 본다.
@@ -37,6 +40,7 @@ export default function LoginScreen() {
         passwordAutoComplete="current-password"
         state={state}
         pending={login.isPending}
+        mutationKey={LOGIN_MUTATION_KEY}
         onSubmit={(credentials) => {
           login.mutate(credentials, {
             onSuccess: (plan) => {

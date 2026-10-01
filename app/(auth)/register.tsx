@@ -2,6 +2,7 @@ import { Link, Stack, router, useLocalSearchParams, type Href } from 'expo-route
 import { useState } from 'react'
 import { View } from 'react-native'
 
+import { useBackToHome } from '@/components/app/back-to-home'
 import { CredentialsForm } from '@/components/form/credentials-form'
 import { Text } from '@/components/ui/text'
 import { authLinkHref } from '@/lib/auth/flow'
@@ -11,16 +12,18 @@ import {
   type AuthFormState,
 } from '@/lib/auth/form-state'
 import { LOGIN_REDIRECT_PARAM } from '@/lib/auth/protected-paths'
-import { useRegisterMutation } from '@/queries/auth'
+import { REGISTER_MUTATION_KEY, useRegisterMutation } from '@/queries/auth'
 
 /**
  * 가입 화면(스펙 7.4) - register 다음 login 을 부르고 세션을 세운 뒤 `next` 로 간다. `next` 를
- * 이어받는다 - 로그인 화면에서 "가입하기"로 온 사용자도 가입한 뒤 원래 가려던 곳으로 간다.
+ * 이어받는다 - 로그인 화면에서 "가입하기"로 온 사용자도 가입한 뒤 원래 가려던 곳으로 간다. 로그인
+ * 화면을 바꿔 끼우고 들어오므로(Link replace) 뒤로 가면 홈이다(useBackToHome).
  */
 export default function RegisterScreen() {
   const rawNext = useLocalSearchParams()[LOGIN_REDIRECT_PARAM]
   const register = useRegisterMutation(rawNext)
   const [state, setState] = useState<AuthFormState>(IDLE_AUTH_FORM_STATE)
+  useBackToHome()
   // authLinkHref 는 런타임에 만든 앱 안 경로다 - 타입드 라우트가 모르는 문자열이라 단언한다. 단언은
   // 변수에 담는다(login.tsx 와 같은 이유 - prop 자리의 단언은 새 체크아웃의 lint 가 막는다).
   const loginLink = authLinkHref('/login', rawNext, LOGIN_REDIRECT_PARAM) as Href
@@ -35,6 +38,7 @@ export default function RegisterScreen() {
         passwordAutoComplete="new-password"
         state={state}
         pending={register.isPending}
+        mutationKey={REGISTER_MUTATION_KEY}
         onSubmit={(credentials) => {
           register.mutate(credentials, {
             onSuccess: (plan) => {
