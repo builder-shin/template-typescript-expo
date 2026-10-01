@@ -32,4 +32,7 @@ Expo Router 57.0.24 는 밖에서 들어온 URL 을 앱 안 주소(`router.push(
 `once.ts` 의 `createOnce` 는 첫 부름이 잠그고 잠긴 동안의 부름을 버린다 - 목록의 행·조건 바꾸기·"새로 만들기"·
 "수정" 을 빠르게 두 번 누르면 같은 화면이 두 벌 쌓였다. 화면에 잇는 것은 `components/app/navigate-once.ts` 의
 `useNavigateOnce` 다 - 누른 화면이 다시 앞에 오면(`useIsFocused`) 푼다. 시각으로 풀지 않는다. 화면을 쌓는 새 이동도
-이것을 지난다. 쓰기의 제출은 쓰기 캐시가 막는다(`queries/submit-once.ts`). 시험은 `test/unit/navigation/once.test.ts`.
+이것을 지난다. 가드는 `router.push`(이름이 같아도 쌓는다)에 건다 - `push`·`replace`·`dismissTo` 가 없는 `Link` 의 기본
+이동(navigate)은 맨 위와 같은 화면이면 쌓지 않고 같은 key 로 바꿔 끼우므로 가드가 필요 없다(설치본 expo-router 57.0.24 의
+스택 라우터를 읽은 결론이고 기기에서는 재지 않았다). 쓰기의 제출은 쓰기 캐시가 막는다(`queries/submit-once.ts`). 시험은
+`test/unit/navigation/once.test.ts`.
