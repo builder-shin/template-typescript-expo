@@ -2045,6 +2045,11 @@ export function referenceRequest(target: ResourceDefinition): ReferenceRequest {
  * 알아볼 수 없는 값은 "고를 것이 없다" 로 조용히 물러선다 - `options: []`,
  * `truncated: false`. 이 자리를 던지게 바꾸면 참조 자원 하나의 결함이 쓰기
  * 화면 전체를 `app/error.tsx` 로 보낸다.
+ * (template-typescript-expo) 위의 "던지지 않는다" 는 이 함수가 받는 성공 본문의 일이다 - 거절(오류 문서)은 이 함수에
+ * 오지 않는다. `referenceState`(screen-state.ts)가 먼저 읽는다: 합성 오류(응답조차 없었다)는 닿지 못함, 문구가 있는 오류
+ * 문서는 그 문구의 배너이고, 문구가 하나도 없는 오류 문서는 목록·상세처럼 던진다 - 참조 자원 하나의 계약 위반이 쓰기 화면
+ * 전체를 오류 경계로 보낸다(스펙 9.3 의 D4 정정). 위의 "폼 전체가 죽어서는 안 된다" 는 원본의 근거이고, 이 저장소에서
+ * 그대로인 것은 알아볼 수 없는 성공 본문이 빈 보기로 물러서는 것뿐이다.
  *
  * ## 잘림 판정은 `nextPageQuery` 와 같은 함수를 공유한다(R-10①)
  *

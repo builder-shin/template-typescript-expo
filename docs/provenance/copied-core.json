@@ -220,6 +220,11 @@
       "why": "D3 최종 검토 53e - 같은 next 를 무한 스크롤은 끝으로, 관계 선택기는 잘림으로 읽었다('' 이면). 첫 소비자인 D4 의 관계 선택기에서 한 규칙으로 맞춘다. 세 백엔드는 그런 링크를 보내지 않는다. test/unit/resources/next-link.test.ts 가 같은 응답을 두 함수에 넣어 잰다."
     },
     {
+      "path": "lib/resources/view.ts",
+      "what": "referenceList 머리말 주석의 '던지지 않는다' 절 끝에 (template-typescript-expo) 문단을 더했다 - 그 '던지지 않는다' 는 이 함수가 받는 성공 본문의 일이고, 참조 목록의 거절(오류 문서)은 이 함수에 오지 않고 referenceState(lib/resources/screen-state.ts)가 먼저 읽는다(합성 오류는 닿지 못함, 문구가 있는 오류 문서는 그 문구의 배너, 문구가 하나도 없는 오류 문서는 목록·상세처럼 던져 쓰기 화면 전체가 오류 경계로 간다). 원본의 '폼 전체가 죽어서는 안 된다' 는 원본의 근거이고 이 저장소에서 그대로인 것은 알아볼 수 없는 성공 본문의 빈 보기뿐이라고 적었다. 코드는 그대로다.",
+      "why": "원본의 근거('참조 목록 하나가 실패하거나 모양이 이상하다고 폼 전체가 죽어서는 안 된다', '던지게 바꾸면 쓰기 화면 전체를 app/error.tsx 로 보낸다')가 이 저장소의 정책과 반대로 읽힌다 - 이 저장소는 문구 없는 오류 문서에서 일부러 던져 쓰기 화면 전체를 오류 경계로 보낸다(스펙 9.3 의 D4 정정). 주석만 믿고 이 함수나 referenceState 를 원본 쪽으로 되돌리는 사고를 막는다."
+    },
+    {
       "path": "lib/auth/rotation.ts",
       "what": "interpretRotationOutcome 이 5xx·408·429 도 unreachable 로 돌려준다(원본은 status 0 만) - 그 갈래 하나를 더했다. 판정은 lib/jsonapi/status.ts 의 isUnjudgedStatus 로 한다(import 하나) - 조회의 throwIfUnreachable 과 한 규칙이다. 함수 주석은 원본의 두 문단('status !== 0 인 ok:false 는 전부 destroy 로 수렴시킨다', '오직 status === 0 만 unreachable 이다')이 새 동작과 어긋나서, 갈래 셋의 목록(판정하지 않음 → unreachable, 판정하고 거절 → destroy, 성공 → rotated)으로 다시 썼다. 원본의 근거(코드가 아니라 판정 여부로 가른다, 422 도 파기한다, 잠깐 죽은 백엔드에 모두를 로그아웃시키지 않는다)는 남기고, 5xx·408·429 의 근거와 대가, 회전이 판정을 받지 못한 채 돌아온 access 가 이미 만료돼 있을 수 있다는 것과 쓰기의 만료 가드(lib/resources/write.ts)를 더했다.",
       "why": "스펙 7.2 의 D4 정정 - 그 셋은 백엔드가 refresh token 을 판정하지 않은 응답이라 \"인증 거절\" 이 아니다. 원본처럼 파기로 모으면 세션이 30일인 앱에서 회전 순간의 502 하나가 사용자를 로그아웃시킨다(docs/superpowers/notes/2026-10-01-d2-carry-forward.md 의 D4 절). 판정 규칙을 한 파일에 두는 것은 회전과 조회의 queryFn 이 따로 베끼면 한 곳만 고치는 사고가 나기 때문이다 - test/unit/jsonapi/status.test.ts 가 두 소비자가 모든 HTTP 상태에서 그 규칙과 같은 답을 내는지 잰다. 오래된 주석의 두 문단을 남기면 새 갈래와 모순된다."
