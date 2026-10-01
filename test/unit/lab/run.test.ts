@@ -115,7 +115,10 @@ function page(ids: readonly string[], next?: string | null): JsonApiResult<unkno
   return ok(200, { data, links: { next } })
 }
 
-/** 어떤 요청에도 성공하는 백엔드 - 세션 가드만 재는 시험이 쓴다. */
+/**
+ * 어떤 요청에도 성공하는 백엔드 - 응답이 상관없는 시험이 쓴다: 세션 가드와 토큰을 받는 횟수, 요청마다 싣는 기기
+ * 언어, 모르는 실험 id. 응답을 결과로 옮기는 갈래를 재는 시험은 제 응답기를 쓴다.
+ */
 const ANYTHING_OK: Respond = (_path, options) => {
   if (options.method === 'DELETE' || options.method === 'POST') return NO_CONTENT
   if (options.method === 'PUT') return ok(201)
@@ -297,6 +300,30 @@ describe('relationshipWrite', () => {
     expect(sent).toHaveLength(1)
     expect(parseCombinedSteps(result.body).steps).toHaveLength(1)
     expect(result.status).toBe(0)
+  })
+
+  it('추가·제거가 세션 밖의 실패(대상 행이 없다 - 404)를 받아도 던지지 않고 단계마다 그 실패를 보인다', async () => {
+    const { deps, sent } = probeDeps((path, options) =>
+      options.method === 'POST' || options.method === 'DELETE'
+        ? failure(404, 'RESOURCE_NOT_FOUND')
+        : tagsThenNoContent(path, options),
+    )
+
+    // 던지면 쓰기 캐시의 onError 가 기기 세션을 지운다 - 세션 거절이 아닌 실패는 결과로만 보인다.
+    const result = await resultOf('relationshipWrite', deps)
+
+    expect(sent.map((request) => request.options.method ?? 'GET')).toEqual([
+      'GET',
+      'POST',
+      'DELETE',
+    ])
+    const { steps } = parseCombinedSteps(result.body)
+    expect(steps).toHaveLength(3)
+    for (const step of steps.slice(1)) {
+      expect(step.heading).toContain('(상태 404)')
+      expect(step.body).toContain('RESOURCE_NOT_FOUND')
+    }
+    expect(result.status).toBe(404)
   })
 
   it('추가가 세션 거절을 받으면 던지고 제거를 보내지 않는다', async () => {
