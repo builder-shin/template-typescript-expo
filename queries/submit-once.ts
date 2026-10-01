@@ -1,7 +1,7 @@
 import { useQueryClient, type MutationKey, type QueryClient } from '@tanstack/react-query'
 
 /**
- * 제출 하나가 끝나기 전의 두 번째 제출을 버리는 가드 - 폼(자격증명·자원)이 함께 쓴다.
+ * 제출 하나가 끝나기 전의 두 번째 제출을 버리는 가드 - 폼(자격증명·자원)·삭제 확인 시트·계약 실험실이 함께 쓴다.
  *
  * 화면이 받은 `isPending` 은 렌더 때의 값이다. 제출 버튼과 키보드의 이동 키가 한 틱 안에 함께 눌리면 둘째
  * 제출도 `isPending` 이 거짓인 렌더를 보고 지나가 요청이 둘 나간다 - 가입이면 첫 요청이 세션을 세우고 둘째가
@@ -24,8 +24,10 @@ export function submitOnce(
 }
 
 /**
- * 폼이 쓰는 모양 - 폼은 제출이 부를 쓰기의 키를 받아(자격증명 폼은 `LOGIN_MUTATION_KEY` 등, 자원 폼은 쓰기
- * 훅의 `mutationKey`) 제출을 이 함수로 감싼다. `submit` 안에서 그 키의 `mutate()` 가 불려야 한다.
+ * 쓰는 쪽의 모양 - 폼과 확인 시트는 제출이 부를 쓰기의 키를 받아(자격증명 폼은 `LOGIN_MUTATION_KEY` 등, 자원 폼은 쓰기
+ * 훅의 `mutationKey`) 제출을 이 함수로 감싼다. 계약 실험실은 실험마다 따로 도는 쓰기의 키(`['lab', id]`,
+ * `queries/lab.ts`)로 실행 버튼의 눌림을 감싼다 - 한 실험의 둘째 누름만 버리고 다른 실험은 막지 않는다. `submit` 안에서
+ * 그 키의 `mutate()` 가 불려야 한다.
  */
 export function useSubmitOnce(mutationKey: MutationKey): (submit: () => void) => void {
   const client = useQueryClient()
