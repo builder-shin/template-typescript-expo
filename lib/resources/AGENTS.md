@@ -57,9 +57,10 @@ Router 는 이동이 싣는 값(로그인·가입 뒤 복귀의 `withAnchor` 가
 ## 선언은 데이터다
 
 `filters`·`sorts`는 백엔드 조회 정책을 **손으로 베낀 거울**이다. 손으로 유지되는 거울은
-반드시 어긋나므로 계약 거울 테스트(스펙 11.2)가 양방향으로 잡게 되어 있다. 그 HTTP
-테스트(`test/contract/`)는 아직 없다 - 지금의 `test/unit/resources/mirror.test.ts`는
-프로브가 만들어지는 구조만 고정하고, 선언과 백엔드의 어긋남은 잡지 못한다.
+반드시 어긋나므로 계약 거울(스펙 11.2)이 실제 백엔드에 HTTP 로 맞대어 양방향으로 잡는다 - 게이트
+`[12/13]` 의 `test/contract/mirror.test.ts` 다. `RESOURCES` 에 더한 자원은 조회 정책·응답 속성 키·enum 값을
+저절로 잰다(속성 제약은 쓰기 라우트가 있는 `examples` 에만 있다). `test/unit/resources/mirror.test.ts` 는
+프로브가 만들어지는 구조를 고정한다.
 
 ## 명시적 등록
 
