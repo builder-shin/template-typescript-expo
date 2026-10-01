@@ -27,8 +27,8 @@ import { BASH_TIMEOUT_MS, resolveBash } from '../support/bash'
  * 1. **compose 호출은 전부 이 저장소의 프로젝트로 범위가 좁혀진다**(`-p template-typescript-expo-e2e -f
  *    docker-compose.e2e.yml`). 개발 머신에는 이 저장소와 무관한 스택(`joon-*` 등)이 떠 있고, 프로젝트 이름이 빠진
  *    compose 호출은 디렉터리 이름으로 프로젝트를 추측한다. 시험이 모든 장면에서 이것을 확인한다.
- * 2. **access token 수명은 900초다.** 거울은 한 번 로그인한 토큰으로 속성 제약을 재므로, E2E 하네스의 10초가
- *    셸에 남아 있어도 compose 가 900 을 봐야 한다.
+ * 2. **access token 수명은 기본 900초와 다른 600초다.** 설정을 무시한 백엔드를 거울이 구별하고, 한 번 로그인한
+ *    토큰으로 속성 제약도 잰다. E2E 하네스의 10초가 셸에 남아 있어도 compose 와 거울이 같은 600 을 봐야 한다.
  * 3. **정리 트랩은 사전 점검(docker·데몬·curl)이 모두 끝난 뒤에만 선다.** 점검이 실패하면 compose 호출이 하나도
  *    없다 - docker 가 없거나 데몬이 꺼진 머신에서 `down` 을 부르는 것은 소음이다. 트랩이 선 뒤에는 어떤 끝(띄우기·
  *    준비 확인·거울의 실패)에서도 이 프로젝트의 세 프로파일을 내린다.
@@ -85,6 +85,7 @@ function bashPathOf(path: string): string {
 
 /** 가짜가 한 줄에 적는 환경 - `run.sh` 가 도구에 넘긴 것 중 이 시험이 보는 것. */
 const LOGGED_ENV = [
+  'BACKEND_KIND',
   'CONTRACT_API_URL',
   'E2E_API_PORT',
   'E2E_ACCESS_EXPIRES_SECONDS',
@@ -382,12 +383,12 @@ describe('test/contract/run.sh', { timeout: 60_000 }, () => {
       for (const call of compose) expect(call.env.PWD).toBe(REPO_ROOT_IN_BASH)
     })
 
-    it('[불변식 2] 셸에 E2E 의 10초가 남아 있어도 compose 와 거울은 900 을 본다', () => {
+    it('[불변식 2] 셸에 E2E 의 10초가 남아 있어도 compose 와 거울은 600 을 본다', () => {
       const outcome = success()
       const seen = outcome.calls.filter((call) => call.tool === 'pnpm' || stage(call) === 'up')
 
       expect(seen.map(stage)).toEqual(['up', 'pnpm'])
-      for (const call of seen) expect(call.env.E2E_ACCESS_EXPIRES_SECONDS).toBe('900')
+      for (const call of seen) expect(call.env.E2E_ACCESS_EXPIRES_SECONDS).toBe('600')
     })
   })
 
@@ -484,10 +485,14 @@ describe('test/contract/run.sh', { timeout: 60_000 }, () => {
       ['nestjs', 'NestJS'],
       ['rails', 'Rails'],
     ])('%s: 그 프로파일을 띄우고, 준비 실패의 문구는 %s 다', (kind, name) => {
-      const up = callsOf(run({ env: { BACKEND_KIND: kind } }), 'up')
+      const outcome = run({ env: { BACKEND_KIND: kind } })
+      const up = callsOf(outcome, 'up')
       expect(up.map((call) => call.args)).toEqual([
         `${SCOPE} --profile ${kind} up -d --build --wait`,
       ])
+      for (const call of [...up, ...callsOf(outcome, 'pnpm')]) {
+        expect(call.env.BACKEND_KIND).toBe(kind)
+      }
 
       const unready = run({ env: { BACKEND_KIND: kind, FAKE_CURL_EXIT: '22' } })
       expect(unready.status).toBe(1)

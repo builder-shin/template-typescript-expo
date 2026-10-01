@@ -769,3 +769,86 @@ R16의 정확한 Open 조건은 세 흐름에서 모두 건너뛰었다. 전용 
 증거는 `.maestro-output/mac-repro/r33-nestjs-ios26/`, 같은 이름의 `.log`, `r33-final-*.log`, `r33-build.log`다.
 최종 통합 CI 전까지 전체 아홉 셀 성공으로 세지 않는다. 새 관측은 로컬에서 값 없이 입력20/제출20과
 즉시 시작한 요청을 확인했으며, CI5의 내부 지연 원인 전체가 입증됐다는 뜻은 아니다.
+
+## K4 — 쓰기 갈림과 access token 수명(세 백엔드)
+
+**실측일: 2026-10-02(Asia/Seoul), Windows 11·Git Bash·Node 24.19.0·pnpm 11.22.0.**
+`4646587` 시점의 기기 플로 22개와 기존 거울 89개가 보내지 않는 경로를
+`test/contract/write-paths.test.ts`의 독립 프로브 다섯으로 더 쟀다. 빈 PATCH·미선언 속성·읽기 전용 `createdAt`·
+중복 태그 id는 상태·오류 코드·정확한 포인터와 저장된 값이 바뀌지 않는지를 대조하고, 새 로그인은 JWT payload의
+정수 `exp - iat`를 하네스가 설정한 수명과 대조한다. 서명 검증·만료 뒤 회전은 이 프로브의 범위 밖이다.
+
+**과거 표와 현재 HTTP 응답.** 과거의 출처는 Next.js D4 계획
+`template-typescript-nextjs/docs/superpowers/plans/2026-09-08-create-update-delete.md:253`의 §2,
+필수 행은 `:260`(빈 PATCH)·`:261`(금지 속성)·`:262`(중복 태그)다. 날짜는 그 계획의 2026-09-08이며,
+Expo D4 계획 `docs/superpowers/plans/2026-09-30-d4-create-update-delete.md:7666`이 D7에 이 세 경로와 수명을 넘겼다.
+과거 계획은 당시 기록으로 남긴다. 아래 과거 값에서 `422 필드`는 필드 오류, `400 문서`는 문서 오류다.
+
+| 프로브 | FastAPI 과거 → 현재 | NestJS 과거 → 현재 | Rails 과거 → 현재 |
+|---|---|---|---|
+| 빈 PATCH (`data.type`·`data.id`만) | 422 → 422 | 200 no-op → **422** | 422 → 422 |
+| 미선언 `mirrorUndeclaredAttribute` | 422 필드 → 422 필드 | 422 필드 → 422 필드 | 400 문서 → **422 필드** |
+| 읽기 전용 `createdAt` | 422 필드 → 422 필드 | 422 필드 → 422 필드 | 400 문서 → **422 필드** |
+| 같은 태그 id 두 번 | 400 → 400 | 조용히 중복 제거 → **400** | 400 → 400 |
+| 새 로그인 `exp - iat` | 기본 900(설정 읽음) → **설정 600·실측 600** | 기본 900(설정 읽음) → **설정 600·실측 600** | 기본 900(설정 읽음) → **설정 600·실측 600** |
+
+수명의 과거 출처는 Expo D4 계획 `:129`(2026-10-01 확인)다. 기본 900으로는 설정을 읽는 백엔드와 무시하는 백엔드를
+구별할 수 없어 `run.sh`의 `E2E_ACCESS_EXPIRES_SECONDS`를 600으로 바꿨다. compose가 그 환경 변수를
+`JWT_ACCESS_EXPIRES_SECONDS`로 넘기고(`docker-compose.e2e.yml:73`·`:126`·`:194`), 시험은 같은 변수를 읽는다.
+시험에는 600의 두 번째 상수가 없다. 스택 준비가 끝나야 로그인하며, 최종 거울 실행은 각각 1.51·1.54·3.60초라
+600초의 토큰으로 기존 속성 제약도 충분히 잴 수 있었다. 기기 E2E의 10초가 셸에 남아 있어도 하네스가 덮어쓴다.
+
+현재 세 백엔드에서 오류의 모양은 같았다:
+
+| 프로브 | HTTP 상태 / `code` / `source.pointer` |
+|---|---|
+| 빈 PATCH | 422 / `VALIDATION_ERROR` / `/data` (문서 오류) |
+| 미선언 속성 | 422 / `VALIDATION_ERROR` / `/data/attributes/mirrorUndeclaredAttribute` (필드 오류) |
+| 읽기 전용 속성 | 422 / `VALIDATION_ERROR` / `/data/attributes/createdAt` (필드 오류) |
+| 중복 태그 | 400 / `INVALID_JSONAPI_DOCUMENT` / `/data/relationships/tags/data/1/id` (관계 오류) |
+
+**실제로 빌드한 백엔드와 설명하는 소스.** compose는 형제 디렉터리가 아니라 각 GitHub 저장소의 `main`을 빌드한다.
+아래 SHA는 각 실행의 빌드 로그에서 읽었다. 따라서 이 앱 저장소의 변경 없이도 백엔드 `main` 변경으로 프로브가
+빨개질 수 있다. 소스는 응답을 설명하는 근거이며, 기대값의 정본은 위 HTTP 실측이다.
+
+| 백엔드 / 측정 커밋 | 빈 PATCH | 미선언·읽기 전용 속성 | 중복 태그 | access 수명 설정 |
+|---|---|---|---|---|
+| `template-python-fastapi` / `3c4eee39a2f3b69f594b7d610b0a7a423433fbe0` | `app/controllers/concerns/crud_actions.py:275`–`:280` | `app/jsonapi/naming.py:20`–`:22`, `app/schemas/example.py:45`–`:51`, `app/jsonapi/exception_handlers.py:119`–`:139` | `app/controllers/concerns/relationship_resolver.py:285`–`:290` | `config/auth.py:38`–`:42` |
+| `template-typescript-nestjs` / `92cc2b1f5c5914d5d24b1688ab84468528dce95b` | `src/app/controllers/concerns/document-parsing.ts:57`–`:64` | `src/app/schemas/write-schema.ts:72`–`:94` | `src/app/controllers/concerns/relationship-resolver.ts:97`–`:98` | `src/config/settings.ts:153`–`:155` |
+| `template-ruby-rails` / `231576eeac21c583b2cc28532248223351f2c92f` | `app/controllers/concerns/crud_actions.rb:385`–`:391` | `app/controllers/concerns/jsonapi_write_validation.rb:35`–`:37`, `:95`–`:98` | `app/controllers/concerns/jsonapi_relationships.rb:165`–`:170`, `:270`–`:275` | `config/initializers/auth.rb:30`–`:35` |
+
+NestJS의 측정 커밋은 로컬 형제 저장소 HEAD와 달라 해당 SHA의 소스를 GitHub contents API로 읽어 위 줄을 확인했다.
+FastAPI·Rails는 로컬 형제 저장소 HEAD와 측정 SHA가 같았다. 기본값 900·0 이하 설정 거절은 설정 소스로 확인했으며,
+이번 HTTP 프로브는 비기본 양수 수명 반영만 잰다(0 이하로 별도 스택을 띄우지는 않았다).
+
+**과거 표에서 달라진 응답의 처리.** 첫 NestJS 실행은 빈 PATCH·중복 태그만 실패(2 failed / 92 passed,
+exit 1)했고, 첫 Rails 실행은 미선언·읽기 전용 속성만 실패(2 failed / 92 passed, exit 1)했다.
+HTTP 응답과 소스를 조정자에게 보냈고 현재 실측 기준으로 고정하도록 승인받았다(D7-R24). 강화된 거절은 앱이
+이미 피하는 경로다. `lib/resources/write.ts:185`–`:187`이 `writeDocument`로 수정 문서를 만들고,
+`lib/resources/form.ts:335`–`:337`이 `formAttributes`의 모든 쓰기 가능 속성을 보낸다. 그 화이트리스트는
+`lib/resources/define.ts:336`–`:339`가 읽기 전용 속성을 뺀다. 태그의 순수 조립 함수
+`lib/resources/form.ts:297`–`:305`는 보내기 전 `Set`으로 중복을 제거한다. 따라서 앱 코드는 바꾸지 않았다.
+
+**독립 데이터와 정리.** 각 프로브는 고유 이메일로 가입·로그인하고, 쓰기 프로브는 고유 제목의 자기 example을 만든다.
+실패해도 `finally`에서 그 행을 DELETE한다(204 단언). 태그는 쓰기 API가 없는 참조 자원이라 시드 행을 읽기만 하며
+자기 example의 관계만 쓴다. 다른 시험의 행·계정에 의존하지 않는다. 계정 삭제 API는 없어 하네스의 프로젝트 한정
+`down -v`가 계정을 정리한다.
+
+**최종 실행.** `BACKEND_KIND=<종류> ./test/contract/run.sh`를 백엔드마다 돌렸다. 각 로그에
+`[matrix] <종류>: 알려진 계약 드리프트 없음`이 있었다. 쓰기 경로의 과거 갈림은 그 목록에 숨긴 기대 실패가 아니라
+현재 HTTP 결과를 대조하는 프로브다. `test/e2e/matrix.ts`와 `KNOWN_DIVERGENCES`는 바꾸지 않았다.
+
+| 백엔드 | exit | 계약 파일 / 시험 | `joon-*` 전 → 후 | 우리 compose 종료 뒤 컨테이너(정지 포함) |
+|---|---|---|---|---|
+| fastapi | 0 | 2 passed / 94 passed (기존 89 + 새 5) | 9 → 9 | 0 |
+| nestjs | 0 | 2 passed / 94 passed | 9 → 9 | 0 |
+| rails | 0 | 2 passed / 94 passed | 9 → 9 | 0 |
+
+**뮤테이션.** FastAPI 기대값 데이터의 `emptyPatch.status`만 422 → 200으로 뒤집었다. 실제 응답
+`422 VALIDATION_ERROR /data`로 그 프로브 하나만 빨개졌다(`1 failed / 93 passed`, exit 1). 422로 복원한 뒤
+FastAPI 전체가 `94 passed`, exit 0이었다. 두 실행 모두 `joon-*` 9 → 9, 우리 프로젝트 컨테이너 0이었다.
+
+정적 검사는 typecheck·lint·format·secretlint·인용·출처가 모두 exit 0, 단위는 **90파일·1844시험** 통과다.
+하네스 단위 19개가 compose/거울의 공통 수명 600·백엔드 전달·프로젝트 범위·정리·종료 코드 불변식을 지킨다.
+`bash -n`·ShellCheck 0.11.0·bash 3.2 금지 구문 스캔도 exit 0이었다. 이번 작업은 필수 경로와 수명에 한정했으며
+선택 사항인 쓰기 `?include=`·읽기 전용 자원 쓰기·없는 `links` 항목은 추가 실측하지 않았다. CI는 통합 뒤 조정자가 돈다.

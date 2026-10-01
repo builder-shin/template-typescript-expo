@@ -23,6 +23,7 @@ cd "$(dirname "$0")/../.."
 BACKEND_KIND=$(node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --input-type=module \
   -e "import { backendKind } from './test/e2e/matrix.ts'; process.stdout.write(backendKind())") || exit 1
 readonly BACKEND_KIND
+export BACKEND_KIND
 # 문구의 백엔드 이름 - FastAPI 의 문구는 D5 의 글자 그대로다(test/unit/scripts/contract-run.test.ts 가 잰다).
 case "$BACKEND_KIND" in
   fastapi) readonly BACKEND_NAME=FastAPI ;;
@@ -34,9 +35,10 @@ readonly PROJECT=template-typescript-expo-e2e
 readonly API_PORT="${E2E_API_PORT:-4100}"
 
 export E2E_API_PORT="$API_PORT"
-# access token 은 백엔드 기본 수명(900초)으로 둔다 - 거울은 한 번 로그인한 토큰으로 속성 제약을 잰다. E2E
-# 하네스는 이 변수를 10 으로 준다(test/e2e/run-android.sh) - 셸에 그 값이 남아 있어도 여기서는 쓰지 않는다.
-export E2E_ACCESS_EXPIRES_SECONDS=900
+# 기본 900초와 다른 600초로 설정 반영을 잰다 - 새 로그인의 exp - iat 가 이 환경 변수와 같아야 한다.
+# 거울은 로그인 뒤 수초 안에 끝나므로 한 번 받은 토큰으로 속성 제약도 잴 수 있다(기기 E2E 의 10초는 쓰지 않는다).
+# compose 의 JWT_ACCESS_EXPIRES_SECONDS 와 거울의 기대 수명은 이 한 값을 읽는다. 셸에 남은 E2E 값도 덮어쓴다.
+export E2E_ACCESS_EXPIRES_SECONDS=600
 
 fail() {
   echo "계약 거울: $*" >&2

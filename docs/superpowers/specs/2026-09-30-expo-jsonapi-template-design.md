@@ -943,6 +943,19 @@ xcodebuild로 직접 빌드한다. 실제 EAS 빌드와 OTA 발행은 사용자�
 > 잡는지는 선언을 일부러 바꿔 재 보았다 - `docs/superpowers/notes/2026-10-01-d5-measurements.md` 의 C1. 그 실증은 1(필터
 > 연산자)과 3(`maxLength`)만 건드렸다 - 2 와 4 는 실제 스택에서 변이로 재 보지 않았다.
 
+> 정정(2026-10-02, D7): `test/contract/write-paths.test.ts`가 앱에서 피하는 쓰기 경로(빈 PATCH·미선언 속성·읽기 전용
+> `createdAt`·중복 태그 id)와 새 로그인 access token의 수명을 더 잰다. 기존 89개와 새 프로브 5개로 백엔드마다 94개다.
+> 쓰기는 `BACKEND_KIND`별 실측 기대값(HTTP 상태·오류 코드·`source.pointer`)으로 대조한다. 과거 Next.js D4 표에서
+> NestJS의 빈 PATCH는 200 no-op·중복 태그는 중복 제거였고 Rails의 금지 속성은 400 문서 오류였다. 현재 실측에서는
+> 세 백엔드 모두 빈 PATCH 422 `/data`, 금지 속성 422 필드 오류, 중복 태그 400 관계 포인터로 거절한다. 앱은 쓰기 속성
+> 전부를 화이트리스트로 보내고 태그 id를 중복 제거하므로 그대로다. 과거 표·현재 값·백엔드 커밋·소스 근거는
+> `docs/superpowers/notes/2026-10-01-d7-measurements.md`의 K4에 있다. compose가 백엔드 `main`을 빌드하므로 이 저장소가
+> 바뀌지 않아도 백엔드 변경으로 해당 프로브가 실패할 수 있다.
+> access 수명은 위 D5 시점의 기본 900초에서 비기본 600초로 바꿨다. `run.sh`가 내보낸 `E2E_ACCESS_EXPIRES_SECONDS`가
+> compose의 `JWT_ACCESS_EXPIRES_SECONDS`와 시험의 기대값 한 출처다. JWT payload를 디코딩해 `exp - iat`가 그 값인지
+> 대조하며 서명은 재지 않는다. 거울은 로그인 뒤 수초에 끝나므로 기존 속성 제약 시험의 토큰도 만료되지 않는다. 기대값
+> 하나를 뒤집으면 한 프로브만 실패하고 복원하면 94개가 통과하는 것도 실측했다(K4).
+
 ### 11.3 E2E — Maestro
 
 범위는 Next.js 브라우저 시나리오(인증·목록·상세·쓰기·실험실)와 같고, 모바일

@@ -178,5 +178,5 @@ secretlint 단계는 `pnpm lint:secrets`다. 스크립트 이름을 `secretlint`
 `docs/superpowers/notes/2026-10-01-d5-measurements.md`에 있다.
 EAS·OTA 설정의 변형별 검증, 설정이 다르면 fingerprint runtime version 이 갈리는 것, 빌드 정보 카드(D6 실측 O1–O4)는
 `docs/superpowers/notes/2026-10-01-d6-measurements.md`에 있다.
-세 백엔드의 계약 거울, 멈춘 서버로 잰 요청 타임아웃, 360dp 의 날짜 자리표시자, CI 매트릭스의 첫 실행(D7 실측 K1–K3)은
+세 백엔드의 계약 거울, 멈춘 서버로 잰 요청 타임아웃, 360dp 의 날짜 자리표시자, CI 매트릭스의 첫 실행, 쓰기 갈림과 access token 수명(D7 실측 K1–K4)은
 `docs/superpowers/notes/2026-10-01-d7-measurements.md`에 있다.
