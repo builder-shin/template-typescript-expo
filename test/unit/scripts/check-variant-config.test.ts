@@ -11,6 +11,8 @@ import { describe, expect, it } from 'vitest'
 const SCRIPT = resolve('scripts/check-variant-config.mjs')
 // 실제 EAS 프로젝트 id 가 아니다 - 게이트가 쓰는 것과 같은, 모양만 UUID 인 표본이다.
 const PROJECT_ID = '00000000-0000-4000-8000-000000000000'
+// 다른 프로젝트의 업데이트 주소 - OTA 주소 자리가 프로젝트 id 까지 맞대는지 본다.
+const OTHER_PROJECT_URL = 'https://u.expo.dev/11111111-1111-4111-8111-111111111111'
 
 type Variant = 'development' | 'preview' | 'production' | 'e2e'
 
@@ -178,6 +180,10 @@ function metaDataOf(config: Introspected): MetaData[] {
   return application['meta-data']
 }
 
+function metaItem(config: Introspected, name: string): MetaData | undefined {
+  return metaDataOf(config).find((item) => item.$['android:name'] === name)
+}
+
 const VARIANTS: Variant[] = ['development', 'preview', 'production', 'e2e']
 
 describe('변형별 설정 검사 - 게이트 [8]', { timeout: 30_000 }, () => {
@@ -300,6 +306,116 @@ describe('변형별 설정 검사 - 게이트 [8]', { timeout: 30_000 }, () => {
         config.extra.appVariant = 'development'
       },
       'extra.appVariant',
+    ],
+    [
+      'preview 의 Android 패키지가 다른 변형의 것이다',
+      'preview' as const,
+      null,
+      (config: Introspected) => {
+        config.android.package = 'com.example.templateexpo'
+      },
+      'Android 패키지',
+    ],
+    [
+      'e2e 의 Android 앱 이름이 다른 변형의 것이다',
+      'e2e' as const,
+      null,
+      (config: Introspected) => {
+        const name = config._internal.modResults.android.strings.resources.string.find(
+          (item) => item.$.name === 'app_name',
+        )
+        if (name !== undefined) name._ = 'Template Expo (Dev)'
+      },
+      'Android 앱 이름',
+    ],
+    [
+      'preview 의 Android OTA 주소가 다른 프로젝트다',
+      'preview' as const,
+      PROJECT_ID,
+      (config: Introspected) => {
+        const url = metaItem(config, 'expo.modules.updates.EXPO_UPDATE_URL')
+        if (url !== undefined) url.$['android:value'] = OTHER_PROJECT_URL
+      },
+      'Android OTA 주소',
+    ],
+    [
+      'production 의 Android runtime version 이 fingerprint 가 아니다',
+      'production' as const,
+      PROJECT_ID,
+      (config: Introspected) => {
+        const runtimeVersion = config._internal.modResults.android.strings.resources.string.find(
+          (item) => item.$.name === 'expo_runtime_version',
+        )
+        if (runtimeVersion !== undefined) runtimeVersion._ = '0.1.0'
+      },
+      'Android runtime version',
+    ],
+    [
+      'preview 의 Android 가 앱을 켤 때 업데이트를 확인하지 않는다',
+      'preview' as const,
+      PROJECT_ID,
+      (config: Introspected) => {
+        const check = metaItem(config, 'expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH')
+        if (check !== undefined) check.$['android:value'] = 'NEVER'
+      },
+      'Android OTA 확인 시점',
+    ],
+    [
+      'preview 의 Android 가 업데이트를 기다린다',
+      'preview' as const,
+      PROJECT_ID,
+      (config: Introspected) => {
+        const wait = metaItem(config, 'expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS')
+        if (wait !== undefined) wait.$['android:value'] = '5000'
+      },
+      'Android OTA 기다림',
+    ],
+    [
+      'production 의 iOS 번들 ID 가 다른 변형의 것이다',
+      'production' as const,
+      null,
+      (config: Introspected) => {
+        config.ios.bundleIdentifier = 'com.example.templateexpo.dev'
+      },
+      'iOS 번들 ID',
+    ],
+    [
+      'e2e 의 iOS 에 다른 변형의 URL scheme 이 들어 있다',
+      'e2e' as const,
+      null,
+      (config: Introspected) => {
+        config._internal.modResults.ios.infoPlist.CFBundleURLTypes[0]?.CFBundleURLSchemes.push(
+          'templateexpo',
+        )
+      },
+      'iOS URL scheme',
+    ],
+    [
+      'production 의 iOS OTA 주소가 다른 프로젝트다',
+      'production' as const,
+      PROJECT_ID,
+      (config: Introspected) => {
+        config._internal.modResults.ios.expoPlist.EXUpdatesURL = OTHER_PROJECT_URL
+      },
+      'iOS OTA 주소',
+    ],
+    [
+      'preview 의 iOS 가 앱을 켤 때 업데이트를 확인하지 않는다',
+      'preview' as const,
+      PROJECT_ID,
+      (config: Introspected) => {
+        config._internal.modResults.ios.expoPlist.EXUpdatesCheckOnLaunch = 'NEVER'
+      },
+      'iOS OTA 확인 시점',
+    ],
+    [
+      'preview 의 iOS 가 업데이트를 기다린다',
+      'preview' as const,
+      PROJECT_ID,
+      (config: Introspected) => {
+        config._internal.modResults.ios.expoPlist.EXUpdatesLaunchWaitMs = 5000
+      },
+      'iOS OTA 기다림',
     ],
   ])('%s 면 실패하고 그 자리를 알린다', (_label, variant, projectId, mutate, where) => {
     const result = mutated(variant, projectId, mutate)

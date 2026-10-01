@@ -98,5 +98,6 @@ remote`, 제출의 `changesNotSentForReview: false`, iOS 제출의 `language: en
 - Android 평문 HTTP(usesCleartextTraffic): "true" - 기대한 값은 "false"
 ```
 
-되돌린 뒤 여덟이 다시 통과했다. 어긋난 표본이 실패하는 것은
-`test/unit/scripts/check-variant-config.test.ts` 가 잰다.
+되돌린 뒤 여덟이 다시 통과했다. 검사기의 자리마다 어긋난 표본이 실패하는 것은
+`test/unit/scripts/check-variant-config.test.ts` 가 잰다 - 21자리 모두에 표본이 하나씩 있다. 저장소 밖의 사본에서 검사기의
+자리를 하나씩 꺼 보면 스물한 변이가 모두 시험을 빨갛게 하고, 자리마다 그 자리의 표본 한 건만 실패한다.
