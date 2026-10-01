@@ -33,8 +33,8 @@ import {
  *   로그아웃이 된다. 그래서 받은 토큰의 세션이 이미 만료됐으면 요청하지 않고 앱 문구로 알린다 - 던지지 않으니 세션은
  *   그대로이고, 입력이 그대로 남은 폼의 제출 버튼이 곧 다시 시도다.
  * - 세션이 없거나 백엔드가 세션을 거절하면(인증 오류 코드) `sessionRejected()` 를 던진다. 인증 오류는
- *   Query 캐시의 `onError` 한 곳이 받아 세션을 지운다(스펙 9.2, `platform/query-client.ts`) - 쓰기
- *   화면은 보호 경로라 경로 가드가 `next` 를 실어 로그인으로 보낸다.
+ *   쓰기 캐시(`MutationCache`)의 `onError` 한 곳이 받아 세션을 지운다(스펙 9.2, `platform/query-client.ts`) -
+ *   쓰기 화면은 보호 경로라 경로 가드가 `next` 를 실어 로그인으로 보낸다.
  * - 그 밖의 실패는 던지지 않고 값이다 - 폼이 그린다. 백엔드가 응답조차 주지 못하면 앱 문구
  *   (`UNUSABLE_RESPONSE_MESSAGE`)이고, 입력이 그대로 남은 폼의 제출 버튼이 곧 다시 시도다(스펙 9.3).
  */
@@ -42,7 +42,7 @@ import {
 const SESSION_REJECTED = 'SessionRejected'
 
 /**
- * 쓰기가 세션 때문에 멈췄다는 신호. 던지는 쪽은 이 파일, 받는 쪽은 Query 캐시의 `onError` 다.
+ * 쓰기가 세션 때문에 멈췄다는 신호. 던지는 쪽은 이 파일, 받는 쪽은 쓰기 캐시(`MutationCache`)의 `onError` 다.
  * 클래스가 아니라 이름으로 표시한다 - 번들러가 `Error` 를 상속한 클래스를 어떻게 바꾸든
  * `isSessionRejected` 의 판정이 흔들리지 않는다.
  */
