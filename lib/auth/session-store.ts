@@ -35,9 +35,11 @@ export interface SessionStorage {
  * - 회전은 요청을 보내기 직전의 시각을 넘긴다(session-manager.ts 의 rotate) - `session.accessExpiresAt`
  *   을 만든 시각과 같다. 두 만료가 요청이 걸린 시간만큼 이르게 잡히는 안전한 쪽이다.
  * - 로그인·가입은 응답을 받은 뒤의 시각을 넘긴다(session-manager.ts 의 establish). access 만료는 그보다
- *   앞선, 요청을 보내기 전의 시각으로 잡혀 온다(credentials.ts 의 signIn 이 받은 `now`) - refresh 만료만
- *   요청이 걸린 시간(요청 시간 제한 15초 이하)만큼 늦게 잡힌다. refresh 수명(30일)에 비해 작아서 두 시각을
- *   하나로 맞추지 않는다.
+ *   앞선 시각으로 잡혀 온다 - 로그인은 요청을 보내기 전의 시각(credentials.ts 의 signIn 이 받은 `now`),
+ *   가입은 가입 요청을 보내기 전의 시각이다(signUpThenSignIn 이 한 번 잡은 `now` 를 이어지는 로그인에도
+ *   넘긴다). refresh 만료는 그보다 늦은 시각을 기준으로 잡힌다 - 두 기준의 차이는 로그인이 요청 하나(요청
+ *   시간 제한 15초 이하), 가입이 요청 둘(30초 이하)이 걸린 시간이다. refresh 수명(30일)에 비해 작아서 두
+ *   시각을 하나로 맞추지 않는다.
  */
 export function storedSessionFrom(
   session: Session,

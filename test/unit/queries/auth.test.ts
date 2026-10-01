@@ -2,7 +2,13 @@ import { MutationObserver, QueryClient } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { JsonApiResult } from '@/lib/jsonapi/client'
-import { loginMutationOptions, registerMutationOptions } from '@/queries/auth'
+import {
+  LOGIN_MUTATION_KEY,
+  REGISTER_MUTATION_KEY,
+  loginMutationOptions,
+  registerMutationOptions,
+} from '@/queries/auth'
+import { submitOnce } from '@/queries/submit-once'
 
 /**
  * 로그인·가입 쓰기의 세션 세우기(queries/auth.ts 의 establishIfSignedIn). 세션 관리자는 저장소 쓰기가 실패하면
@@ -118,4 +124,58 @@ describe('registerMutationOptions - 가입 뒤 로그인까지', () => {
     expect(logged).toHaveBeenCalledTimes(1)
     expect(String(logged.mock.calls[0]?.[0])).toContain('Error: probe-storage')
   })
+})
+
+/**
+ * 쓰기의 키 - 자격증명 폼의 제출 가드(queries/submit-once.ts)가 진행 중인 제출을 찾는 이름. 폼은 키를 받아(화면이
+ * `LOGIN_MUTATION_KEY`·`REGISTER_MUTATION_KEY` 를 넘긴다) 같은 키의 쓰기가 진행 중이면 제출을 버린다. 옵션에서 키가 빠지거나
+ * 바뀌면 쓰기가 캐시에 다른 이름으로 올라 가드가 아무 오류 없이 꺼진다 - 그래서 옵션이 만든 쓰기를 가드가 실제로 찾는지
+ * 본다. 화면이 그 상수를 폼에 넘기는 배선과 버튼·키보드 이동 키의 감싸기는 컴포넌트 시험이 없어(스펙 11.1) 여기서 재지
+ * 못한다 - 기기에서 두 번 제출을 누르는 E2E 만 잴 수 있다.
+ */
+describe('쓰기의 키 - 제출 한 번 가드가 진행 중인 제출을 찾는 이름', () => {
+  it.each([
+    {
+      name: '로그인',
+      options: loginMutationOptions,
+      own: LOGIN_MUTATION_KEY,
+      other: REGISTER_MUTATION_KEY,
+      // 붙잡아 둔 첫 요청의 답 - 로그인은 그 요청이 로그인이다
+      firstAnswer: TOKENS,
+    },
+    {
+      name: '가입',
+      options: registerMutationOptions,
+      own: REGISTER_MUTATION_KEY,
+      other: LOGIN_MUTATION_KEY,
+      // 가입은 첫 요청이 가입이고, 이어서 부르는 로그인은 바로 답한다
+      firstAnswer: CREATED,
+    },
+  ])(
+    '$name 쓰기가 진행 중인 동안 가드는 같은 키의 제출을 버리고 다른 쓰기의 키는 비어 있다',
+    async ({ options, own, other, firstAnswer }) => {
+      let answer: (result: JsonApiResult<unknown>) => void = () => undefined
+      mocks.apiRequest
+        .mockReturnValueOnce(
+          new Promise<JsonApiResult<unknown>>((resolve) => {
+            answer = resolve
+          }),
+        )
+        .mockResolvedValue(TOKENS)
+      const observer = new MutationObserver(client, options(NEXT))
+      const running = observer.mutate(CREDENTIALS)
+      const submit = vi.fn()
+
+      expect(submitOnce(client, own, submit)).toBe(false)
+      expect(submit).not.toHaveBeenCalled()
+      expect(client.isMutating({ mutationKey: other })).toBe(0)
+
+      answer(firstAnswer)
+      await running
+
+      // 끝나면 풀린다 - 같은 키로 다시 제출할 수 있다
+      expect(submitOnce(client, own, submit)).toBe(true)
+      expect(submit).toHaveBeenCalledTimes(1)
+    },
+  )
 })
