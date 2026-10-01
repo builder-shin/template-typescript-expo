@@ -1,26 +1,26 @@
 import { useInfiniteQuery, useQueries, useQuery } from '@tanstack/react-query'
 import { useIsFocused } from 'expo-router'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import type { JsonApiResult } from '@/lib/jsonapi/client'
 import type { SingleDocument } from '@/lib/jsonapi/document'
 import type { ResourceDefinition } from '@/lib/resources/define'
-import { relationshipTargets } from '@/lib/resources/form'
 import {
   canLoadMore,
   detailScreen,
   listScreen,
-  referenceState,
   type DetailScreen,
   type ListScreen,
-  type ReferenceState,
 } from '@/lib/resources/screen-state'
 import { listRequest } from '@/lib/resources/view'
 import { apiRequest } from '@/platform/api'
 import {
+  combineReferences,
   detailQueryOptions,
   listQueryOptions,
-  referenceQueryOptions,
+  referencePlan,
+  type ReferenceQueryResult,
+  type RelationshipReference,
 } from '@/queries/resource-options'
 
 /**
@@ -188,46 +188,27 @@ export function useResourceDetail(
   }
 }
 
-/** 관계 하나의 선택기가 그릴 참조 목록 - `referenceState`(lib/resources/screen-state.ts)에 다시 부르는 길을 더했다. */
-export interface RelationshipReference extends ReferenceState {
-  /** 조회가 진행 중이다(`isFetching`) - 시트 안의 실패 화면(`RequestFailed`)이 "다시 시도" 의 스피너에만 쓴다. */
-  readonly retrying: boolean
-  readonly retry: () => void
-  /** 대상 자원에 쓰기 라우트가 있는가 - 선언의 `writable` 이다. 선택기가 안내에 쓴다. */
-  readonly writable: boolean
-}
+// 관계 하나의 선택기가 그릴 참조 목록 - 정의는 `resource-options.ts` 에 있다(`combineReferences` 가 만든다). 화면은 이 파일에서 받는다.
+export type { RelationshipReference }
 
 /**
  * 폼의 관계 선택기들이 그릴 참조 목록 - 관계마다 대상 자원의 첫 쪽(`referenceQueryOptions`, 이름 순 100건)이다.
- * 관계는 선언에서 온다(`relationshipTargets`) - 선언에 관계를 더하면 생성·수정 화면이 함께 따라온다. 참조 조회는
- * 공개 읽기라 토큰을 싣지 않고, 서로 기다리지 않고 나란히 나간다. 쌓인 화면은 구독하지 않는다(`useResourceList` 와
- * 같다).
+ * 관계는 선언에서 온다 - 선언에 관계를 더하면 생성·수정 화면이 함께 따라온다. 참조 조회는 공개 읽기라 토큰을 싣지 않고,
+ * 서로 기다리지 않고 나란히 나간다. 같은 자원을 가리키는 관계들은 조회 하나를 나눈다(`referencePlan`). 쌓인 화면은
+ * 구독하지 않는다(`useResourceList` 와 같다).
+ *
+ * 결과는 렌더 사이에 같은 객체다 - 계획은 `useMemo`, `combine` 은 `useCallback` 으로 고정해 TanStack Query 가 결과가
+ * 바뀔 때만 `combineReferences` 를 다시 돌리고 그 결과를 구조 공유한다. 선택기의 `list`(시트의 `FlatList` 데이터)와
+ * `retry` 가 렌더마다 바뀌지 않는다.
  */
 export function useRelationshipReferences(
   resource: ResourceDefinition,
 ): Readonly<Record<string, RelationshipReference>> {
   const focused = useIsFocused()
-  const targets = useMemo(() => relationshipTargets(resource), [resource])
-  const options = useMemo(
-    () => targets.map(([, target]) => referenceQueryOptions(target, apiRequest)),
-    [targets],
+  const plan = useMemo(() => referencePlan(resource, apiRequest), [resource])
+  const combine = useCallback(
+    (results: readonly ReferenceQueryResult[]) => combineReferences(plan, results),
+    [plan],
   )
-  const queries = useQueries({ queries: options, subscribed: focused })
-
-  return Object.fromEntries(
-    targets.map(([name, target], index): [string, RelationshipReference] => {
-      const query = queries[index]
-      return [
-        name,
-        {
-          ...referenceState(target, { result: query?.data, error: query?.error ?? null }),
-          retrying: query?.isFetching ?? false,
-          retry: () => {
-            void query?.refetch()
-          },
-          writable: target.writable,
-        },
-      ]
-    }),
-  )
+  return useQueries({ queries: plan.queries, combine, subscribed: focused })
 }
