@@ -179,6 +179,18 @@ describe('createResource', () => {
     expect(logged).toHaveBeenCalledTimes(1)
   })
 
+  it.each([
+    ['Error 는 이름과 문구', new Error('probe-storage'), 'Error: probe-storage'],
+    ['오류가 아닌 값(문자열)은 값이 아니라 종류', 'probe-secret-token', 'string'],
+  ])('토큰을 받다 거절당하면 로그에 %s 만 남긴다', async (_label, rejection, detail) => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const { deps } = probeDeps([], vi.fn().mockRejectedValue(rejection))
+    await createResource(PROBE_CRATE, VALUES, deps)
+    expect(logged).toHaveBeenCalledTimes(1)
+    expect(String(logged.mock.calls[0]?.[0])).toMatch(new RegExp(` - ${detail}$`))
+    expect(String(logged.mock.calls[0]?.[0])).not.toContain('probe-secret-token')
+  })
+
   it.each(['AUTHENTICATION_REQUIRED', 'INVALID_TOKEN', 'TOKEN_EXPIRED', 'TOKEN_REVOKED'])(
     '%s 이면 세션 거절을 던지고 다시 보내지 않는다 - 401 에 회전·재시도를 붙이지 않는다',
     async (code) => {

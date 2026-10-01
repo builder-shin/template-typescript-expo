@@ -87,6 +87,19 @@ describe('loginMutationOptions - 세션을 세우는 데까지', () => {
     expect(String(logged.mock.calls[0]?.[0])).not.toContain('probe-access')
   })
 
+  it('세션을 저장소에 쓰다 오류가 아닌 값(문자열)으로 거절당해도 그 값은 로그에 실리지 않고 종류만 남는다', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mocks.apiRequest.mockResolvedValue(TOKENS)
+    mocks.establish.mockRejectedValue('probe-secret-token')
+    const observer = new MutationObserver(client, loginMutationOptions(NEXT))
+
+    await observer.mutate(CREDENTIALS)
+
+    expect(logged).toHaveBeenCalledTimes(1)
+    expect(String(logged.mock.calls[0]?.[0])).toMatch(/ - string$/)
+    expect(String(logged.mock.calls[0]?.[0])).not.toContain('probe-secret-token')
+  })
+
   it('세션을 세우면 아무것도 남기지 않는다', async () => {
     const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mocks.apiRequest.mockResolvedValue(TOKENS)

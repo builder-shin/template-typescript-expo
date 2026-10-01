@@ -3,6 +3,7 @@ import { focusManager, MutationCache, onlineManager, QueryClient } from '@tansta
 import { useEffect } from 'react'
 import { AppState } from 'react-native'
 
+import { errorDetail } from '@/lib/auth/error-detail'
 import { isSessionRejected } from '@/lib/resources/write'
 import { sessionManager } from '@/platform/session'
 
@@ -40,13 +41,12 @@ export const queryClient = new QueryClient({
 /**
  * 세션 거절 뒤에 기기 세션을 지운다. signOut 은 메모리를 먼저 비우고(경로 가드가 곧바로 로그인으로
  * 보낸다) 저장소를 지우지 못하면 거절한다 - 그 거절을 떠 있게 두지 않고 이름과 문구만 남긴다
- * (lib/auth/AGENTS.md 의 "호출자는 삼키지 말고 알린다"). 못 지운 항목은 다음 실행에서 되살아날 수 있다 -
+ * (`errorDetail`, lib/auth/AGENTS.md 의 "호출자는 삼키지 말고 알린다"). 못 지운 항목은 다음 실행에서 되살아날 수 있다 -
  * 백엔드가 거절한 세션이라 다음 쓰기의 회전이 다시 거절받아 지운다.
  */
 function signOutRejectedSession(): void {
   sessionManager.signOut().catch((cause: unknown) => {
-    const detail = cause instanceof Error ? `${cause.name}: ${cause.message}` : typeof cause
-    console.error(`[session] 세션 거절 뒤 저장된 세션을 지우지 못했다 - ${detail}`)
+    console.error(`[session] 세션 거절 뒤 저장된 세션을 지우지 못했다 - ${errorDetail(cause)}`)
   })
 }
 

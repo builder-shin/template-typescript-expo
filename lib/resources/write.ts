@@ -1,3 +1,4 @@
+import { errorDetail } from '@/lib/auth/error-detail'
 import { UNUSABLE_RESPONSE_MESSAGE } from '@/lib/auth/form-state'
 import type { ErrorObject, SingleDocument } from '@/lib/jsonapi/document'
 import type { JsonApiSend } from '@/lib/jsonapi/send'
@@ -99,7 +100,7 @@ type AccessToken = { readonly ok: true; readonly token: string } | { readonly ok
 /**
  * 쓰기 하나가 실을 토큰. 세션이 없으면 던진다(쓰기 가드). 저장소가 실패해 거절되면 `ok: false` 다 -
  * 화면이 앱 문구를 그린다. 거절을 삼키지 않고 기기 로그에 남긴다(lib/auth/AGENTS.md 의 "호출자는
- * 삼키지 말고 알린다") - 오류의 이름과 문구만 적어 토큰이 로그에 실리지 않는다(스펙 7.1).
+ * 삼키지 말고 알린다") - 오류의 이름과 문구만 적어(`errorDetail`) 토큰이 로그에 실리지 않는다(스펙 7.1).
  *
  * 받은 토큰의 세션이 이미 만료됐어도 `ok: false` 다(만료 가드, 이 파일 머리말) - 요청하지 않는다. 던지지 않고 로그도
  * 남기지 않는다: 오류가 아니라 백엔드가 회전을 판정하지 않는 동안의 정상 경로이고, 세션은 건드리지 않는다. 만료는
@@ -110,8 +111,7 @@ async function accessToken(deps: WriteDeps): Promise<AccessToken> {
   try {
     token = await deps.getAccessToken()
   } catch (error) {
-    const detail = error instanceof Error ? `${error.name}: ${error.message}` : typeof error
-    console.error(`[write] access token 을 받지 못했다 - ${detail}`)
+    console.error(`[write] access token 을 받지 못했다 - ${errorDetail(error)}`)
     return { ok: false }
   }
   if (token === null) throw sessionRejected()

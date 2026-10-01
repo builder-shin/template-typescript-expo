@@ -1,6 +1,7 @@
 import { mutationOptions, useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { signIn, signUpThenSignIn, type Credentials } from '@/lib/auth/credentials'
+import { errorDetail } from '@/lib/auth/error-detail'
 import { decideAfterLogin, decideAfterRegistration, type SignInPlan } from '@/lib/auth/flow'
 import type { LogoutOutcome } from '@/lib/auth/logout'
 import { apiRequest } from '@/platform/api'
@@ -16,12 +17,11 @@ import { applyCacheEffects, cacheEffects } from '@/queries/keys'
  */
 
 /**
- * 던져진 오류를 로그로 남긴다. 이름과 문구만 적는다 - 세션·자격증명을 인자로 받지 않으므로 토큰이
+ * 던져진 오류를 로그로 남긴다. 이름과 문구만 적는다(`errorDetail`) - 세션·자격증명을 인자로 받지 않으므로 토큰이
  * 로그에 실리지 않는다(스펙 7.1).
  */
 function logFailure(what: string, error: unknown): void {
-  const detail = error instanceof Error ? `${error.name}: ${error.message}` : typeof error
-  console.error(`[auth] ${what} - ${detail}`)
+  console.error(`[auth] ${what} - ${errorDetail(error)}`)
 }
 
 /**

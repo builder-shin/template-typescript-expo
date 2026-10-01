@@ -53,4 +53,15 @@ describe('queryClient 의 쓰기 캐시 - 인증 오류 처리(스펙 9.2)', () 
     })
     expect(String(logged.mock.calls[0]?.[0])).toContain('Error: probe-storage')
   })
+
+  it('저장소가 오류가 아닌 값(문자열)으로 거절해도 그 값은 로그에 실리지 않고 종류만 남는다', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mocks.signOut.mockRejectedValue('probe-secret-token')
+    await runWrite(() => Promise.reject(sessionRejected()))
+    await vi.waitFor(() => {
+      expect(logged).toHaveBeenCalledTimes(1)
+    })
+    expect(String(logged.mock.calls[0]?.[0])).toMatch(/ - string$/)
+    expect(String(logged.mock.calls[0]?.[0])).not.toContain('probe-secret-token')
+  })
 })

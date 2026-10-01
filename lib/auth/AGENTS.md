@@ -41,7 +41,8 @@
   회전이 있으면 끝나길 기다린 뒤(가장 새 refresh 를 폐기하려는 것이다) 캐시 비움과 refresh 폐기 요청도
   끝낸다(스펙 7.4).
 - 오류는 그 뒤에 거절로 나간다(`establish`·`getAccessToken`·`signOut`·`logout`). 호출자는 삼키지 말고
-  알린다. 화면 이동은 거절이 아니라 `status()`(구독)를 따른다.
+  알린다 - 로그에는 `errorDetail`(`error-detail.ts`)을 쓴다: 오류의 이름과 문구뿐이고, 오류가 아닌 값은 종류만 적어
+  토큰이 실리지 않는다. 화면 이동은 거절이 아니라 `status()`(구독)를 따른다.
 - 구독자가 던져도 나머지 구독자는 불린다. 던진 것은 `console.error`로 남는다.
 
 ## 요청은 주입받은 전송으로만
@@ -64,6 +65,7 @@
 | `guard-latch.ts`     | 경로 가드의 판단 - 로그아웃 중과 직후에는 보내지 않는다                          |
 | `session-store.ts`   | 저장 모양(항목 하나의 JSON)과 복원 판단                                          |
 | `session-manager.ts` | 회전의 유일한 자리, 세션 상태와 구독                                             |
+| `error-detail.ts`    | 거절을 남기는 로그 한 줄 - 오류는 "이름: 문구", 그 밖의 값은 종류(`typeof`)만    |
 
 (복사) 표시 파일은 `template-typescript-nextjs`에서 복사했다. 출처와 이탈은
 `docs/provenance/copied-core.json`이다. 그 주석의 "쿠키"·"proxy.ts"·"Server Action" 같은 자리는
