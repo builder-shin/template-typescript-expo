@@ -59,3 +59,4 @@ CONTRACT_API_URL=http://127.0.0.1:4100 pnpm test:contract           # 이미 떠
 token 수명은 백엔드 기본값(900초)이다 - E2E 하네스가 주는 10초(`E2E_ACCESS_EXPIRES_SECONDS`)를 쓰지 않는다.
 
 거울이 선언의 어긋남을 잡는지는 선언을 일부러 바꿔 재 보았다 - `docs/superpowers/notes/2026-10-01-d5-measurements.md` 의 C1.
+그 실증은 검사 ①(필터 연산자)과 ③(`maxLength`)만 건드렸다 - ② 와 ④ 는 실제 스택에서 변이로 재 보지 않았다.
