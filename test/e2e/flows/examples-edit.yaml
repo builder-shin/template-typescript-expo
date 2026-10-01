@@ -82,19 +82,38 @@ appId: com.example.templateexpo.e2e
 - assertVisible:
     id: field-input-score
     text: '55'
-- scrollUntilVisible:
-    element:
-      id: relationship-value-tags-1
-    direction: DOWN
-- assertVisible:
-    id: relationship-value-category-0
-    text: 프로브 분류 하나
-- assertVisible:
-    id: relationship-value-tags-0
-    text: 프로브 라벨 하나
-- assertVisible:
-    id: relationship-value-tags-1
-    text: 프로브 라벨 둘
+# iOS의 버튼 자식은 개별 접근성 노드가 아니다 - 부모의 값으로 전체 선택과 순서를 함께 잰다.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: relationship-value-tags-1
+          direction: DOWN
+      - assertVisible:
+          id: relationship-value-category-0
+          text: 프로브 분류 하나
+      - assertVisible:
+          id: relationship-value-tags-0
+          text: 프로브 라벨 하나
+      - assertVisible:
+          id: relationship-value-tags-1
+          text: 프로브 라벨 둘
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: relationship-open-tags
+          direction: DOWN
+      - assertVisible:
+          id: relationship-open-category
+          text: 프로브 분류 하나
+      - assertVisible:
+          id: relationship-open-tags
+          text: '프로브 라벨 하나, 프로브 라벨 둘'
 # 제목만 바꾼다. 제목이 짧아 입력을 누르면 커서가 끝에 선다 - 지우고 다시 쓴다.
 - scrollUntilVisible:
     element:
@@ -214,10 +233,24 @@ appId: com.example.templateexpo.e2e
     text: 프로브 라벨 둘
 - tapOn:
     id: relationship-done-tags
-- assertNotVisible:
-    id: relationship-value-category-0
-- assertNotVisible:
-    id: relationship-value-tags-0
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertNotVisible:
+          id: relationship-value-category-0
+      - assertNotVisible:
+          id: relationship-value-tags-0
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: relationship-open-category
+          text: 선택 안 함
+      - assertVisible:
+          id: relationship-open-tags
+          text: 선택 안 함
 - scrollUntilVisible:
     element:
       id: submit-button
@@ -255,12 +288,26 @@ appId: com.example.templateexpo.e2e
     direction: DOWN
 - assertVisible:
     id: relationship-unlisted-category
-- assertVisible:
-    id: relationship-value-category-0
-    text: '11119999-0000-4000-8000-000000000098.*'
-- assertVisible:
-    id: relationship-value-tags-0
-    text: '22229999-0000-4000-8000-000000000098.*'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: relationship-value-category-0
+          text: '11119999-0000-4000-8000-000000000098.*'
+      - assertVisible:
+          id: relationship-value-tags-0
+          text: '22229999-0000-4000-8000-000000000098.*'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: relationship-open-category
+          text: '11119999-0000-4000-8000-000000000098.*'
+      - assertVisible:
+          id: relationship-open-tags
+          text: '22229999-0000-4000-8000-000000000098.*'
 - scrollUntilVisible:
     element:
       id: field-input-title

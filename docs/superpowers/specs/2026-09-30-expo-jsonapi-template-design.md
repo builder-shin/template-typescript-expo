@@ -1069,6 +1069,13 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > `.app` 의 앱 설정·`Expo.plist`·`Info.plist`(`NSAllowsLocalNetworking`)를 단언한다(Android 의 `android.sh build` 와 같은
 > 자리).
 
+> 정정(2026-10-02, D7-R18): Simulator e2e `.app`은 `CODE_SIGNING_ALLOWED=NO`로 빌드한 뒤 계정 없는 ad-hoc
+> 서명을 한다. 실행 3의 linker 서명에는 entitlement가 없었고 SecureStore가 `A required entitlement isn't present`로
+> 실패했다(K3). `ios.sh`는 중첩 코드를 내부부터 서명하고 앱에 `application-identifier=com.example.templateexpo.e2e`와
+> `keychain-access-groups=[com.example.templateexpo.e2e]`를 준다. `assert-app`은 만든 앱과 `E2E_APP` 모두의
+> strict/deep 서명 검증과 정확한 두 값을 단언한다. Apple 계정·인증서·프로비저닝을 쓰지 않으며 EAS·배포·실기기의
+> 서명과 무관하다. 실행 3 첫 Keychain 오류의 원본 시각과 서명 blob 증거는 실측 K3에 있다.
+
 ## 12. 검증 게이트
 
 `./scripts/check.sh` 하나가 유일한 게이트다. Windows(Git Bash)·macOS·Linux에서

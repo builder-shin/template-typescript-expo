@@ -38,6 +38,11 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
 
 - 목록의 행은 testID 와 데이터 문구를 함께 준다(`id: resource-row-title` + `text: probe-seed alpha`). 행의 제목은
   백엔드의 데이터라 로캘과 무관하다 - 오류 문구와 다르다.
+- iOS의 접근성 버튼은 자식 배지의 ID·문구를 개별 노드로 내지 않을 수 있다(K3 실행 3). 생성·수정의 현재 선택은
+  `relationship-open-<관계>`의 `accessibilityValue.text`로 잰다 - 태그는 쉼표로 이은 전체 값의 순서를 단언하고,
+  비운 선택도 부모의 `선택 안 함`을 단언한다. Android는 기존 `relationship-value-<관계>-<위치>`를 쓴다.
+  목록의 두 번째 태그는 iOS의 `resource-row`와 행 전체 접근성 라벨로 찾는다 - charlie 행의 태그 둘과 순서를 함께 잰다.
+  상세 배지는 버튼 자식이 아니므로 기존 ID를 쓴다. 앱의 접근성 묶음을 풀거나 데이터·순서 단언을 생략하지 않는다.
 - 딥링크의 대괄호는 퍼센트 인코딩한다(`filter%5Btitle%5D%5Bcontains%5D=…`) - 앱이 만드는 주소와 같은 모양이다
   (`docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L1). 값의 `+`·`&`·`=`·`#`·한글도 인코딩한다(`%2B`·`%26`·
   `%3D`·`%23`, 한글은 UTF-8 바이트) - 인코딩하지 않은 `+` 는 공백으로, `&` 는 다음 파라미터로, `#` 는 조각으로
@@ -261,6 +266,16 @@ Android 와 같고, 다른 것은 이렇다.
   평가한다. `ios.sh assert-app` 이 `.app` 의 앱 설정(`EXConstants.bundle/app.config` - 변형·주소·OTA 끔), `Expo.plist`
   (`EXUpdatesEnabled`), `Info.plist`(번들 ID·`NSAllowsLocalNetworking`)를 단언한다 - `E2E_APP` 으로 받은 `.app` 도
   설치 전에 다시 잰다. 빌드 기록은 `.maestro-output/ios-build.log` 다.
+  D7-R18(결정14 보완): `CODE_SIGNING_ALLOWED=NO`의 linker 서명만으로는 SecureStore가 Keychain entitlement를
+  받지 못했다(K3 실행 3, `A required entitlement isn't present`). 빌드 뒤 Simulator e2e `.app`의 중첩 코드를
+  안에서 밖으로 ad-hoc 서명하고 앱에 `application-identifier=com.example.templateexpo.e2e`와
+  `keychain-access-groups=[com.example.templateexpo.e2e]`를 준다. 만든 앱과 받은 앱 모두
+  `codesign --verify --strict --deep` 및 정확한 두 값을 단언한다. Apple 계정·인증서·프로비저닝을 쓰지 않는다.
+  EAS·배포·실기기 서명과 무관하며 `clearKeychain`과 SecureStore 가드는 그대로다. 실제 bash 시험은 서명 검증 실패,
+  entitlement 누락/오류/추가 그룹, 중첩 서명 순서와 실패 전파를 잰다(`test/unit/e2e/ios-signature.test.ts`).
+- D7-R20의 e2e 전용 `[e2e-state]` 정보 줄은 라우트·AppState·상세 조회 상태와 관찰자 수만 기록한다.
+  `device.ndjson` 원본과 `device.log`의 `I/ReactNativeJS` 줄로 함께 보존한다. 앱 동작이나 가드를 바꾸지 않으며,
+  딥링크 뒤 홈 유지/완료된 404 뒤 스켈레톤 유지의 경계를 찾기 위한 관측이다(실측 K3 실행 3).
 - 백엔드: macOS 러너에는 Docker 가 없다. `native-backend.sh` 가 Homebrew 의 PostgreSQL 18·Redis 를 저장소
   밖(`E2E_NATIVE_DIR`)에서 127.0.0.1 에만 띄우고, 백엔드 저장소 `main` 을 받아(`fetch`) 런타임을 갖춘 뒤(`prepare`)
   DB 를 새로 만들어 마이그레이션 → 같은 SQL 시드(`seed/`) → API 를 4100 에 띄운다(`start`). 롤·DB 이름·JWT 더미·Rails 의

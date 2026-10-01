@@ -7,6 +7,7 @@ Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `config.ts`                 | 설정 자리를 `app.config.ts`의 `extra`로 돌리고 시작할 때 검증한다. 빌드 변형과 딥링크 scheme 을 읽는다. 판단은 `lib/config/startup.ts`·`lib/navigation/deep-link.ts`                                                                             |
 | `e2e-log.ts`                | e2e 변형에서 JS 경고가 네이티브 로그로 갈 때 표식을 붙인다(`nativeLoggingHook` 을 감싼다 - iOS 의 E2E 가드가 경고를 가른다, 스펙 11.3). 표식은 `lib/jsonapi/failure-log.ts`                                                                      |
+| `e2e-diagnostics.ts`        | e2e 변형에서만 라우트·AppState·상세 QueryCache의 status/fetchStatus와 관찰자 수를 `[e2e-state]` 정보 줄로 남긴다(D7 실측 K3, D7-R20). 요청·응답 본문·토큰·쿼리 문자열은 기록하지 않으며 앱의 이동·조회 옵션·재시도는 바꾸지 않는다               |
 | `api.ts`                    | 앱의 API 클라이언트 `apiRequest`. Accept-Language 를 싣는 유일한 자리(스펙 9.4) - 값은 기기 언어(`deviceAcceptLanguage`)이고 호출자가 정했으면 그 값이다(계약 실험실). e2e 변형의 실패 표식                                                      |
 | `secure-session-storage.ts` | 세션 항목의 SecureStore 저장 매체                                                                                                                                                                                                                |
 | `session.ts`                | 세션 관리자 `sessionManager` 하나와 상태 훅 `useSessionStatus()`                                                                                                                                                                                 |
@@ -47,3 +48,7 @@ Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 
 `updates.ts`의 배선 - expo-updates·expo-constants 의 값을 빌드 정보로 옮기는 것과 업데이트 확인의 세 호출 - 은
 `test/unit/platform/updates.test.ts`가 `vi.mock`으로 잰다(기기 모듈과 설정 자리를 가짜로 바꾼다). 카드의 행과 확인의 순서는
 `lib/updates/`의 시험이 잰다.
+
+`e2e-diagnostics.ts`는 설정 검증을 통과한 `AppRoot`에서만 부른다. `test/unit/platform/e2e-diagnostics.test.ts`는
+다른 세 변형에서 로그·AppState·QueryCache 구독이 없음을 잰다. 실제 QueryCache 알림과 구독 회수, 민감한 본문을
+기록하지 않는 것, `ios-log.ts`가 정보 줄을 artifact의 `I/ReactNativeJS`로 보존하는 것도 잰다.

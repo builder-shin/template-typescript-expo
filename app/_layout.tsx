@@ -10,6 +10,7 @@ import { useUniwind } from 'uniwind'
 
 import { FatalConfig } from '@/components/app/fatal-config'
 import { loadStartupSettings } from '@/platform/config'
+import { useE2eDiagnostics } from '@/platform/e2e-diagnostics'
 import { markNativeWarningsForE2e } from '@/platform/e2e-log'
 import { queryClient, useQueryRefetchTriggers } from '@/platform/query-client'
 import { sessionManager, useSessionStatus } from '@/platform/session'
@@ -54,6 +55,7 @@ function AppRoot({ scheme }: { scheme: 'light' | 'dark' }) {
 
   // 앱 복귀·네트워크 복귀 때 다시 부른다(스펙 8.5, platform/query-client.ts).
   useQueryRefetchTriggers()
+  useE2eDiagnostics()
 
   // 저장된 세션을 되살린다(스펙 7.1). 던지지 않고, 두 번 불려도(개발 모드의 StrictMode) 저장소는
   // 한 번만 읽는다(lib/auth/session-manager.ts).

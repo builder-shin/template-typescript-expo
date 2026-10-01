@@ -33,9 +33,27 @@ appId: com.example.templateexpo.e2e
     below:
       text: probe-seed bravo
 # 관계 배지(분류·태그)와 UTC 시각 - alpha 는 2026-04-06T05:06:07+00:00 에 만들어졌다.
-- assertVisible: 프로브 분류 하나
-- assertVisible: 프로브 라벨 둘
-- assertVisible: 2026-04-06 05:06
+# UIKit이 행 버튼의 배지·시각을 하나의 접근성 라벨로 묶는다. 행 ID와 실제 값을 함께 잰다.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible: 프로브 분류 하나
+      - assertVisible: 프로브 라벨 둘
+      - assertVisible: 2026-04-06 05:06
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: resource-row
+          text: '^probe-seed bravo, .*분류, 프로브 분류 하나,.*'
+      - assertVisible:
+          id: resource-row
+          text: '^probe-seed charlie, .*태그, 프로브 라벨 하나, 프로브 라벨 둘$'
+      - assertVisible:
+          id: resource-row
+          text: '^probe-seed alpha, .*생성, 2026-04-06 05:06,.*'
 # 상세 - 목록에 없는 설명(여러 줄)과 수정 시각까지 그린다.
 - tapOn:
     id: resource-row-title
@@ -57,8 +75,12 @@ appId: com.example.templateexpo.e2e
 - assertVisible:
     id: detail-value-updatedAt
     text: 2026-04-15 01:02
-- assertVisible: 프로브 분류 하나
-- assertVisible: 프로브 라벨 하나
+- assertVisible:
+    id: detail-badge-category-0
+    text: 프로브 분류 하나
+- assertVisible:
+    id: detail-badge-tags-0
+    text: 프로브 라벨 하나
 - runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:

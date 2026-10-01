@@ -122,11 +122,25 @@ appId: com.example.templateexpo.e2e
 - tapOn:
     id: relationship-option-category
     text: 프로브 분류 하나
-- extendedWaitUntil:
-    visible:
-      id: relationship-value-category-0
-      text: 프로브 분류 하나
-    timeout: 10000
+# iOS는 접근성 버튼이 자식 배지를 묶는다. 실제 선택은 버튼의 accessibilityValue로 읽는다(K3 실행 3).
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: relationship-value-category-0
+            text: 프로브 분류 하나
+          timeout: 10000
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: relationship-open-category
+            text: 프로브 분류 하나
+          timeout: 10000
 # 태그 둘 - 씨앗 id 의 반대 순서로 고른다. 폼은 고른 순서 그대로 그린다.
 - scrollUntilVisible:
     element:
@@ -147,12 +161,23 @@ appId: com.example.templateexpo.e2e
     text: 프로브 라벨 하나
 - tapOn:
     id: relationship-done-tags
-- assertVisible:
-    id: relationship-value-tags-0
-    text: 프로브 라벨 둘
-- assertVisible:
-    id: relationship-value-tags-1
-    text: 프로브 라벨 하나
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: relationship-value-tags-0
+          text: 프로브 라벨 둘
+      - assertVisible:
+          id: relationship-value-tags-1
+          text: 프로브 라벨 하나
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: relationship-open-tags
+          text: '프로브 라벨 둘, 프로브 라벨 하나'
 - scrollUntilVisible:
     element:
       id: submit-button
