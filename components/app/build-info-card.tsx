@@ -9,6 +9,9 @@ import type { BuildInfoCardState } from '@/queries/updates'
  * 값과 문구는 lib/updates/build-info.ts 가 정했다 - 여기서는 그리기만 한다.
  *
  * testID 는 E2E(test/e2e/flows/home-build-info.yaml)가 찾는 이름이다 - 행은 `build-info-<키>`.
+ *
+ * 결과 문구는 확인이 끝난 뒤 새로 나타나므로 `role="status"` 로 스크린 리더가 읽게 한다(제출 오류를 알리는 폼
+ * 배너는 `alert` 다 - components/form/form-banner.tsx).
  */
 export function BuildInfoCard({ rows, canCheck, busy, message, check }: BuildInfoCardState) {
   return (
@@ -37,7 +40,7 @@ export function BuildInfoCard({ rows, canCheck, busy, message, check }: BuildInf
         </Text>
       )}
       {message === null ? null : (
-        <Text testID="build-info-message" className="text-sm">
+        <Text testID="build-info-message" role="status" className="text-sm">
           {message}
         </Text>
       )}
