@@ -18,7 +18,8 @@ Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 
   파일에서 `request`를 값으로 import하는 것을 막는다(타입 import는 된다).
 - 세션 관리자는 `sessionManager` 하나다. 회전은 그 안에서만 일어난다(`lib/auth/AGENTS.md`).
 - 인증 오류는 `queryClient`의 쓰기 캐시(`MutationCache`) `onError` 한 곳이 받는다 - 쓰기 흐름
-  (`lib/resources/write.ts`)이 던진 세션 거절이면 기기 세션을 지우고, 이동은 경로 가드가 한다. 그 `signOut()`의
+  (`lib/resources/write.ts`)·계약 실험실(`lib/lab/run.ts`)이 던진 세션 거절이면 기기 세션을 지우고, 이동은 경로
+  가드가 한다 - 공개 경로인 실험실은 그 화면(`app/(lab)/contract.tsx`)이 로그인으로 보낸다. 그 `signOut()`의
   거절은 이름과 문구만 남긴다.
 
 ## 부팅 순서

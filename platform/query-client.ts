@@ -22,7 +22,8 @@ import { sessionManager } from '@/platform/session'
  * 인증 오류는 쓰기 캐시(MutationCache)의 onError 한 곳이 받는다(스펙 9.2). 쓰기 흐름
  * (lib/resources/write.ts)은 세션이 없거나 백엔드가 세션을 거절하면 세션 거절을 던지고, 여기서 기기
  * 세션을 지운다. 화면 이동은 세션 상태를 따르는 경로 가드(app/(app)/_layout.tsx)가 한다 - 쓰기
- * 화면은 보호 경로라 지금 경로를 next 로 실어 로그인으로 보낸다. 조회 캐시(QueryCache)에는 두지
+ * 화면은 보호 경로라 지금 경로를 next 로 실어 로그인으로 보낸다. 계약 실험실(lib/lab/run.ts)도 같은 거절을
+ * 던지는데, 실험실은 공개 경로라 그 화면(app/(lab)/contract.tsx)이 로그인으로 보낸다. 조회 캐시(QueryCache)에는 두지
  * 않는다 - 읽기는 토큰을 싣지 않아(스펙 7.2) 인증 오류가 오지 않는다. 쓰기는 세션 복원이 끝난 뒤의
  * 화면에서만 시작되므로 복원 중에 signOut 을 부르는 일이 없다(lib/auth/session-manager.ts 의 세대 번호).
  */

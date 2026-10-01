@@ -25,6 +25,7 @@
 | `components/hooks/`    | React Native Reusables 가 받는 UI 도우미 훅(`components.json`의 `hooks` 별칭)                                        | 조회·쓰기 훅, 자원 이름, fetch, 세션      |
 | `components/app/`      | 앱 전체에 걸린 화면 조각(설정 오류 화면 `FatalConfig` 등)과 앱 전체의 이동 도우미(`useNavigateOnce`·`useBackToHome`) | 자원 UI, fetch                            |
 | `components/form/`     | 폼 조각 - 필드 오류·배너·제출 버튼·자격증명 폼                                                                       | 자원 이름, fetch, 세션                    |
+| `components/lab/`      | 계약 실험실의 조각 - 실험 카드와 결과 표시                                                                           | 요청, 세션, 자원 이름으로 분기            |
 | `components/resource/` | 선언을 읽어 만드는 획일 UI                                                                                           | 자원 이름으로 분기                        |
 
 `lib/config/`·`components/ui/`·`components/form/`·`components/app/`·`components/hooks/`는 스펙 5장의 표에
@@ -38,7 +39,8 @@
 뒀다. 자원에 매이지 않는 주소 판단이라 `lib/resources/`에 두지 않았다. `lib/config/`의 제약과 `lib/navigation/`이
 바꾸지 않는 주소는 각 디렉터리의 `AGENTS.md`에 있다.
 `settings.ts`가 읽는 설정 자리(`process.env`, 앱에서는 `extra`)를 정하는 바인딩은
-`platform/config.ts`가 한다.
+`platform/config.ts`가 한다. `components/lab/`도 스펙의 트리에 없다 - 계약 실험실 화면(`app/(lab)/contract.tsx`)의
+조각이 자원 UI 도 폼 조각도 아니어서 따로 뒀다.
 
 위반의 정의:
 
