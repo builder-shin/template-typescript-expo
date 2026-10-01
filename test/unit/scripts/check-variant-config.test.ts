@@ -213,6 +213,22 @@ describe('변형별 설정 검사 - 게이트 [8]', { timeout: 30_000 }, () => {
     ).toContain('OTA 켬(채널 preview)')
   })
 
+  it('맞는 설정이면 성공 줄이 대상과 맞댄 건수와 OTA 상태를 한 줄로 말한다', () => {
+    // 맞대는 자리는 OTA 를 끈 설정이 17개, 켠 설정은 확인 시점과 기다림이 두 플랫폼에서 더해져 21개다.
+    for (const variant of VARIANTS) {
+      for (const projectId of [null, PROJECT_ID]) {
+        const { channel } = NATIVE[variant]
+        const target = targetOf(variant, projectId)
+        const expected =
+          channel !== null && projectId !== null
+            ? `변형 설정 통과: ${target} - 21건, OTA 켬(채널 ${channel})`
+            : `변형 설정 통과: ${target} - 17건, OTA 끔`
+        const result = checkConfig(introspected(variant, projectId), variant, projectId)
+        expect(result.stdout.trimEnd(), target).toBe(expected)
+      }
+    }
+  })
+
   it.each([
     [
       'preview 의 Android OTA 가 꺼져 있다',
