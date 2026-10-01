@@ -18,6 +18,32 @@ appId: com.example.templateexpo.e2e
       STEP: example
       TITLE: ${output.prefix} a
 - runFlow: ../subflows/login.yaml
+# 딥링크로 곧장 연 수정 화면의 저장 - 스택에 상세가 없으니 저장이 이 화면을 상세로 바꾼다(edit.tsx 의 dismissTo). 고치지 않고
+# 저장한다. 뒤로 가면 홈이다 - 수정 화면이 상세 아래에 남았으면 폼이 나온다.
+- openLink: templateexpo-e2e://examples/${output.exampleId}/edit
+- extendedWaitUntil:
+    visible:
+      id: field-input-title
+      text: ${output.prefix} a
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: submit-button
+    direction: DOWN
+- tapOn:
+    id: submit-button
+- extendedWaitUntil:
+    visible:
+      id: detail-heading
+      text: ${output.prefix} a
+    timeout: 20000
+- assertNotVisible:
+    id: edit-example-screen
+- pressKey: back
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 15000
 - openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=${output.prefix}
 - extendedWaitUntil:
     visible:
@@ -111,6 +137,24 @@ appId: com.example.templateexpo.e2e
 - assertVisible:
     id: detail-badge-tags-1
     text: 프로브 라벨 둘
+# 다시 앞에 온 상세에서 "수정" 이 또 동작한다 - 이동 가드는 누른 화면이 다시 앞에 오면 풀린다(useNavigateOnce).
+- scrollUntilVisible:
+    element:
+      id: edit-example-link
+    direction: DOWN
+- tapOn:
+    id: edit-example-link
+- extendedWaitUntil:
+    visible:
+      id: field-input-title
+      text: ${output.prefix} b
+    timeout: 20000
+- pressKey: back
+- extendedWaitUntil:
+    visible:
+      id: detail-heading
+      text: ${output.prefix} b
+    timeout: 20000
 # 목록도 새 제목이다 - 옛 제목은 없다.
 - pressKey: back
 - extendedWaitUntil:
