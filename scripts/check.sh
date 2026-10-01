@@ -63,20 +63,45 @@ node scripts/check-provenance.mjs
 echo "=== [7/13] unit ==="
 pnpm test
 
+# test/e2e/run-android.sh 의 existing_files 와 같다 - git ls-files 가 알려도 작업 트리에서 지운 파일은 건너뛴다.
+existing_files() {
+  local file
+  while IFS= read -r -d '' file; do
+    if [ -f "$file" ]; then printf '%s\0' "$file"; fi
+  done
+}
+
 # 변형 넷을 EAS 프로젝트가 없을 때와 있을 때(GATE_EAS_PROJECT_ID)로 평가하고, 설정 플러그인이 네이티브 설정으로
 # 옮길 값(introspect)이 변형 표·OTA 판단(lib/config)과 같은지 검사기가 본다 - 식별자·scheme·앱 이름, 평문 HTTP,
-# OTA(스펙 10.2·10.6). Expo CLI 는 .env 를 읽으므로 프로젝트 id 두 자리를 빈 값으로도 명시한다 - 개발자의 .env 에
-# 있는 EAS_PROJECT_ID 가 섞이면 검사기가 잡는다. --disable-warning 은 검사기가 app.config.ts·lib/config 를 type
-# stripping 으로 불러올 때 Node 가 내는 모듈 형식 경고 하나를 끈다(scripts/check-variant-config.mjs 머리말).
+# OTA(스펙 10.2·10.6).
+#
+# 평가는 저장소 루트가 아니라 커밋 대상 파일(추적 + 무시되지 않은 미추적, android/·ios/ 는 뺀다)의 깨끗한 사본에서 한다.
+# 루트에 android/·ios/ 가 있으면(저장소 안에서 빌드하는 E2E 하네스나 dev client 의 prebuild 가 남긴다) 설정 플러그인이
+# 그것을 바탕으로 삼고 Android 의 scheme 은 더하기만 해서, 앞선 빌드의 값이 섞여 설정이 어긋난 것처럼 보인다. 사본은
+# .maestro-output/ 에 둔다(git 이 무시한다) - Node 가 위쪽 디렉터리의 node_modules 를 찾으니 복사도 링크도 필요 없다.
+# 사본 안으로 cd 해서 평가하면 Windows 에서 끝난 직후 사본을 지우지 못했다(Device or resource busy) - 저장소 루트에서
+# 디렉터리 인자(expo config <사본>)로 평가한다.
+#
+# 셸에서 내보낸 EAS_PROJECT_ID 가 섞이지 않게 프로젝트 id 두 자리를 빈 값으로도 명시한다(.env 는 사본에 없다 - git 이
+# 무시한다). --disable-warning 은 검사기가 app.config.ts·lib/config 를 type stripping 으로 불러올 때 Node 가 내는 모듈
+# 형식 경고 하나를 끈다(scripts/check-variant-config.mjs 머리말). 사본은 끝나면 지운다 - 도중에 멈춰도 trap 이 지운다.
 echo "=== [8/13] 설정 ==="
+VARIANT_SRC=.maestro-output/variant-config-src
+rm -rf "$VARIANT_SRC"
+mkdir -p "$VARIANT_SRC"
+trap 'rm -rf "$VARIANT_SRC" || true' EXIT
+git ls-files -z -co --exclude-standard -- . ':!android' ':!ios' | existing_files | tar --null -T - -cf - |
+  (cd "$VARIANT_SRC" && tar -xf -)
 for variant in development preview production e2e; do
   for project in '' "$GATE_EAS_PROJECT_ID"; do
     echo "--- APP_VARIANT=$variant EAS_PROJECT_ID=${project:-(없음)}"
     APP_VARIANT="$variant" BACKEND_URL="$GATE_BACKEND_URL" EAS_PROJECT_ID="$project" EAS_BUILD_PROJECT_ID='' \
-      pnpm exec expo config --type introspect --json |
+      pnpm exec expo config "$VARIANT_SRC" --type introspect --json |
       node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-variant-config.mjs "$variant" "$project"
   done
 done
+rm -rf "$VARIANT_SRC" || echo "경고: $VARIANT_SRC 를 지우지 못했다 - 다음 실행이 지운다" >&2
+trap - EXIT
 
 echo "=== [9/13] 의존성 호환 ==="
 BACKEND_URL="$GATE_BACKEND_URL" pnpm exec expo-doctor

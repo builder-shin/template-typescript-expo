@@ -141,7 +141,10 @@ Android SDK·Maestro·에뮬레이터)은 그 파일 머리말에 있다. Window
 
 설정 단계 [8]은 네 변형을 EAS 프로젝트가 없을 때와 있을 때(가짜 id)로 평가해, 설정 플러그인이 네이티브 설정으로
 옮길 값(`expo config --type introspect`)이 변형 표·OTA 판단(`lib/config/`)과 같은지 `scripts/check-variant-config.mjs`로
-본다. Expo CLI는 `.env`를 읽으므로 그 단계는 `EAS_PROJECT_ID`를 빈 값으로도 명시한다.
+본다. 평가는 저장소 루트가 아니라 커밋 대상 파일의 깨끗한 사본(`.maestro-output/variant-config-src`, `android/`·`ios/`
+없음, 끝나면 지운다)에서 한다 - 저장소 안에서 빌드하는 E2E 하네스나 dev client의 prebuild가 루트에 남긴 `android/`를 설정
+플러그인이 바탕으로 삼으면 앞선 빌드의 scheme이 섞여 설정이 어긋난 것처럼 보인다. 셸이 내보낸 `EAS_PROJECT_ID`가 섞이지
+않도록 그 단계는 프로젝트 id 두 자리를 빈 값으로도 명시한다.
 
 번들 단계는 `expo export --clear`라서 Metro·Uniwind 캐시를 지운다 - 게이트를 돌리기 전에 이 저장소의
 `expo start`를 끈다. 캐시를 두면 이 개발 머신(Windows)에서 `expo export`가 끝날 때 간헐적으로 죽었다(실측 기록

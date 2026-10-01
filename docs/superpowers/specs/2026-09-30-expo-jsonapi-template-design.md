@@ -1074,8 +1074,11 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > 가짜 id)로 `expo config --type introspect` 한다 - 빌드하지 않고 설정 플러그인을 돌려 AndroidManifest.xml·
 > strings.xml·Info.plist·Expo.plist 가 될 값을 낸다. 그 값이 변형 표와 OTA 판단(`lib/config/`)이 정한 것과 같은지
 > `scripts/check-variant-config.mjs` 가 본다 - 식별자·scheme·앱 이름, 평문 HTTP, OTA(켬·끔, 주소, 채널, 확인 시점,
-> runtime version 정책), 프로젝트 id. 여덟 평가가 이 개발 머신에서 10초 안팎이고, 설정에 어긋남을 넣으면 그 자리를
-> 알리며 멈춘다(D6 실측 O3).
+> runtime version 정책), 프로젝트 id. 평가는 저장소 루트가 아니라 커밋 대상 파일의 깨끗한 사본(`.maestro-output/` 안,
+> `android/`·`ios/` 없음, 끝나면 지운다)에서 한다 - 루트에 `android/` 가 있으면(저장소 안에서 빌드하는 E2E 하네스나 dev
+> client 의 prebuild 가 남긴다) 설정 플러그인이 그것을 바탕으로 삼고 scheme 은 더하기만 해서, 앞선 빌드의 값이 섞여 설정이
+> 어긋난 것처럼 보인다. 사본을 만들고 지우는 것까지 여덟 평가가 이 개발 머신에서 10초 안팎이고, 설정에 어긋남을 넣으면 그
+> 자리를 알리며 멈춘다(D6 실측 O3).
 
 ## 13. CI (GitHub Actions)
 

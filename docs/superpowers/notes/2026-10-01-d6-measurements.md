@@ -57,10 +57,11 @@ remote`, 제출의 `changesNotSentForReview: false`, iOS 제출의 `language: en
 
 ## O3 — 게이트 [8] 이 변형별 네이티브 설정을 검사한다
 
-**명령.** `scripts/check.sh` 의 [8] 블록만 떼어 돌렸다 - 변형 넷을 EAS 프로젝트가 없을 때와 있을 때
-(`GATE_EAS_PROJECT_ID`, 모양만 UUID)로 `expo config --type introspect --json` 하고, `scripts/check-variant-config.mjs` 가
+**명령.** `scripts/check.sh` 의 [8] 블록만 떼어(그 앞의 `GATE_` 변수와 `existing_files` 함수를 함께) 돌렸다 - 커밋 대상
+파일의 깨끗한 사본(`.maestro-output/variant-config-src`, 끝나면 지운다)에서 변형 넷을 EAS 프로젝트가 없을 때와 있을 때
+(`GATE_EAS_PROJECT_ID`, 모양만 UUID)로 `expo config <사본> --type introspect --json` 하고, `scripts/check-variant-config.mjs` 가
 설정 플러그인이 옮길 네이티브 값(AndroidManifest.xml·strings.xml·Info.plist·Expo.plist)을 변형 표·OTA 판단과 맞댄다.
-여덟 평가가 이 개발 머신에서 10초 안팎이다.
+사본을 만들고 지우는 것까지 여덟 평가가 이 개발 머신에서 10초 안팎이다.
 
 ```text
 === [8/13] 설정 ===
@@ -85,20 +86,40 @@ remote`, 제출의 `changesNotSentForReview: false`, iOS 제출의 `language: en
 17건은 OTA 를 끈 설정의 자리(식별자·scheme·앱 이름·평문 HTTP·OTA 끔과 주소·채널·runtime version 없음, Android·iOS),
 21건은 켠 설정에 확인 시점(`ALWAYS` - `ON_LOAD` 의 네이티브 값)과 기다림(0)이 두 플랫폼에서 더해진 것이다.
 
-**`.env` 가 섞이지 않는다.** 저장소 루트에 `EAS_PROJECT_ID` 를 둔 `.env` 를 만들고 같은 블록을 돌려도 여덟이
-통과했다 - Expo CLI 는 `.env` 를 읽지만 블록이 두 자리를 빈 값으로 명시해 덮는다(만든 `.env` 는 지웠다). 명시가
-빠지면 검사기가 `extra.eas` 로 잡는다 - `test/unit/scripts/check-variant-config.test.ts` 의 ".env 의 EAS 프로젝트 id
-가 섞였다" 표본.
+**환경이 섞이지 않는다.** 저장소 루트에 `EAS_PROJECT_ID` 를 둔 `.env` 를 만들고 같은 블록을 돌려도 여덟이 통과했다 -
+사본에 `.env` 가 없다(git 이 무시한다). 셸이 `EAS_PROJECT_ID`·`EAS_BUILD_PROJECT_ID` 를 내보내고 돌려도 여덟이 통과했다 -
+블록이 두 자리를 빈 값으로 명시해 덮는다(만든 `.env` 는 지웠다). 명시를 뺀 블록은 같은 셸 환경에서 첫 평가의
+`extra.eas` 로 멈춘다. 명시가 빠지면 검사기가 그렇게 잡는다 - `test/unit/scripts/check-variant-config.test.ts` 의 ".env 의
+EAS 프로젝트 id 가 섞였다" 표본.
 
-**어긋남을 잡는다.** 저장소 밖의 사본에서 `app.config.ts` 의 `usesCleartextTraffic: profile.allowCleartext` 를 `true` 로
-바꾸고 돌리면 development 둘은 통과하고 preview 에서 멈췄다:
+**루트의 `android/` 가 바탕이 되지 않는다.** 저장소 안에서 빌드하는 E2E 하네스(경로가 짧은 Windows·Linux·macOS)나 dev
+client 의 prebuild 는 루트에 `android/` 를 남긴다(`.gitignore` 의 `/android` 라 git 은 보지 않는다). 이 머신의 하네스는
+짧은 경로 사본(`C:/t/e`)에서 빌드해 루트가 비어 있으므로, 그 사본의 e2e AndroidManifest.xml·strings.xml 을 루트의
+`android/app/src/main/` 아래에 복사해 같은 상태를 만들었다. 루트에서 `pnpm exec expo config --type introspect` 하던 옛 [8]
+은 첫 평가에서 멈췄고,
+
+```text
+변형 설정 위반 1건 (development):
+- Android 딥링크 scheme: ["templateexpo-e2e","templateexpo-dev"] - 기대한 값은 ["templateexpo-dev"]
+```
+
+여덟 평가를 모두 돌리면 e2e 만 통과하고 여섯이 어긋났다. 설정 플러그인(`@expo/config-plugins` 57.0.9)의 Android
+매니페스트 기본 mod 는 `android/app/src/main/AndroidManifest.xml` 이 있으면 그것을 읽고(읽지 못할 때만 템플릿으로
+돌아간다), `setScheme` 은 이미 있는 scheme 을 빼고 나머지를 더하기만 한다 - 앞선 빌드의 scheme 이 남는다. 새 [8] 은 같은
+`android/` 가 있는 채로도 여덟이 통과했고, `android/` 를 지운 뒤 곧바로 이어 돌려도 여덟이 통과했다(두 출력이 같다. 임시
+`android/` 는 지웠다). 사본 안으로 `cd` 해서 평가하면 Windows 에서 끝난 직후 사본을 지우지 못했다(`Device or resource
+busy`, 다섯 번 모두) - 저장소 루트에서 디렉터리 인자로 평가하면 첫 시도에 지워졌다.
+
+**어긋남을 잡는다.** 블록이 만든 사본의 `app.config.ts` 에서 `usesCleartextTraffic: profile.allowCleartext` 를 `true` 로
+바꾸고(사본이라 저장소의 파일은 그대로다) 같은 평가를 돌리면 development 둘은 통과하고 preview 에서 멈췄다. 멈춘 뒤에도
+사본은 지워졌다:
 
 ```text
 변형 설정 위반 1건 (preview):
 - Android 평문 HTTP(usesCleartextTraffic): "true" - 기대한 값은 "false"
 ```
 
-되돌린 뒤 여덟이 다시 통과했다. 검사기의 자리마다 어긋난 표본이 실패하는 것은
+변이는 사본에만 있어 저장소는 그대로이고, 변이 없는 블록은 여덟이 통과한다. 검사기의 자리마다 어긋난 표본이 실패하는 것은
 `test/unit/scripts/check-variant-config.test.ts` 가 잰다 - 21자리 모두에 표본이 하나씩 있다. 저장소 밖의 사본에서 검사기의
 자리를 하나씩 꺼 보면(자리마다 변이 하나 - 그 자리의 비교 `expectValue` 만 건너뛰게 한 검사기로 시험을 돌린다) 스물한 변이가
 모두 시험을 빨갛게 하고, 자리마다 그 자리의 표본이 실패한다.

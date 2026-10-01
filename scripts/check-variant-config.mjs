@@ -2,8 +2,12 @@
  * 변형별 설정을 검사한다(스펙 10.2·10.6, 15장 단계 6). 게이트 [8] 이 변형마다 부른다.
  *
  *   APP_VARIANT=<변형> EAS_PROJECT_ID=<id 또는 빈 값> BACKEND_URL=<주소> \
- *     pnpm exec expo config --type introspect --json |
+ *     pnpm exec expo config <깨끗한 사본> --type introspect --json |
  *     node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-variant-config.mjs <변형> [<id>]
+ *
+ * 평가는 커밋 대상 파일의 깨끗한 사본(android/·ios/ 없음)에서 한다 - 저장소 루트에 android/ 가 있으면(저장소 안에서
+ * 빌드한 E2E 하네스나 dev client 의 prebuild) 설정 플러그인이 그것을 바탕으로 삼아 앞선 빌드의 scheme 이 섞인다.
+ * 게이트의 [8] 이 사본을 만들고 지운다(scripts/check.sh).
  *
  * `expo config --type introspect` 는 빌드하지 않고 설정 플러그인을 돌려, 네이티브 설정(AndroidManifest.xml·
  * strings.xml·Info.plist·Expo.plist)에 들어갈 값을 `_internal.modResults` 에 낸다. 이 스크립트는 그 값이 변형
