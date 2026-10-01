@@ -10,9 +10,11 @@ import type { BuildInfoCardState } from '@/queries/updates'
  *
  * testID 는 E2E(test/e2e/flows/home-build-info.yaml)가 찾는 이름이다 - 행은 `build-info-<키>`.
  *
- * 결과 문구는 확인이 끝난 뒤 새로 나타난다. Android 에서는 `accessibilityLiveRegion="polite"` 가 그 문구를 스크린 리더가
- * 읽게 한다. `role="status"` 는 의미 표지로 둔다 - React Native 0.86 은 이 role 을 Android 에서 접근성 역할로 옮기지
- * 않고 iOS 에서는 trait 이 없다(`UIAccessibilityTraitNone`). iOS 에는 live region 이 없다 - 거기서 읽게 하려면
+ * 결과 문구는 확인이 끝난 뒤 새로 나타난다. Android 에서는 `accessibilityLiveRegion="polite"` 로 그 문구를 스크린
+ * 리더가 읽게 하려 했다 - 문구 노드는 `message` 가 있을 때만 마운트되는데, 새로 마운트된 polite live region 을
+ * TalkBack 이 읽는지는 기기에서 확인하지 않았다(TalkBack 확인은 D9 가 맡는다). `role="status"` 는 의미 표지로 둔다 -
+ * React Native 0.86 은 이 role 을 Android 에서 접근성 역할로 옮기지 않고 iOS 에서는 trait 이 없다
+ * (`UIAccessibilityTraitNone`). `accessibilityLiveRegion` 은 Android 전용이라 iOS 에서 읽게 하려면
  * `AccessibilityInfo.announceForAccessibility` 라는 플랫폼 호출이 필요하고, 그 호출은 이 컴포넌트에 둘 것이 아니다.
  */
 export function BuildInfoCard({ rows, canCheck, busy, message, check }: BuildInfoCardState) {
