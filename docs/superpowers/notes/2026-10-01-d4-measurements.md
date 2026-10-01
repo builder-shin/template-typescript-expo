@@ -54,6 +54,12 @@ Gradle 프로세스도 끝난다. 그리고 `stage_sources` 가 지우는 동안
 멈춰서 다음 실행이 그 사본을 "하네스가 만든 사본이 아니다" 로 거절할 자리였다(표식은 손으로 되살렸다). 고친 게이트가 끝난 뒤에는
 Java 프로세스가 하나도 남지 않았고, 그 빌드의 `mergeDexRelease/classes*.dex` 넷이 지워졌다.
 
+**`expo export` 의 139.** Task 4 의 수정 라운드에서 `expo export --clear --platform ios` 가 출력(`Exported: …`)을 다 쓴 뒤 프로세스가
+끝날 때 한 번 exit 139 로 죽었다 - Metro 캐시를 비웠는데도(`--clear`), `TEMP`·`TMP` 를 따로 만든 디렉터리로 돌려 다른 Metro 와 캐시를
+나누지 않았는데도다. 같은 명령의 진단용 재실행 둘은 exit 0 이었다. D1 실측 M1 의 관찰 8 은 `--clear` 를 준 10회가 모두 exit 0 이어서
+캐시를 방아쇠로 짐작했는데, 캐시가 유일한 방아쇠는 아니다. D4 의 마지막 정리를 끝낸 트리에서 같은 격리로 돌린 android·ios 번들 둘은
+exit 0 이었다.
+
 **가드.** 선언한 실패 표식 - `examples-write-errors` 의 401 (1)·404 (4)·422 (1):
 
 ```text
