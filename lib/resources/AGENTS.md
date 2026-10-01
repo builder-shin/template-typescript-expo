@@ -15,6 +15,9 @@ FormData 가 아니라 폼 상태 객체(`ResourceFormValues` 를 만들고 고�
 `withRelationshipChoice`)이고, 원본이 컴포넌트에 두던 관계 선택기의 판단(`relationshipTargets`·`relationshipChoice`)을
 더했다. 그 시험은 `test/unit/resources/form-expo.test.ts` 다. 쓰기 한 번의 흐름(세션 확인 → 요청 → 응답 해석, 원본의
 Server Action 자리)은 이 저장소의 `write.ts` 이고 `test/unit/resources/write.test.ts` 가 가짜 전송·토큰으로 잰다.
+회전이 판정을 받지 못한 채 이미 만료된 access 가 돌아오면(만료 가드, 스펙 7.2) `write.ts` 는 요청하지 않고 앱 문구의
+값을 돌려준다 - 생성·수정은 `unusableFormState`, 삭제는 `messages` - 던지지 않으니 세션은 그대로다(실제 세션 관리자와 이어
+`test/unit/resources/write-session.test.ts` 가 잰다).
 무한 스크롤의 끝(`nextPageQuery`)과 관계 선택기의 잘림(`referenceList` 의 `truncated`)은 한 판정(`nextLinkQuery`)이다 -
 `test/unit/resources/next-link.test.ts` 가 같은 응답을 두 함수에 넣어 잰다.
 
