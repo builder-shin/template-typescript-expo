@@ -1,18 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type { JsonApiResult, RequestOptions } from '@/lib/jsonapi/client'
+import { JSONAPI_MEDIA_TYPE, type JsonApiResult, type RequestOptions } from '@/lib/jsonapi/client'
 import type { ErrorObject } from '@/lib/jsonapi/document'
 import type { JsonApiSend } from '@/lib/jsonapi/send'
 import { EXPERIMENTS } from '@/lib/lab/experiments'
 import { COMBINED_NOTE_PREFIX, parseCombinedSteps, type ExperimentResult } from '@/lib/lab/result'
-import {
-  MAX_OFFSET_REQUESTS,
-  OFFSET_PAGE_SIZE,
-  PROBE_LAB_EXAMPLE_ID,
-  TOTALS_PAGE_SIZE,
-  runExperiment,
-  type LabDeps,
-} from '@/lib/lab/run'
+import { PROBE_LAB_EXAMPLE_ID, runExperiment, type LabDeps } from '@/lib/lab/run'
 import { EXAMPLE, EXAMPLE_TAG } from '@/lib/resources'
 import { isSessionRejected, type WriteSession } from '@/lib/resources/write'
 
@@ -24,10 +17,29 @@ import { isSessionRejected, type WriteSession } from '@/lib/resources/write'
  * 실험이 실제로 부르는 자원(`EXAMPLE`·`EXAMPLE_TAG`)의 것이다 - 실험실은 그 자원에 묶여 있다(스펙 8.6). 토큰을
  * 받는 길(세션 가드·만료 가드·저장소 실패)은 쓰기의 것이라(`lib/resources/write.ts` 의 `accessToken`) 판정의
  * 갈래는 `test/unit/resources/write.test.ts` 가 재고, 여기서는 세션이 필요한 실험이 모두 그 길을 지나는지 잰다.
+ *
+ * 쪽 크기(3·1)와 순회 상한(20)은 실행부의 상수를 가져오지 않고 값으로 적는다 - 가져오면 상수를 바꿔도 시험이 따라
+ * 바뀌어 아무것도 재지 못한다. 실험이 보내는 본문과 화면에 적히는 요청 본문·헤더도 같은 까닭으로 값 그대로 맞댄다.
  */
 const TOKEN = 'probe-access-token'
 const DEVICE_LANGUAGE = 'probe-lang,probe-other;q=0.9'
 const RELATIONSHIPS_PATH = `${EXAMPLE.path}/${PROBE_LAB_EXAMPLE_ID}/relationships/tags`
+
+/**
+ * 실험이 보내야 하는 본문 전부 - 한 글자도 더하거나 덜지 않는다(정확히 같아야 통과한다). PUT 은 전체 교체라 본문에
+ * 없는 필드(설명·관계)를 지우는 것이 `putUpsert` 가 실증하는 동작이고, 검증 오류 본문은 제목 하나만 `minLength: 1`
+ * 을 어긴다(스펙 8.6). 값은 실행부의 것을 옮겨 적은 것이다 - 실행부에서 가져오면 둘이 늘 같아 아무것도 재지 못한다.
+ */
+const PUT_BODY = {
+  data: {
+    type: EXAMPLE.type,
+    id: PROBE_LAB_EXAMPLE_ID,
+    attributes: { title: 'probe-lab PUT upsert 대상', status: 'draft', score: 0 },
+  },
+}
+const INVALID_BODY = {
+  data: { type: EXAMPLE.type, attributes: { title: '', status: 'draft', score: 0 } },
+}
 
 /** 가짜 시계가 서 있는 시각 - 세션의 access 만료는 이 시각을 기준으로 잡는다. */
 const NOW = 1_800_000_000_000
@@ -114,6 +126,16 @@ function queryOf(request: SentRequest | undefined): Record<string, string> {
   return Object.fromEntries(request?.options.query ?? new URLSearchParams())
 }
 
+/** 본문과 토큰을 싣는 요청의 보낸 요청 헤더 - 토큰은 보냈다는 사실만 적힌다. 여러 단계면 마지막 단계의 것이 결과에 보인다. */
+function writeHeaders(language: string): Record<string, string> {
+  return {
+    accept: JSONAPI_MEDIA_TYPE,
+    'content-type': JSONAPI_MEDIA_TYPE,
+    'accept-language': language,
+    authorization: 'Bearer <redacted>',
+  }
+}
+
 afterEach(() => {
   vi.restoreAllMocks()
 })
@@ -187,15 +209,17 @@ describe('putUpsert', () => {
       method: 'PUT',
       accessToken: TOKEN,
       acceptLanguage: DEVICE_LANGUAGE,
-      body: { data: { type: EXAMPLE.type, id: PROBE_LAB_EXAMPLE_ID } },
     })
+    expect(sent[0]?.options.body).toEqual(PUT_BODY)
     expect(result.status).toBe(201)
     expect(JSON.parse(result.body)).toEqual(document)
-    expect(result.request.method).toBe('PUT')
-    expect(result.headers).toMatchObject({
-      authorization: 'Bearer <redacted>',
-      'accept-language': DEVICE_LANGUAGE,
+    // 화면에 적힌 요청 본문은 실제로 나간 본문이다.
+    expect(result.request).toEqual({
+      method: 'PUT',
+      path: `${EXAMPLE.path}/${PROBE_LAB_EXAMPLE_ID}`,
+      body: JSON.stringify(sent[0]?.options.body, null, 2),
     })
+    expect(result.headers).toEqual(writeHeaders(DEVICE_LANGUAGE))
     expect(JSON.stringify(result)).not.toContain(TOKEN)
   })
 
@@ -239,16 +263,19 @@ describe('relationshipWrite', () => {
     ])
     expect(queryOf(sent[0])).toEqual({ 'page[size]': '1' })
     expect(sent[0]?.options).not.toHaveProperty('accessToken')
+    expect(sent[0]?.options).not.toHaveProperty('body')
     const linkage = { data: [{ type: EXAMPLE_TAG.type, id: TAG_ID }] }
-    expect(sent[1]?.options).toMatchObject({ body: linkage, accessToken: TOKEN })
-    expect(sent[2]?.options).toMatchObject({ body: linkage, accessToken: TOKEN })
+    expect(sent[1]?.options.body).toEqual(linkage)
+    expect(sent[2]?.options.body).toEqual(linkage)
+    expect(sent[1]?.options).toMatchObject({ accessToken: TOKEN })
+    expect(sent[2]?.options).toMatchObject({ accessToken: TOKEN })
 
     const { steps } = parseCombinedSteps(result.body)
     expect(steps).toHaveLength(3)
     expect(steps[1]?.heading).toContain('(상태 204)')
     expect(steps[2]?.heading).toContain('(상태 204)')
     expect(result.request).toEqual({ method: 'GET + POST + DELETE', path: RELATIONSHIPS_PATH })
-    expect(result.headers.authorization).toBe('Bearer <redacted>')
+    expect(result.headers).toEqual(writeHeaders(DEVICE_LANGUAGE))
   })
 
   it('태그가 하나도 없으면 조회 한 단계와 그 사실만 보이고 쓰지 않는다', async () => {
@@ -299,7 +326,7 @@ describe('relationshipWrite', () => {
 
 describe('offsetWalk - page[number]=1 에서 links.next 만 따라간다(스펙 8.6)', () => {
   it('첫 요청은 1쪽이고, 다음은 백엔드가 준 링크의 쿼리 그대로다 - 링크가 없으면 끝이다', async () => {
-    const next = `${EXAMPLE.path}?probe=kept&page%5Bnumber%5D=2&page%5Bsize%5D=${OFFSET_PAGE_SIZE}`
+    const next = `${EXAMPLE.path}?probe=kept&page%5Bnumber%5D=2&page%5Bsize%5D=3`
     const { deps, sent } = probeDeps((_path, options) =>
       options.query?.get('page[number]') === '1'
         ? page(['probe-row-1', 'probe-row-2', 'probe-row-3'], next)
@@ -310,15 +337,8 @@ describe('offsetWalk - page[number]=1 에서 links.next 만 따라간다(스펙 
 
     expect(sent).toHaveLength(2)
     expect(sent.every((request) => request.path === EXAMPLE.path)).toBe(true)
-    expect(queryOf(sent[0])).toEqual({
-      'page[number]': '1',
-      'page[size]': String(OFFSET_PAGE_SIZE),
-    })
-    expect(queryOf(sent[1])).toEqual({
-      probe: 'kept',
-      'page[number]': '2',
-      'page[size]': String(OFFSET_PAGE_SIZE),
-    })
+    expect(queryOf(sent[0])).toEqual({ 'page[number]': '1', 'page[size]': '3' })
+    expect(queryOf(sent[1])).toEqual({ probe: 'kept', 'page[number]': '2', 'page[size]': '3' })
     const { steps, note } = parseCombinedSteps(result.body)
     expect(steps).toHaveLength(2)
     expect(note).toContain('컬렉션 끝에 닿았다')
@@ -335,15 +355,15 @@ describe('offsetWalk - page[number]=1 에서 links.next 만 따라간다(스펙 
     expect(parseCombinedSteps(result.body).note).toContain('컬렉션 끝에 닿았다')
   })
 
-  it(`링크가 끝나지 않으면 ${MAX_OFFSET_REQUESTS}회에서 멈추고 그 사실을 적는다`, async () => {
+  it('링크가 끝나지 않으면 20회에서 멈추고 그 사실을 적는다', async () => {
     const { deps, sent } = probeDeps(() => page([], `${EXAMPLE.path}?page%5Bnumber%5D=9`))
 
     const result = await resultOf('offsetWalk', deps)
 
-    expect(sent).toHaveLength(MAX_OFFSET_REQUESTS)
+    expect(sent).toHaveLength(20)
     const { steps, note } = parseCombinedSteps(result.body)
-    expect(steps).toHaveLength(MAX_OFFSET_REQUESTS)
-    expect(note).toContain(`${MAX_OFFSET_REQUESTS}회 상한에 걸려 멈췄다`)
+    expect(steps).toHaveLength(20)
+    expect(note).toContain('20회 상한에 걸려 멈췄다')
   })
 
   it('오류 응답을 받으면 그 쪽에서 멈추고 몇 번째였는지 적는다', async () => {
@@ -377,8 +397,8 @@ describe('pageTotals', () => {
     const result = await resultOf('pageTotals', deps)
 
     expect(sent.map(queryOf)).toEqual([
-      { 'page[size]': String(TOTALS_PAGE_SIZE) },
-      { 'page[size]': String(TOTALS_PAGE_SIZE), 'page[totals]': 'true' },
+      { 'page[size]': '1' },
+      { 'page[size]': '1', 'page[totals]': 'true' },
     ])
     expect(parseCombinedSteps(result.body).steps).toHaveLength(2)
   })
@@ -392,17 +412,16 @@ describe('acceptLanguage - 같은 검증 오류를 ko·en 으로(스펙 8.6)', (
 
     expect(sent.map((request) => request.options.acceptLanguage)).toEqual(['ko', 'en'])
     expect(sent.map((request) => request.options.method)).toEqual(['POST', 'POST'])
-    expect(sent[0]?.options.body).toEqual(sent[1]?.options.body)
-    expect(sent[0]?.options).toMatchObject({
-      accessToken: TOKEN,
-      body: { data: { type: EXAMPLE.type, attributes: { title: '' } } },
-    })
+    for (const request of sent) {
+      expect(request.options.body).toEqual(INVALID_BODY)
+      expect(request.options.accessToken).toBe(TOKEN)
+    }
     const { steps } = parseCombinedSteps(result.body)
     expect(steps.map((step) => step.heading)).toEqual([
       expect.stringContaining('(상태 422)'),
       expect.stringContaining('(상태 422)'),
     ])
-    expect(result.headers['accept-language']).toBe('en')
+    expect(result.headers).toEqual(writeHeaders('en'))
   })
 
   it('첫 요청이 세션 거절을 받으면 던지고 둘째를 보내지 않는다', async () => {
@@ -435,6 +454,13 @@ describe('invalidFilter', () => {
     expect(result.status).toBe(400)
     expect(result.request.path).toBe(`${EXAMPLE.path}?filter%5Btitle%5D%5Bgt%5D=probe-lab`)
     expect(result.body).toContain('INVALID_FILTER')
+    // 본문을 보내지 않는 요청은 본문도 content-type 도 화면에 적히지 않는다.
+    expect(sent[0]?.options).not.toHaveProperty('body')
+    expect(result.request).not.toHaveProperty('body')
+    expect(result.headers).toEqual({
+      accept: JSONAPI_MEDIA_TYPE,
+      'accept-language': DEVICE_LANGUAGE,
+    })
   })
 })
 
