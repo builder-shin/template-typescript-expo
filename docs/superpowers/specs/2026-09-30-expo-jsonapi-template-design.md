@@ -201,6 +201,12 @@ docs/superpowers/specs/ · plans/ · notes/
 > `lib/lab/` 에는 실험 정의와 결과 표현(복사)에 더해 실험을 요청으로 돌리는 실행부(`run.ts`)가 있고, 실험 하나를 돌리는 쓰기
 > 훅은 `queries/lab.ts` 다(8.6 의 D5 정정). 소유 규칙은 루트 `AGENTS.md` 의 표다.
 
+> 정정(2026-10-01, D6): 트리에 셋을 더한다. `lib/updates/` 는 홈의 빌드 정보 카드(10.6)의 판단 - 카드의 행, "업데이트
+> 확인" 의 순서(확인 → 받기 → 다시 켜기)와 문구 - 이고, expo-updates 의 값과 호출은 `platform/updates.ts` 가
+> 넘긴다. 이 실행의 값을 다루고 설정 계약이 아니어서 `lib/config/` 에 두지 않았다. `lib/config/updates.ts` 는 OTA
+> 설정의 판단(10.6 의 D6 정정)이고, `scripts/check-variant-config.mjs` 는 게이트 8단계의 변형별 설정 검사(12장의 D6
+> 정정)다. 소유 규칙은 루트 `AGENTS.md` 의 표다.
+
 ## 5. 계층 소유권
 
 | 위치 | 소유하는 것 | 소유하지 않는 것 |
@@ -865,6 +871,14 @@ Native Generation). 네이티브 설정은 `app.config.ts`와 config plugin으�
 > id 가 다른 환경에서 발행한 업데이트는 runtime version 이 달라 어떤 빌드에도 닿지 않고, JS 만 바뀐 발행은 같은
 > runtime version 이다(D6 실측 O1). 16장의 "설정 오류가 OTA로 배포된다" 에 든 `fingerprint` 대응이 잰 사실이 됐다 -
 > 앱 시작의 재검증(10.1)은 그 뒤의 두 번째 방어선이다.
+
+> 정정(2026-10-01, D6): 빌드 정보 카드는 앱 버전·변형·OTA(켜짐·꺼짐)·runtime version·채널·업데이트 ID 를 보인다 -
+> 내장 번들로 떴으면 업데이트 ID 뒤에 그렇다고 적고, 값이 없으면 "없음" 이다(OTA 를 끈 Android 빌드는 runtime
+> version·채널을 빈 문자열로 준다 - expo-updates 57.0.24 의 `DisabledUpdatesController`). OTA 를 끈 빌드는 "업데이트
+> 확인" 대신 안내를 그린다. 확인은 서버에 새 업데이트(또는 내장 번들로 되돌리라는 지시)가 있으면 받아서 곧바로 다시
+> 켜고, 없으면 그렇다고, 거절되면 그 문구를 적는다 - 도는 동안과 다시 켜는 동안은 스피너만 그린다(8.7). 판단은
+> `lib/updates/build-info.ts`, 호출은 `platform/updates.ts`, 훅은 `queries/updates.ts`, 카드는
+> `components/app/build-info-card.tsx` 다.
 
 ### 10.7 계정이 필요한 실증은 따로 둔다
 

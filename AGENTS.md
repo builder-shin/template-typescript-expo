@@ -18,6 +18,7 @@
 | `lib/lab/`             | 실험 정의, 실험의 실행(전송·토큰을 주입받는다), 결과 표현                                                            | 화면, 세션                                |
 | `lib/config/`          | 설정 계약과 변형 규칙 - `app.config.ts`가 M7 제약 아래 직접 불러온다                                                 | 네이티브 모듈, 설정 자리의 바인딩         |
 | `lib/navigation/`      | 밖에서 들어온 URL·딥링크를 앱 안 주소로 바꾸는 정규화, 화면을 쌓는 이동을 한 번만 하는 가드(`once.ts`)               | 화면, fetch, 네이티브 모듈                |
+| `lib/updates/`         | 빌드 정보 카드의 판단 - 카드의 행, 업데이트 확인의 순서와 문구                                                       | 네이티브 모듈, 화면                       |
 | `platform/`            | SecureStore·로캘·AppState·NetInfo·Updates·Constants 호출, React Provider, API 클라이언트 조립                        | 판단                                      |
 | `queries/`             | 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화                                                                                | JSX, 쿼리 문자열 조립                     |
 | `app/`                 | 화면, 라우팅, 가드 배치                                                                                              | fetch, `request()` 호출, 쿼리 문자열 조립 |
@@ -41,6 +42,9 @@
 `settings.ts`가 읽는 설정 자리(`process.env`, 앱에서는 `extra`)를 정하는 바인딩은
 `platform/config.ts`가 한다. `components/lab/`도 스펙의 트리에 없다 - 계약 실험실 화면(`app/(lab)/contract.tsx`)의
 조각이 자원 UI 도 폼 조각도 아니어서 따로 뒀다.
+
+`lib/updates/`도 스펙의 트리에 없다 - 홈의 빌드 정보 카드(스펙 10.6)의 판단을 D6가 뒀다. 이 실행의 expo-updates
+값을 다루고 설정 계약이 아니어서 `lib/config/`에 두지 않았다.
 
 위반의 정의:
 
