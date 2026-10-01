@@ -280,6 +280,21 @@ describe('relationshipWrite', () => {
     await expect(runExperiment('relationshipWrite', deps)).rejects.toSatisfy(isSessionRejected)
     expect(sent.map((request) => request.options.method ?? 'GET')).toEqual(['GET', 'POST'])
   })
+
+  it('제거가 세션 거절을 받으면 던진다 - 앞의 조회와 추가는 이미 나갔다', async () => {
+    const { deps, sent } = probeDeps((path, options) =>
+      options.method === 'DELETE'
+        ? failure(401, 'TOKEN_REVOKED')
+        : tagsThenNoContent(path, options),
+    )
+
+    await expect(runExperiment('relationshipWrite', deps)).rejects.toSatisfy(isSessionRejected)
+    expect(sent.map((request) => request.options.method ?? 'GET')).toEqual([
+      'GET',
+      'POST',
+      'DELETE',
+    ])
+  })
 })
 
 describe('offsetWalk - page[number]=1 에서 links.next 만 따라간다(스펙 8.6)', () => {
@@ -396,6 +411,17 @@ describe('acceptLanguage - 같은 검증 오류를 ko·en 으로(스펙 8.6)', (
     await expect(runExperiment('acceptLanguage', deps)).rejects.toSatisfy(isSessionRejected)
     expect(sent).toHaveLength(1)
   })
+
+  it('둘째 요청이 세션 거절을 받으면 던진다 - 첫 요청은 이미 나갔다', async () => {
+    const { deps, sent } = probeDeps((_path, options) =>
+      options.acceptLanguage === 'en'
+        ? failure(401, 'INVALID_TOKEN')
+        : failure(422, 'VALIDATION_ERROR'),
+    )
+
+    await expect(runExperiment('acceptLanguage', deps)).rejects.toSatisfy(isSessionRejected)
+    expect(sent.map((request) => request.options.acceptLanguage)).toEqual(['ko', 'en'])
+  })
 })
 
 describe('invalidFilter', () => {
@@ -421,6 +447,30 @@ describe('기기 언어', () => {
     expect(sent[0]?.options).not.toHaveProperty('acceptLanguage')
     expect(result.headers).not.toHaveProperty('accept-language')
   })
+
+  /** 두 쪽에 걸친 순회 - 첫 쪽에만 다음 링크가 있다. */
+  const TWO_PAGES: Respond = (_path, options) =>
+    options.query?.get('page[number]') === '1'
+      ? page(['probe-row-1'], `${EXAMPLE.path}?page%5Bnumber%5D=2`)
+      : page(['probe-row-2'], null)
+
+  it.each([
+    ['relationshipWrite', ANYTHING_OK, 3],
+    ['offsetWalk', TWO_PAGES, 2],
+    ['pageTotals', ANYTHING_OK, 2],
+    ['invalidFilter', ANYTHING_OK, 1],
+  ] as const)(
+    '%s 는 보내는 요청마다 기기 언어를 명시해 싣는다 - 마지막 단계의 보낸 요청 헤더에도 적힌다',
+    async (id, respond, requests) => {
+      const { deps, sent } = probeDeps(respond)
+
+      const result = await resultOf(id, deps)
+
+      expect(sent).toHaveLength(requests)
+      for (const request of sent) expect(request.options.acceptLanguage).toBe(DEVICE_LANGUAGE)
+      expect(result.headers['accept-language']).toBe(DEVICE_LANGUAGE)
+    },
+  )
 })
 
 describe('모르는 실험', () => {
