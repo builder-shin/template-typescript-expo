@@ -11,6 +11,7 @@
 #   test/e2e/android.sh build       e2e 변형 Release APK 를 만든다 (BACKEND_URL 필요).
 #                                   빌드 앞에 Metro 의 디스크 캐시를 비우고, 만든 APK 의
 #                                   assets/app.config 가 e2e 변형인지 확인한다
+#                                   앱 설정과 AndroidManifest.xml 이 OTA 를 끄고 평문 HTTP 를 켰는지도 확인한다
 #   test/e2e/android.sh install     만든 APK 를 설치한다
 #   test/e2e/android.sh wait-text <텍스트>
 #                                   그 텍스트가 화면에 나타날 때까지(최대 60초) 기다리고
@@ -120,6 +121,63 @@ assert_apk_variant() {
   echo "APK 의 앱 설정: extra.appVariant=$variant"
 }
 
+# e2e 변형은 OTA 를 끄고 평문 HTTP 를 켠다(스펙 10.2·10.6) - 내장 번들로 결정적으로 돌고 10.0.2.2 의 http 백엔드에
+# 닿는다. 앱이 읽는 설정(assets/app.config)과, 네이티브 expo-updates 가 읽는 병합된 AndroidManifest.xml 을 본다.
+# 바이너리 매니페스트는 Android SDK build-tools 의 aapt2 로 읽는다. 게이트 [8] 은 빌드 전의 설정 플러그인 결과를
+# 네 변형 모두 재고, 여기서는 실제로 설치할 APK 를 잰다.
+assert_apk_ota_off() {
+  local aapt2 config manifest
+  aapt2=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 "$ANDROID_HOME"/build-tools/*/aapt2.exe 2>/dev/null | sort -V | tail -n 1 || true)
+  if [ -z "$aapt2" ]; then
+    echo "aapt2 가 없다 - APK 의 AndroidManifest.xml 을 읽으려면 Android SDK 의 build-tools 가 필요하다" >&2
+    exit 1
+  fi
+  if ! config=$(unzip -p "$APK" assets/app.config | node -e '
+  const config = JSON.parse(require("fs").readFileSync(0, "utf8"))
+  process.stdout.write(`updates=${JSON.stringify(config.updates)} runtimeVersion=${JSON.stringify(config.runtimeVersion)}`)'); then
+    echo "APK 에서 assets/app.config 를 읽지 못했다: $APK" >&2
+    exit 1
+  fi
+  if [ "$config" != 'updates={"enabled":false} runtimeVersion=undefined' ]; then
+    echo "APK 의 앱 설정이 OTA 를 끄지 않았다 ($config)" >&2
+    exit 1
+  fi
+  if ! manifest=$("$aapt2" dump xmltree --file AndroidManifest.xml "$APK" | node -e '
+  const lines = require("fs").readFileSync(0, "utf8").split(/\r?\n/)
+  const meta = new Map()
+  let inMeta = false
+  let name = null
+  let cleartext = "-"
+  for (const line of lines) {
+    const element = line.match(/^\s*E: (\S+)/)
+    if (element) {
+      inMeta = element[1] === "meta-data"
+      name = null
+      continue
+    }
+    const clear = line.match(/android:usesCleartextTraffic\([^)]*\)=(\S+)/)
+    if (clear) cleartext = clear[1]
+    if (!inMeta) continue
+    const named = line.match(/android:name\([^)]*\)="([^"]*)"/)
+    if (named) {
+      name = named[1]
+      continue
+    }
+    const valued = line.match(/android:value\([^)]*\)=(?:"([^"]*)"|(\S+))/)
+    if (valued && name !== null) meta.set(name, valued[1] ?? valued[2])
+  }
+  const updates = (key) => meta.get(`expo.modules.updates.${key}`) ?? "-"
+  process.stdout.write(`ENABLED=${updates("ENABLED")} URL=${updates("EXPO_UPDATE_URL")} HEADERS=${updates("UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY")} usesCleartextTraffic=${cleartext}`)'); then
+    echo "APK 의 AndroidManifest.xml 을 읽지 못했다: $APK" >&2
+    exit 1
+  fi
+  if [ "$manifest" != 'ENABLED=false URL=- HEADERS=- usesCleartextTraffic=true' ]; then
+    echo "APK 의 AndroidManifest.xml 이 e2e 변형의 설정이 아니다 ($manifest)" >&2
+    exit 1
+  fi
+  echo "APK 의 OTA: $config · AndroidManifest.xml $manifest"
+}
+
 # Metro 의 디스크 캐시(Metro 가 쓰는 os.tmpdir() 의 metro-cache - Windows 는 %TEMP%, 그 밖은 $TMPDIR)를 비운다. Gradle
 # 의 번들 단계(createBundleReleaseJsAndAssets)가 번들을 다 쓴 뒤 node 의 종료에서 0xC0000005 로 죽은 빌드가 있었고, 이
 # 캐시를 지운 뒤에는 재현되지 않았다(docs/superpowers/notes/2026-09-30-d3-measurements.md 의 L7). 그 번들 명령도
@@ -142,8 +200,23 @@ build() {
   # 데몬 없이 빌드한다 - 빌드가 끝나면 Gradle 프로세스도 끝난다. 남은 데몬은 지난 빌드의 산출물(mergeDexRelease 의
   # classes*.dex)을 쥐고 있어서 Windows 에서 다음 빌드 앞의 사본 지우기(run-android.sh 의 stage_sources)가 "Device or
   # resource busy" 로 멈췄다 - 그 데몬을 멈추자 지워졌다(docs/superpowers/notes/2026-10-01-d4-measurements.md 의 W1).
-  (cd android && ./gradlew assembleRelease --no-daemon)
+  # 데몬의 JVM 인자는 명령줄에서 준다(-D 가 prebuild 가 다시 만드는 android/gradle.properties 보다 앞선다). 그 파일의
+  # 기본값(-Xmx2048m -XX:MaxMetaspaceSize=512m)으로는 expo-updates 의 KSP2(Room 컴파일러 - 데몬 안에서 돈다)가 병렬
+  # lintVital 들과 함께 돈 32코어 머신에서 데몬의 Metaspace 가 상한에 닿아(521246K/524288K) kspReleaseKotlin 이
+  # OutOfMemoryError: Metaspace 로 죽고 데몬이 멈췄다(docs/superpowers/notes/2026-10-01-d6-measurements.md 의 O4).
+  local gradle_jvm='-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m'
+  # expo-updates 의 단계(createReleaseUpdatesResources)는 먼저 따로, 빈 Metro 캐시에서 돌린다. 그 단계는 내장 매니페스트
+  # (app.manifest)를 만들려고 Metro 를 캐시를 지우지 않고(createManifestForBuildAsync 의 resetCache: false) 돌리는데, 한
+  # 빌드 안에서 번들 단계(createBundleReleaseJsAndAssets)가 먼저 채운 캐시 위에서 돌자 매니페스트를 다 쓴 뒤 node 의
+  # 종료에서 0xC0000005 로 죽었다 - 같은 명령을 Gradle 밖에서 되풀이하니 캐시를 둔 채 13번 중 7번, 매번 지우고 10번 중
+  # 0번이었다(D1 실측 M1 관찰 8·D3 실측 L7 과 같은 모양 - docs/superpowers/notes/2026-10-01-d6-measurements.md 의 O4).
+  # 캐시를 다시 비운 뒤의 둘째 Gradle 에서 그 단계는 입력(문자열뿐)과 출력이 같아 UP-TO-DATE 로 건너뛰고, 번들 단계는
+  # 스스로 캐시를 지운다(--reset-cache).
+  (cd android && ./gradlew :app:createReleaseUpdatesResources --no-daemon "$gradle_jvm")
+  clear_metro_cache
+  (cd android && ./gradlew assembleRelease --no-daemon "$gradle_jvm")
   assert_apk_variant
+  assert_apk_ota_off
   ls -l "$APK"
 }
 

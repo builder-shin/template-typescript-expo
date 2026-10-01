@@ -31,7 +31,7 @@ appId: com.example.templateexpo.e2e
 - assertNotVisible:
     id: lab-screen
 # 홈의 진입을 빠르게 두 번 누른다(`repeat: 2`) - 실험실이 하나만 쌓였으면 뒤로 한 번에 홈이다. 둘째 누름이 실험실에
-# 닿는 자리는 관계 전용 쓰기 카드의 설명 글이라 누를 것이 없다.
+# 닿는 자리는 첫 카드(PUT upsert)의 설명 글이라 누를 것이 없다 - 그 카드의 실행 버튼은 그보다 126dp 아래다.
 - tapOn:
     id: home-lab-link
     repeat: 2

@@ -997,6 +997,12 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > 협상의 422 둘 - ko 본문에 한글이 있고 en 본문에 없다). 결과의 단계마다 testID 가 있어 단계의 본문끼리 본다. 결과는
 > `docs/superpowers/notes/2026-10-01-d5-measurements.md` 의 C3.
 
+> 정정(2026-10-01, D6): E2E `home-build-info` 가 e2e 변형 APK 의 빌드 정보 카드를 기기에서 본다 - 변형 e2e, OTA 꺼짐,
+> runtime version·채널·업데이트 ID 없음, 확인 버튼 대신 안내. `test/e2e/android.sh build` 는 만든 APK 의 앱 설정
+> (`assets/app.config` - `updates` 가 `{ enabled: false }` 이고 `runtimeVersion` 이 없다)과 병합된 AndroidManifest.xml
+> (`aapt2` - expo-updates 의 `ENABLED` 가 `false`, 업데이트 주소·채널 머리글이 없고 평문 HTTP 가 켜져 있다)을
+> 단언한다. OTA 를 켠 변형의 기기 실증은 계정이 필요해 15장 9단계다. 결과는 D6 실측 O4.
+
 ### 11.4 E2E 스택
 
 - `docker-compose.e2e.yml`은 Next.js 파일에서 `web` 서비스를 뺀 것이다. 백엔드마다
@@ -1201,6 +1207,11 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > `Platform.select`·`Platform.OS` 로 클래스 문자열을 고른다. 패치는 Metro 변환기 안쪽을 고쳐야 하고, 고쳐진
 > 릴리스는 아직 없다(npm `latest` 1.12.0). 폰과 태블릿이 같은 크기를 쓴다. 근거는
 > `docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L2.
+
+> 정정(2026-10-01, D6): 위 "설정 오류가 OTA로 배포된다" 의 대응 가운데 `fingerprint` 정책은 잰 사실이다 - 설정이 다른
+> 환경의 발행은 runtime version 이 달라 빌드에 닿지 않는다(10.6 의 D6 정정 (c), D6 실측 O1). 게이트 8단계가 변형별
+> 네이티브 설정을 검사한다(12장의 D6 정정). "OTA 실증에 Expo 계정이 필요하다" 는 그대로다 - D6 는 계정 없이 설정과
+> 빌드 정보 카드만 쟀다.
 
 ## 17. 완료 조건
 

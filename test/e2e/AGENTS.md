@@ -93,8 +93,18 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
   순으로 목록·쓰기 플로보다 먼저 돈다(뒤에 행이 늘어도 20쪽 상한 안이면 끝에 닿는다).
 - 딥링크로 곧장 연 실험실은 앱을 멈춘 뒤(`stopApp`) `openLink` 로 연다 - 앱이 떠 있으면 딥링크가 홈 위에 실험실을 쌓아
   헤더의 "홈으로"(`back-to-home-button`)가 그려지지 않는다. 홈의 진입(`home-lab-link`)을 `repeat: 2` 로 누르면 둘째 누름은
-  이동 가드가 버리거나 실험실의 같은 자리(관계 전용 쓰기 카드의 설명 글 - 누를 것이 없다)에 닿는다. 홈의 진입이나 그
-  카드를 옮기면 그 자리를 다시 본다.
+  이동 가드가 버리거나 실험실의 같은 자리(첫 카드인 PUT upsert 의 설명 글 - 누를 것이 없다)에 닿는다. 홈의 진입이나
+  실험실의 첫 카드를 옮기면 그 자리를 다시 본다.
+
+## 빌드 정보 플로
+
+- 홈의 빌드 정보 카드(`components/app/build-info-card.tsx`)는 행마다 testID 가 있다 - `build-info-<키>`(`version`·
+  `variant`·`ota`·`runtime`·`channel`·`update`), OTA 를 끈 빌드의 안내 `build-info-ota-off`, 켠 빌드의 확인 버튼
+  `build-info-check`. e2e 변형은 OTA 를 끄므로 `flows/home-build-info.yaml` 은 "없음"·"꺼짐" 과 안내를 본다 - 확인
+  버튼을 누르는 기기 실증은 계정이 필요해 스펙 15장 9단계다.
+- `android.sh build` 는 만든 APK 의 앱 설정(`assets/app.config` 의 `updates`·`runtimeVersion`)과 병합된
+  AndroidManifest.xml(Android SDK build-tools 의 `aapt2` 로 읽는다 - expo-updates 의 `ENABLED`·주소·채널 머리글,
+  평문 HTTP)이 e2e 변형의 것인지 단언한다. 빌드 레시피라 이 파일을 고치면 APK 를 다시 만든다.
 
 ## 돌리기
 
@@ -109,9 +119,15 @@ E2E_FLOW="register-conflict" ./test/e2e/run-android.sh       # 일부 - 개발�
 `C:/t/e`)의 사본에서 빌드한다. 결과는 `.maestro-output/e2e/<플로>/`에 남는다. 빌드할 때마다 Gradle 앞에서 Metro 의 디스크
 캐시(`os.tmpdir()` 의 `metro-cache`)를 비운다(`android.sh` 의 `clear_metro_cache`) - 캐시가 남은 채 돈 번들 단계가
 0xC0000005 로 죽은 적이 있고 지운 뒤에는 재현되지 않았다(`docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L7).
-재시도로 덮지 않는다. Gradle 은 데몬 없이 돈다(`--no-daemon`) - 남은 데몬이 지난 빌드의 산출물(`classes*.dex`)을 쥐고 있어
+재시도로 덮지 않는다. Gradle 은 두 번 돈다 - expo-updates 의 단계(`:app:createReleaseUpdatesResources`)를 빈 캐시에서 먼저
+돌리고, 캐시를 다시 비운 뒤 `assembleRelease` 를 돌린다(그 단계는 거기서 UP-TO-DATE). 그 단계는 Metro 를 캐시를 지우지 않고
+돌리는데, 번들 단계가 채운 캐시 위에서는 node 의 종료에서 0xC0000005 로 죽었다(`docs/superpowers/notes/2026-10-01-d6-measurements.md`
+의 O4). Gradle 은 데몬 없이 돈다(`--no-daemon`) - 남은 데몬이 지난 빌드의 산출물(`classes*.dex`)을 쥐고 있어
 Windows 에서 다음 빌드 앞의 사본 지우기가 "Device or resource busy" 로 멈췄다(`docs/superpowers/notes/2026-10-01-d4-measurements.md`
-의 W1). 사본 지우기가 도중에 멈춰도 표식(`.e2e-stage`)은 남아 다음 실행이 그 사본을 알아본다.
+의 W1). 사본 지우기가 도중에 멈춰도 표식(`.e2e-stage`)은 남아 다음 실행이 그 사본을 알아본다. 그 데몬의 JVM 인자는
+명령줄(`-Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m"`)로 준다 - prebuild 가 만드는 `android/gradle.properties`
+의 기본값(Metaspace 512MiB)으로는 expo-updates 의 KSP 가 병렬 lint 와 함께 돌 때 데몬의 Metaspace 가 차서 빌드가 죽었다
+(`docs/superpowers/notes/2026-10-01-d6-measurements.md` 의 O4).
 
 하네스(`run-android.sh`·`android.sh`)가 읽는 환경 변수다.
 
