@@ -45,17 +45,24 @@ vitest 다. 게이트의 `[12/13]` 이 `run.sh` 하나로 돈다.
   `minLength`·`nullable`·`readOnly` 는 재지 않으며, 쓰기 라우트가 있는 `examples` 에만 있다.
 - **응답은 속성 키 집합(②)만 본다.** 값의 타입·형식, 관계, `included`, 링크, 쪽 매김은 재지 않는다.
 
+## 준비 확인
+
+준비는 compose --wait 뒤에 curl 로 최대 30번 확인한다(연결 1초·요청 2초, 실패 사이 1초 최대 29번).
+성공하면 거울 한 번, 상한에 닿으면 기존 준비 실패 문구·exit 1 과 이 프로젝트의 정리다(D7 결정 42).
+
 ## 돌리기
 
 ```bash
 ./test/contract/run.sh                                                # 스택을 띄우고 돈다(게이트 [12/13])
+BACKEND_KIND=rails ./test/contract/run.sh                             # 다른 백엔드(CI 의 e2e-android 잡과 같다)
 CONTRACT_API_URL=http://127.0.0.1:4100 pnpm test:contract           # 이미 떠 있는 스택에 - 개발용
 ```
 
-| 변수               | 뜻                                                                                                    |
-| ------------------ | ----------------------------------------------------------------------------------------------------- |
-| `E2E_API_PORT`     | 백엔드를 여는 호스트 포트(기본 4100, `docker-compose.e2e.yml`·E2E 하네스와 같다) - `run.sh` 가 읽는다 |
-| `CONTRACT_API_URL` | 호스트에서 백엔드에 닿는 주소 - `run.sh` 가 준다. 없으면 시험이 곧바로 그 사실을 알리고 실패한다      |
+| 변수               | 뜻                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------- |
+| `E2E_API_PORT`     | 백엔드를 여는 호스트 포트(기본 4100, `docker-compose.e2e.yml`·E2E 하네스와 같다) - `run.sh` 가 읽는다   |
+| `BACKEND_KIND`     | 띄울 백엔드(fastapi·nestjs·rails, 기본 fastapi) - `test/e2e/matrix.ts` 가 도커를 건드리기 전에 검증한다 |
+| `CONTRACT_API_URL` | 호스트에서 백엔드에 닿는 주소 - `run.sh` 가 준다. 없으면 시험이 곧바로 그 사실을 알리고 실패한다        |
 
 스택은 E2E 와 같은 compose 프로젝트(`template-typescript-expo-e2e`)이고 그 프로젝트만 띄우고 내린다. access
 token 수명은 백엔드 기본값(900초)이다 - E2E 하네스가 주는 10초(`E2E_ACCESS_EXPIRES_SECONDS`)를 쓰지 않는다.

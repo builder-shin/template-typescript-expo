@@ -10,6 +10,7 @@ import { useUniwind } from 'uniwind'
 
 import { FatalConfig } from '@/components/app/fatal-config'
 import { loadStartupSettings } from '@/platform/config'
+import { markNativeWarningsForE2e } from '@/platform/e2e-log'
 import { queryClient, useQueryRefetchTriggers } from '@/platform/query-client'
 import { sessionManager, useSessionStatus } from '@/platform/session'
 import { NAV_THEME } from '@/platform/theme'
@@ -18,6 +19,10 @@ export { ErrorBoundary } from 'expo-router'
 
 // 모듈 평가 시점에 한 번 - 어떤 요청보다 먼저 설정 자리를 extra 로 돌린다.
 const STARTUP = loadStartupSettings()
+
+// e2e 변형이면 JS 경고에 표식을 붙인다 - iOS 의 E2E 가드가 경고를 가르는 재료다(platform/e2e-log.ts). 변형은 설정이
+// 맞을 때만 읽는다.
+if (STARTUP.ok) markNativeWarningsForE2e()
 
 // 설정이 맞을 때만 세션을 되살리는 동안 스플래시를 붙잡는다(스펙 7.1). 컴포넌트 안에서 부르면
 // 스플래시가 이미 내려간 뒤일 수 있어(expo-splash-screen 의 안내) 모듈 평가 시점에 부른다. 설정이

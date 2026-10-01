@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # 단일 검증 게이트 - 스펙 12장. 이 명령이 통과하면 통과다.
 #
-#   ./scripts/check.sh
+#   ./scripts/check.sh            게이트 전부 - 이 명령이 통과해야 통과다
+#   ./scripts/check.sh --static   정적 단계 [1]–[11] 만 돌고 멈춘다 - CI 의 checks 잡이 부른다(스펙 13장). 계약
+#                                 거울([12])과 E2E([13])는 CI 가 백엔드마다 따로 돈다. 통과해도 게이트 통과가 아니다
 #
 # 형제 템플릿들의 scripts/check.sh 와 같은 계약이다. 정적 단계 열하나 뒤에 계약 거울(FastAPI 스택 +
 # test/contract)과 E2E(Android 에뮬레이터 + FastAPI)를 돈다. 계약 거울은 앱도 기기도 쓰지 않아 E2E
@@ -33,6 +35,16 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+
+# 인자는 --static 하나뿐이다. 환경 변수로 두지 않는다 - 셸에 남은 값이 로컬 게이트를 조용히 줄이지 못하게 한다.
+case "${1:-}" in
+  '') static_only=0 ;;
+  --static) static_only=1 ;;
+  *)
+    echo "사용법: $0 [--static]" >&2
+    exit 2
+    ;;
+esac
 
 GATE_BACKEND_URL='https://gate-check.invalid'
 # [8] 이 OTA 를 켠 설정을 잴 때 쓰는 EAS 프로젝트 id. 모양만 UUID 이고 어떤 프로젝트도 아니다 - 설정 평가는 EAS 에
@@ -117,6 +129,11 @@ APP_VARIANT=production BACKEND_URL="$GATE_BACKEND_URL" pnpm exec expo export --c
 # 참조 무결성·프로파일 소속까지만 본다 - 빌드 컨텍스트가 실재하는지는 보지 않는다.
 echo "=== [11/13] compose ==="
 pnpm compose:verify
+
+if [ "$static_only" -eq 1 ]; then
+  echo "=== 정적 단계 [1]–[11] 통과 (--static) - 계약 거울·E2E 는 돌지 않았다 ==="
+  exit 0
+fi
 
 # 자원 선언(lib/resources)이 백엔드의 계약과 같은지 실제 FastAPI 스택에 HTTP 로 맞댄다(스펙 11.2). 이 저장소의
 # compose 프로젝트만 띄우고 내린다.

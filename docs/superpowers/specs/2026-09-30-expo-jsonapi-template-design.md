@@ -1008,6 +1008,19 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > (`aapt2` - expo-updates 의 `ENABLED` 가 `false`, 업데이트 주소·채널 머리글이 없고 평문 HTTP 가 켜져 있다)을
 > 단언한다. OTA 를 켠 변형의 기기 실증은 계정이 필요해 15장 9단계다. 결과는 D6 실측 O4.
 
+> 정정(2026-10-01, D7): 같은 플로를 iOS 하네스도 돈다(13장) - 플로는 두 플랫폼에서 같은 뜻이어야 한다. Maestro 2.11.0 의
+> iOS 드라이버는 `back`·`pressKey: back` 을 아무것도 하지 않고(`IOSDriver.backPress` 가 빈 구현) `setAirplaneMode` 는
+> 경고만 남긴다. 그래서 한 화면 뒤로는 `test/e2e/subflows/back.yaml`(iOS 는 머리글 뒤로 버튼의 식별자 `BackButton`),
+> Android 에만 있는 뒤로 가기(돌아갈 화면이 없는 로그인 화면 → 홈)는 `subflows/android-back.yaml` 과 플로의 iOS 갈래
+> (머리글의 "홈으로" - `back-to-home-button`, 7.3 의 D4 정정)이고, 시트는 두 플랫폼 모두 배경(`sheet-backdrop`)을 눌러 닫고, 비행기 모드 플로(`examples-offline-refetch`,
+> D4 의 `examples-delete` 에서 떼어 낸 `examples-delete-offline`)는 머리말 `# e2e-platforms: android` 로 iOS 에서 건너뛴다(같은
+> 플로 안의 Android 갈래로 두면 머리말이 선언한 상태 0 이 iOS 에서 나오지 않아 가드가 실패한다). 로캘 플로의 `launchApp` 은 iOS 의 실행 인자(`-AppleLanguages`)를
+> `arguments` 로 싣고(하네스가 넘기는 `APP_LOCALE`), `start-signed-out` 은 `clearKeychain` 도 준다(7.5 의 D2 정정 - iOS
+> 키체인의 세션은 앱을 다시 설치해도 남는다). `test/unit/e2e/flows.test.ts` 가 규칙을 소스에서 잰다. 요청 타임아웃(8.5)은
+> `E2E_CHECKS=1` 일 때 하네스가 백엔드 대신 멈춘 서버(`test/e2e/stall-server.ts`)를 같은 포트에 띄워
+> `test/e2e/checks/request-stall.yaml` 로 잰다 - 헤더 전에 멈추는 요청과 헤더 뒤 본문에서 멈추는 요청이 모두 전체 화면
+> 실패로 끝나고, 기기 로그에 `REQUEST_TIMEOUT` 둘, 서버 기록에 두 방식이 있어야 통과다. Android 의 결과는 D7 실측 기록 K1.
+
 ### 11.4 E2E 스택
 
 - `docker-compose.e2e.yml`은 Next.js 파일에서 `web` 서비스를 뺀 것이다. 백엔드마다
@@ -1084,6 +1097,15 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > client 의 prebuild 가 남긴다) 설정 플러그인이 그것을 바탕으로 삼고 scheme 은 더하기만 해서, 앞선 빌드의 값이 섞여 설정이
 > 어긋난 것처럼 보인다. 사본을 만들고 지우는 것까지 여덟 평가가 이 개발 머신에서 10초 안팎이고, 설정에 어긋남을 넣으면 그
 > 자리를 알리며 멈춘다(D6 실측 O3).
+
+> 정정(2026-10-01, D7): `./scripts/check.sh --static` 은 정적 단계 [1]–[11] 만 돌고 "정적 단계 [1]–[11] 통과 (--static)" 로
+> 끝난다 - CI 의 checks 잡이 부른다(13장). 인자로만 켜고 모르는 인자는 exit 2 다 - 셸에 남은 환경 변수가 로컬 게이트를
+> 조용히 줄이지 않는다. 인자 없는 게이트는 13단계 그대로다. [12]·[13] 이 띄우는 백엔드는 `BACKEND_KIND`(fastapi·nestjs·
+> rails, 기본 fastapi)가 고르고, Next.js 에서 원본 그대로 복사한 `test/e2e/matrix.ts` 의 `backendKind()` 가 도커를 건드리기
+> 전에 검증한다 - compose 는 모르는 프로파일을 오류 없이 부분 스택으로 푼다. 게이트는 그 변수를 주지 않는다(FastAPI). E2E
+> 단계에 `E2E_CHECKS=1` 을 주면 플로 뒤에 멈춘 서버 확인(11.3 의 D7 정정)을 더 돈다 - 게이트는 주지 않는다. E2E 단계는
+> 플로마다 가드 뒤에 앱의 요청 수(D4 실측 W2–W4 - 쓰기마다 회전, 돌아온 목록의 재조회, 두 번 누른 제출의 요청 하나)를 그
+> 플로의 접근 로그에서 단언한다(`test/e2e/request-counts.ts` - FastAPI 의 접근 로그만 센다).
 
 ## 13. CI (GitHub Actions)
 

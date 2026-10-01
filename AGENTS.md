@@ -130,7 +130,8 @@ pnpm install --frozen-lockfile
 
 `./scripts/check.sh` 하나가 유일한 게이트다(typecheck · lint · format · secretlint · 인용 ·
 복사 출처 · unit · 설정 · 의존성 호환 · 번들 · compose · 계약 거울 · E2E). 전제 조건(Docker, 네트워크,
-Android SDK·Maestro·에뮬레이터)은 그 파일 머리말에 있다. Windows에서는 Git Bash에서
+Android SDK·Maestro·에뮬레이터)은 그 파일 머리말에 있다. 정적 단계 [1]–[11] 만은
+`./scripts/check.sh --static`이다(CI 의 checks 잡이 부른다 - 통과해도 게이트 통과가 아니다). Windows에서는 Git Bash에서
 `./scripts/check.sh`로 돌린다 - `package.json`의 `check` 스크립트(`pnpm check`)는 pnpm이 cmd.exe로
 돌려 `./`를 못 찾고 실패한다. 실행 권한이 살아 있어야 통과한다 - `git ls-tree HEAD scripts/ test/e2e/ test/contract/`에서
 `scripts/check.sh`·`scripts/check-citations.sh`·`test/e2e/android.sh`·`test/e2e/run-android.sh`·
@@ -174,3 +175,5 @@ secretlint 단계는 `pnpm lint:secrets`다. 스크립트 이름을 `secretlint`
 `docs/superpowers/notes/2026-10-01-d5-measurements.md`에 있다.
 EAS·OTA 설정의 변형별 검증, 설정이 다르면 fingerprint runtime version 이 갈리는 것, 빌드 정보 카드(D6 실측 O1–O4)는
 `docs/superpowers/notes/2026-10-01-d6-measurements.md`에 있다.
+세 백엔드의 계약 거울, 멈춘 서버로 잰 요청 타임아웃, 360dp 의 날짜 자리표시자, CI 매트릭스의 첫 실행(D7 실측 K1–K3)은
+`docs/superpowers/notes/2026-10-01-d7-measurements.md`에 있다.

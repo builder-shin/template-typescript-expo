@@ -73,7 +73,7 @@ appId: com.example.templateexpo.e2e
       id: detail-heading
       text: ${output.prefix} 01
     timeout: 20000
-- back
+- runFlow: ../subflows/back.yaml
 - runScript:
     file: ../scripts/examples-api.js
     env:

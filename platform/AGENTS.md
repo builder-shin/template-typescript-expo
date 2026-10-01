@@ -6,6 +6,7 @@ Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 
 | 파일                        | 역할                                                                                                                                                                                                                                             |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `config.ts`                 | 설정 자리를 `app.config.ts`의 `extra`로 돌리고 시작할 때 검증한다. 빌드 변형과 딥링크 scheme 을 읽는다. 판단은 `lib/config/startup.ts`·`lib/navigation/deep-link.ts`                                                                             |
+| `e2e-log.ts`                | e2e 변형에서 JS 경고가 네이티브 로그로 갈 때 표식을 붙인다(`nativeLoggingHook` 을 감싼다 - iOS 의 E2E 가드가 경고를 가른다, 스펙 11.3). 표식은 `lib/jsonapi/failure-log.ts`                                                                      |
 | `api.ts`                    | 앱의 API 클라이언트 `apiRequest`. Accept-Language 를 싣는 유일한 자리(스펙 9.4) - 값은 기기 언어(`deviceAcceptLanguage`)이고 호출자가 정했으면 그 값이다(계약 실험실). e2e 변형의 실패 표식                                                      |
 | `secure-session-storage.ts` | 세션 항목의 SecureStore 저장 매체                                                                                                                                                                                                                |
 | `session.ts`                | 세션 관리자 `sessionManager` 하나와 상태 훅 `useSessionStatus()`                                                                                                                                                                                 |
@@ -32,7 +33,8 @@ Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 
 - 요청으로 이어질 수 있는 훅(세션·Query·AppState·NetInfo - `useQueryRefetchTriggers`)은 루트 레이아웃의 `STARTUP.ok`
   갈래 안의 자식(`AppRoot`)에 둔다. 루트에 두면 설정이 틀린 앱에서 `request()`가 던지는 설정 오류가
   ErrorBoundary로 가서 치명 오류 화면을 가린다. 세션 복원(`sessionManager.restore()`)도 그 자식의
-  효과가 시작한다. 모듈 평가 시점에 두는 것은 설정 검증과, `STARTUP.ok`일 때의 스플래시 붙잡기
+  효과가 시작한다. 모듈 평가 시점에 두는 것은 설정 검증과, `STARTUP.ok`일 때의 e2e 변형 경고 표식(`markNativeWarningsForE2e` -
+  루트 레이아웃보다 늦으면 먼저 평가된 모듈의 경고를 놓친다)과 스플래시 붙잡기
   (`preventAutoHideAsync` — 컴포넌트 안에서는 늦을 수 있다)뿐이다.
 
 ## 검증

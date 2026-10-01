@@ -1,7 +1,8 @@
 # test/e2e/ 작업 지침
 
 Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). 게이트의 E2E 단계는
-`test/e2e/run-android.sh` 하나다.
+`test/e2e/run-android.sh` 하나다. 세 백엔드와 iOS 는 CI 가 같은 플로로 돈다(스펙 13장 - 아래 "두 플랫폼"·"백엔드
+매트릭스" 절).
 
 ## 플로를 쓸 때
 
@@ -9,10 +10,12 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
   `subflows/`에 두고 `runFlow`로 부른다.
 - 머리말 주석으로 하네스에 선언한다: `# e2e-allow-http: <상태>...`(일부러 일으키는 2xx 밖의
   상태 - 선언하지 않은 상태가 기기 로그에 나오거나 선언한 상태가 한 번도 나오지 않으면 실패다),
-  `# e2e-app-locale: <태그>`(앱별 언어). 앱의 줄(ReactNativeJS)이 하나도 없는 기기 로그도 실패다 - 로그를
+  `# e2e-app-locale: <태그>`(앱별 언어), `# e2e-platforms: <플랫폼>...`(그 플로가 도는 플랫폼 - 아래 "두
+  플랫폼"). 앱의 줄(ReactNativeJS)이 하나도 없는 기기 로그도 실패다 - 로그를
   모으지 못한 것이다(`guard-log.sh`).
 - `EMAIL`·`OTHER_EMAIL`(플로마다 새로 만든다 - `probe-email.ts`)과 `PASSWORD`가 env 로 들어온다.
-  `OTHER_EMAIL`은 한 플로 안의 두 번째 사용자다. 실전 상수와 같은 값을 쓰지 않는다.
+  `OTHER_EMAIL`은 한 플로 안의 두 번째 사용자다. 실전 상수와 같은 값을 쓰지 않는다. 로캘 플로에는 머리말의
+  값이 `APP_LOCALE` 로도 들어온다(iOS 의 실행 인자 - 아래 "두 플랫폼").
 - 하네스는 `MAESTRO_CLI_NO_ANALYTICS=1`로 Maestro 의 사용 통계를 끄고, 플로마다 `--debug-output`으로
   기록을 따로 받는다.
 - 화면 요소는 testID(`id:`)로 찾는다. 문구로 찾지 않는다 - 오류 문구는 백엔드가 협상한 언어다.
@@ -53,7 +56,8 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
   5초 앞부터 잘라(호스트와 Docker 의 시계 차이) 앞 플로의 끝 줄이 섞인다 - 요청을 셀 때는 이 플로의 첫 요청(스크립트의 가입
   `POST /api/v1/auth/register`) 줄부터 센다.
 - 백엔드에 닿지 못하는 상황은 비행기 모드로 만든다(`setAirplaneMode`) - 에뮬레이터에서 곧바로 "Network is
-  unreachable" 이 된다. 플로는 셸 명령을 부를 길이 없어 백엔드 컨테이너를 멈추는(`docker pause`) 길은 쓰지 않는다. 기기
+  unreachable" 이 된다. 플로는 셸 명령을 부를 길이 없어 백엔드 컨테이너를 멈추는(`docker pause`) 길은 쓰지 않는다. iOS
+  시뮬레이터에는 비행기 모드가 없다 - 그런 플로는 머리말에 `# e2e-platforms: android` 를 적는다. 기기
   상태를 바꾸는 플로는 머리에 `onFlowComplete` 로 되돌린다(실패해도 돈다 - 2.11.0 에서 확인했다). 끊긴 요청은 e2e
   변형이 상태 0 실패로 남기니 머리말에 `# e2e-allow-http: 0` 을 적는다. 작은 실패는 `request-failed-compact`, 화면
   전부의 실패는 `request-failed` 다(`id:` 가 전체 일치라 서로 맞지 않는다).
@@ -77,6 +81,8 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
 - `examples-create` 의 로그인 제출 둘째 누름은 홈의 `build-info-card` 안에서 행 사이에 닿는다는 전제로 쓴다 - Pixel 9 AVD 의
   로그인 전 홈 덤프에서 버전 행은 y≈975px 까지, 변형 값은 y≈996px 부터이고 누름은 (540, 993) 이었다(D6 실측 O4).
   OTA 를 끈 카드에는 누를 수 있는 노드가 없어 늦은 누름도 아무 일도 하지 않는다. 그 자리에 버튼이 생기면 다시 잰다.
+  iOS 시뮬레이터의 같은 누름 좌표는 아직 재지 않았다 - CI 에서 examples-create 가 실패하면 첫 누름 전/이동 뒤의
+  스크린샷·계층·둘째 누름 좌표와 api.log 의 로그인 한 번을 함께 확인한다(D7 결정 43·실측 기록 K3).
 
 ## 계약 실험실 플로
 
@@ -110,11 +116,71 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
   AndroidManifest.xml(Android SDK build-tools 의 `aapt2` 로 읽는다 - expo-updates 의 `ENABLED`·주소·채널 머리글,
   평문 HTTP)이 e2e 변형의 것인지 단언한다. 빌드 레시피라 이 파일을 고치면 APK 를 다시 만든다.
 
+## 두 플랫폼
+
+같은 플로를 Android(`run-android.sh`)와 iOS(`run-ios.sh` - CI 의 macOS 러너)가 돈다. Maestro 2.11.0 의 iOS 드라이버는
+`back`·`pressKey: back` 을 아무것도 하지 않고 `setAirplaneMode` 는 경고만 남긴다 - 조용히 지나가 플로가 엉뚱한 화면에서
+단언한다. 그래서:
+
+- 한 화면 뒤로는 `runFlow: ../subflows/back.yaml` 이다(Android 는 뒤로 가기, iOS 는 머리글 뒤로 버튼의 식별자
+  `BackButton`). 돌아갈 화면이 없는 화면의 Android 뒤로 가기(가드가 보낸 로그인 화면 → 홈)는
+  `subflows/android-back.yaml` 이고, iOS 에서 같은 자리로 가는 단계(머리글의 "홈으로" - `back-to-home-button`)는 플로가
+  `when: platform: iOS` 로 따로 적는다.
+  플로에 `back`·`pressKey: back` 을 직접 쓰지 않는다.
+- 시트는 배경(`sheet-backdrop`)을 눌러 닫는다 - 두 플랫폼이 같다.
+- 비행기 모드처럼 한 플랫폼에만 있는 명령을 쓰는 플로는 머리말에 `# e2e-platforms: android` 를 적는다 - 빠진
+  플랫폼의 하네스가 그 플로를 건너뛰고 그 사실을 적는다. 그런 단계를 두 플랫폼이 도는 플로의 `when: platform: Android`
+  갈래에 두지 않는다 - 머리말의 `# e2e-allow-http:` 는 플랫폼을 가리지 않아, 그 갈래만 일으키는 상태(비행기 모드의 0)를
+  선언하면 iOS 에서 "선언했는데 나오지 않은" 실패다. 플로를 따로 둔다(`examples-delete-offline`).
+- 로캘 플로의 `launchApp` 은 `arguments: { AppleLanguages: '(${APP_LOCALE})' }` 를 싣는다 - iOS 는 앱별 언어 대신 실행
+  인자(`-AppleLanguages`)로 언어를 건다. 하네스가 머리말의 값을 `APP_LOCALE` 로 넘긴다(Android 는 이 인자를 쓰지 않는다).
+- `subflows/start-signed-out.yaml` 은 `clearKeychain: true` 도 준다 - iOS 키체인의 세션은 clearState(앱 다시 설치)로
+  지워지지 않는다(스펙 7.5 의 D2 정정).
+- `test/unit/e2e/flows.test.ts` 가 위 규칙을 소스에서 잰다.
+
+## 백엔드 매트릭스
+
+`BACKEND_KIND`(fastapi·nestjs·rails, 기본 fastapi)가 띄울 백엔드를 고른다 - `run-android.sh`·`test/contract/run.sh` 는
+compose 프로파일로. 원본 그대로 복사한 `matrix.ts` 의 `backendKind()` 가 도커·기기를 건드리기 전에 값을 검증하고(compose
+는 모르는 프로파일을 오류 없이 부분 스택으로 푼다), 하네스가 스택을 띄울 때 `reportKnownDivergences()` 가 그 백엔드의
+알려진 드리프트(오늘 0건)를 한 줄로 찍는다. 게이트는 FastAPI 하나로 돌고, 세 백엔드는 CI 가 돈다. CI 는 APK 를 한 번 만들어
+`E2E_APK` 로 넘긴다 - 하네스는 빌드하지 않고 그 APK 를 설치한다.
+
+## 멈춘 서버 확인 (`checks/`)
+
+`E2E_CHECKS=1` 이면 하네스가 플로 뒤에 백엔드를 내리고 같은 포트에 `stall-server.ts` 를 띄워 `checks/*.yaml` 을 돈다.
+그 플로는 목록 필터의 값(`probe-stall-headers`·`probe-stall-body`)으로 서버가 멈추는 방식(헤더 전·본문 도중)을 고르고,
+요청이 15초 타임아웃에 끊겨 전체 화면 실패(`request-failed`)가 뜨는지 본다. 두 요청이 모두 `REQUEST_TIMEOUT` 으로
+끝났는지는 하네스가 기기 로그와 서버 기록(`.maestro-output/e2e/stall-server.log`)으로 본다 - 서버가 없어 연결이
+거절되면(`NETWORK_ERROR`) 화면은 같다. CI 의 fastapi 갈래가 켜고 게이트는 켜지 않는다.
+
+## 요청 수 (`request-counts.ts`)
+
+하네스는 플로마다 가드 뒤에 그 플로의 접근 로그(`<플로>/api.log`)에서 앱의 요청 수를 단언한다 - D4 실측 W2–W4 가 손으로 센
+것이다. `examples-create` 는 회전 1·앱의 POST 1·로그인 1(두 번 누른 로그인 제출이 요청 하나), `examples-edit` 는 회전 = PATCH(저장마다
+회전 하나), `examples-scroll-refresh` 는 상세 뒤 목록 GET 2(상세에서 돌아온 목록이 읽어 둔 두 쪽을 다시 읽는다),
+`examples-delete` 는 이 실행의 목록 GET 2(쌓인 목록은 앱 복귀·삭제 뒤 무효화에 다시 부르지 않는다). Android 의 api.log 는 플로
+시작 5초 앞부터라 앞 플로의 끝 줄이 섞이므로 그 플로의 첫 가입(`POST /api/v1/auth/register`) 줄부터 센다. FastAPI(uvicorn)의 접근
+로그만 센다 - NestJS 는 요청을 로그에 남기지 않고 Rails 는 lograge 의 JSON 이다. 이 네 플로를 고쳐 수가 바뀌면
+`request-counts.ts` 의 `FLOW_CHECKS` 를 함께 고친다.
+
+## 환경 흔적 (Android)
+
+플로가 실패하면 `run-android.sh` 가 그 기록에서 앱 밖(기기·adb)의 실패로 보이는 흔적을 짚는다(`environment_hint`) - 기기
+로그의 `Active window root not found`(Maestro 의 기기 드라이버가 앱 창을 찾지 못한 정지 - 오래 켠 에뮬레이터,
+`docs/superpowers/notes/2026-10-01-d5-measurements.md` 의 C2 ①)의 수와, `maestro.log` 의 첫 `java.net.ConnectException`(Maestro 가
+adb 서버나 백엔드에 닿지 못했다 - C2 ②). 그래서 `logcat.txt` 는 앱의 줄과 함께 `UiDevice` 의 경고도 모은다 - 가드는 그
+줄을 보지 않는다(앱의 `ReactNativeJS` 줄과 `FATAL EXCEPTION` 만 본다). 짚기만 하고 재시도하지 않는다(스펙 16장) - 플로는 실패
+그대로이고, 원인은 에뮬레이터를 다시 부팅하거나(`test/e2e/android.sh boot`) adb 서버를 다시 띄워 가른다. 같은 흔적은 통과한
+플로에도 몇 번 있을 수 있다(C2 ① - 0–6번) - 실패한 플로에서만 짚는다.
+
 ## 돌리기
 
 ```bash
 E2E_AVD=Pixel_9_API_36 ./test/e2e/run-android.sh            # 전부
 E2E_FLOW="register-conflict" ./test/e2e/run-android.sh       # 일부 - 개발용
+BACKEND_KIND=nestjs ./test/e2e/run-android.sh                # 다른 백엔드(CI 의 매트릭스와 같다)
+E2E_CHECKS=1 ./test/e2e/run-android.sh                       # 플로 뒤에 멈춘 서버 확인까지
 ```
 
 빌드 입력(시험·문서·스크립트를 뺀 파일과, `test/` 안에 있지만 빌드 레시피인 `test/e2e/android.sh`)이 지난번과
@@ -128,7 +194,10 @@ E2E_FLOW="register-conflict" ./test/e2e/run-android.sh       # 일부 - 개발�
 재시도로 덮지 않는다. Gradle 은 두 번 돈다 - expo-updates 의 단계(`:app:createReleaseUpdatesResources`)를 빈 캐시에서 먼저
 돌리고, 캐시를 다시 비운 뒤 `assembleRelease` 를 돌린다(그 단계는 거기서 UP-TO-DATE). 두 단계 레시피는 둘째 Gradle 에서
 `createReleaseUpdatesResources` 가 UP-TO-DATE 인 것에 기댄다 - 지금 입력은 파일 없이 문자열·문자열 목록·불리언뿐이다. expo-updates 를 올릴 때마다 게이트
-로그에 `> Task :app:createReleaseUpdatesResources UP-TO-DATE` 가 여전히 있는지 확인한다. 두 번째 Metro 캐시 비우기는 번들
+로그에 `> Task :app:createReleaseUpdatesResources UP-TO-DATE` 가 여전히 있는지 `android.sh` 의 `assemble_release` 가
+기계로 단언한다(`--console=plain`, 실행·누락·FROM-CACHE 면 실패). `-x` 로 무조건 제외하지 않는다 - 입력이 파일로 늘면
+다시 돈 단계가 실패로 드러나 두 단계 레시피와 Metro 캐시 순서를 재검토하게 한다. Gradle 의 실패 코드는 tee 뒤에도 보존한다.
+`test/unit/e2e/android-build.test.ts` 가 가짜 gradlew 로 재고, 이 파일의 고침도 APK 지문 입력이라 APK 를 다시 만든다. 두 번째 Metro 캐시 비우기는 번들
 단계도 빈 캐시에서 시작하게 하려는 것이다(D3 실측 L7 의 불변식). 그 단계는 Metro 를 캐시를 지우지 않고
 돌리는데, 번들 단계가 채운 캐시 위에서는 node 의 종료에서 0xC0000005 로 죽었다(`docs/superpowers/notes/2026-10-01-d6-measurements.md`
 의 O4). Gradle 은 상주 데몬 없이 돈다(`--no-daemon`, 빌드마다 일회용 Gradle 데몬을 띄운다) - 남은 데몬이 지난 빌드의
@@ -155,6 +224,9 @@ prebuild 가 만드는 `android/gradle.properties` 의 기본값(Metaspace 512Mi
 | `E2E_FORCE_BUILD`                            | `1` 이면 빌드 입력이 같아도 APK 를 다시 만든다                                                                                                                     |
 | `E2E_ACCESS_EXPIRES_SECONDS`                 | 백엔드의 access token 수명(초, 기본 10) - `docker-compose.e2e.yml` 이 세 백엔드의 `JWT_ACCESS_EXPIRES_SECONDS` 로 넘긴다. 60 이하라 앱의 쓰기가 전부 회전을 지난다 |
 | `E2E_FLOW`                                   | 돌릴 플로 이름(공백으로 구분, 확장자 없이). 비우면 전부 - 게이트는 비우고 부른다                                                                                   |
+| `BACKEND_KIND`                               | 띄울 백엔드(fastapi·nestjs·rails, 기본 fastapi) - `test/e2e/matrix.ts` 가 검증한다                                                                                 |
+| `E2E_APK`                                    | 미리 만든 e2e APK. 주면 빌드하지 않고 설치한다(CI 의 build-android 잡)                                                                                             |
+| `E2E_CHECKS`                                 | `1` 이면 플로 뒤에 멈춘 서버로 `checks/` 를 돈다(위 "멈춘 서버 확인")                                                                                              |
 | `MAESTRO`                                    | Maestro 실행 파일(기본 PATH 의 `maestro`, 없으면 `~/.maestro/bin/maestro`). 2.11.x 가 아니면 멈춘다                                                                |
 | `MAESTRO_CLI_NO_ANALYTICS`                   | 하네스가 `1` 로 export 한다 - Maestro 의 사용 통계를 끈다                                                                                                          |
 | `MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED` | 하네스가 `true` 로 export 한다 - 분석 안내 상자를 끈다                                                                                                             |

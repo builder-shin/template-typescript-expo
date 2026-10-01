@@ -11,7 +11,7 @@ appId: com.example.templateexpo.e2e
     visible:
       id: resource-list
     timeout: 20000
-- back
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       id: home-screen
@@ -58,7 +58,7 @@ appId: com.example.templateexpo.e2e
     text: 2026-04-15 01:02
 - assertVisible: 프로브 분류 하나
 - assertVisible: 프로브 라벨 하나
-- back
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       id: resource-row-title
@@ -69,7 +69,7 @@ appId: com.example.templateexpo.e2e
 # 과녁 `<접두사> 가+나&다=라#마` 와 미끼 셋. 미끼는 값이 & 에서 잘리면(`가+나`), + 가 공백이 되면
 # (`가 나&다=라#마`), # 에서 잘리면(`가+나&다=라`) 필터에 걸린다 - 값이 그대로 백엔드에 닿아야 과녁만 남는다.
 # 단언의 text 는 정규식이라 + 를 \+ 로 적는다.
-- back
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       id: home-screen
@@ -126,8 +126,9 @@ appId: com.example.templateexpo.e2e
 - assertVisible:
     id: filter-input-title-contains
     text: '${output.prefix} 가\+나&다=라#마'
-# 뒤로 가기는 시트만 닫는다(키보드가 없다 - 칸을 누르지 않았다).
-- back
+# 시트의 배경을 누르면 시트만 닫힌다 - 두 플랫폼이 같은 길이다(iOS 에는 뒤로 가기가 없다).
+- tapOn:
+    id: sheet-backdrop
 - extendedWaitUntil:
     notVisible:
       id: filter-sheet

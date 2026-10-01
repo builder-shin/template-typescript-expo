@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# E2E 게이트 단계 - Android 에뮬레이터 + FastAPI 스택 + Maestro(스펙 12장·11.3·11.4).
+# E2E 게이트 단계 - Android 에뮬레이터 + 백엔드 스택 + Maestro(스펙 12장·11.3·11.4). 게이트는 FastAPI 로, CI 의
+# e2e-android 잡은 백엔드마다(BACKEND_KIND) 미리 만든 APK(E2E_APK)로 부른다(스펙 13장).
 #
 #   test/e2e/run-android.sh
 #
-# 순서: 도구 확인 → 기기 준비 → e2e APK(빌드 입력이 지난번과 같으면 다시 만들지 않는다) → 설치 →
-# FastAPI 스택 → test/e2e/flows/*.yaml 을 하나씩 돌리며 플로마다 기기 로그에 가드를 건다 → 이
-# 저장소의 compose 프로젝트만 내린다(실패해도 내린다).
+# 순서: 백엔드 종류 검증 → 도구 확인 → 기기 준비 → e2e APK(빌드 입력이 지난번과 같으면 다시 만들지 않는다) →
+# 설치 → 백엔드 스택 → test/e2e/flows/*.yaml 을 하나씩 돌리며 플로마다 기기 로그에 가드를 걸고 백엔드 요청 수를
+# 단언한다(test/e2e/request-counts.ts) → E2E_CHECKS=1 이면 백엔드 대신 멈춘 서버로 test/e2e/checks/*.yaml → 이 저장소의
+# compose 프로젝트만 내린다(실패해도 내린다).
 #
 # ## 환경 변수
 #
@@ -20,15 +22,23 @@
 #                     이 수명을 따른다
 #   E2E_FLOW          돌릴 플로 이름(공백으로 구분, 확장자 없이). 비우면 전부 - 게이트는 비우고 부른다
 #   MAESTRO           Maestro 실행 파일. 기본은 PATH 의 maestro, 없으면 ~/.maestro/bin/maestro. 2.11.x 여야 한다
+#   BACKEND_KIND      fastapi·nestjs·rails(기본 fastapi) - 띄울 compose 프로파일. test/e2e/matrix.ts 의
+#                     backendKind() 가 검증한다 - 알려진 셋이 아니면 도커·기기를 건드리기 전에 멈춘다
+#   E2E_APK           미리 만든 e2e APK(CI 의 build-android 잡). 주면 빌드하지 않고 그 APK 를 설치한다
+#   E2E_CHECKS        1 이면 플로 뒤에 백엔드를 내리고 같은 포트에 멈춘 서버(test/e2e/stall-server.ts)를 띄워
+#                     test/e2e/checks/*.yaml 을 돈다 - 요청 타임아웃을 기기에서 잰다
 #
 # ## 플로 머리말
 #
-# 플로 파일의 주석 두 가지를 읽는다(test/e2e/AGENTS.md):
+# 플로 파일의 주석 세 가지를 읽는다(test/e2e/AGENTS.md):
 #
 #   # e2e-allow-http: 409     플로가 일부러 일으키는 2xx 밖의 상태. 여기 없는 상태가 기기 로그에
 #                             나와도, 여기 적은 상태가 한 번도 나오지 않아도 실패다(test/e2e/guard-log.sh)
 #   # e2e-app-locale: ko-KR   앱별 언어. 주면 앱 상태를 지우고(pm clear) 그 언어를 정하고, 키보드 자판이
-#                             없는 입력기(IME)로 바꾼 뒤 돈다(아래 "입력기" 절)
+#                             없는 입력기(IME)로 바꾼 뒤 돈다(아래 "입력기" 절). 플로에는 APP_LOCALE 로도 넘긴다 -
+#                             iOS 하네스가 실행 인자(-AppleLanguages)로 거는 값이다
+#   # e2e-platforms: android   이 플로가 도는 플랫폼(android·ios, 공백으로 구분). 없으면 둘 다다. 빠진 플랫폼의
+#                             하네스는 그 플로를 건너뛰고 그 사실을 적는다
 #
 # 플로에는 EMAIL·OTHER_EMAIL(플로마다 새로 만든다 - test/e2e/probe-email.ts)과 PASSWORD 가 env 로
 # 들어간다. OTHER_EMAIL 은 한 플로 안에서 두 번째 사용자가 필요할 때 쓴다. API_URL 은 호스트에서
@@ -37,6 +47,11 @@
 # .maestro-output/e2e/<플로>/ 에 남는다.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+
+# 백엔드 종류를 먼저 검증한다 - 알려진 셋이 아니면 도커·기기를 건드리지 않고 멈춘다(test/e2e/matrix.ts 머리말).
+BACKEND_KIND=$(node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --input-type=module \
+  -e "import { backendKind } from './test/e2e/matrix.ts'; process.stdout.write(backendKind())") || exit 1
+readonly BACKEND_KIND
 
 readonly REPO_ROOT="$PWD"
 readonly PROJECT=template-typescript-expo-e2e
@@ -103,9 +118,10 @@ command -v curl >/dev/null || fail "curl 이 없다"
 readonly -a IME_SETTINGS=(enabled_input_methods default_input_method selected_input_method_subtype)
 ime_saved=()
 
-# 켜진 입력기 가운데 키보드 자판(subtype 의 mode 가 keyboard)이 하나도 없는 첫 입력기의 ID.
+# 설치된 입력기 가운데 키보드 자판(subtype 의 mode 가 keyboard)이 하나도 없는 첫 입력기의 ID. 켜지 않은 것도
+# 본다(-a) - 새로 만든 AVD(CI)는 음성 입력이 설치돼 있어도 켜져 있지 않을 수 있다. 켜는 것은 use_keyless_ime 다.
 keyless_ime() {
-  "$ADB" shell ime list | tr -d '\r' | awk '
+  "$ADB" shell ime list -a | tr -d '\r' | awk '
     function flush() { if (id != "" && !keyboard && first == "") first = id }
     /^[^ ].*:$/ { flush(); id = substr($0, 1, length($0) - 1); keyboard = 0; next }
     /mSubtypeMode=keyboard/ { keyboard = 1 }
@@ -116,12 +132,16 @@ use_keyless_ime() {
   local key ime
   ime=$(keyless_ime)
   if [ -z "$ime" ]; then
-    echo "E2E: 키보드 자판이 없는 입력기가 켜져 있지 않다 - 앱별 언어 플로는 음성 입력 같은 입력기가 필요하다(adb shell ime list -s)" >&2
+    # CI 에서는 끝난 뒤 기기에 물을 수 없다 - 설치된 입력기를 로그에 남긴다.
+    echo "E2E: 키보드 자판이 없는 입력기가 설치돼 있지 않다 - 앱별 언어 플로는 음성 입력 같은 입력기가 필요하다. 설치된 입력기:" >&2
+    "$ADB" shell ime list -a -s >&2 || true
     return 1
   fi
   for key in "${IME_SETTINGS[@]}"; do
     ime_saved+=("$("$ADB" shell settings get secure "$key" | tr -d '\r')")
   done
+  # 켜진 입력기 목록(enabled_input_methods)은 위에서 적어 두었다 - 되돌릴 때 켠 것도 함께 꺼진다.
+  "$ADB" shell ime enable "$ime" >/dev/null || return 1
   "$ADB" shell ime set "$ime" >/dev/null || return 1
   if [ "$("$ADB" shell settings get secure default_input_method | tr -d '\r')" != "$ime" ]; then
     echo "E2E: 입력기를 $ime 로 바꾸지 못했다" >&2
@@ -189,6 +209,13 @@ stage_sources() {
 
 build_and_install() {
   local root fingerprint stamp
+  # CI 는 APK 를 한 번 만들어 백엔드 셋이 나눠 쓴다(스펙 16장의 "E2E 빌드 시간") - 받은 APK 를 그대로 설치한다.
+  if [ -n "${E2E_APK:-}" ]; then
+    [ -f "$E2E_APK" ] || fail "E2E_APK 가 가리키는 APK 가 없다: $E2E_APK"
+    echo "미리 만든 APK 를 쓴다 - 빌드하지 않는다 ($E2E_APK)"
+    "$ADB" install -r "$E2E_APK"
+    return
+  fi
   if test/e2e/android.sh check-path >/dev/null 2>&1; then root="$REPO_ROOT"; else root="$STAGE_DIR"; fi
   fingerprint=$(build_fingerprint)
   stamp="$root/$APK.fingerprint"
@@ -214,12 +241,35 @@ probe_email() {
     -e "import { probeEmail } from './test/e2e/probe-email.ts'; process.stdout.write(probeEmail('probe-e2e', process.argv[1]))" "$1"
 }
 
+# 실패한 플로의 기록에서 앱 밖(기기·adb)의 실패로 보이는 흔적을 짚는다 - 짚기만 하고 재시도하지 않는다(스펙 16장).
+# D5 실측 C2 의 두 번: Maestro 의 기기 드라이버가 앱 창을 찾지 못한 정지(UiAutomator 의 "Active window root not
+# found" - 오래 켠 에뮬레이터)와 Maestro 가 연결하지 못한 것(java.net.ConnectException). 같은 경고는 통과한 플로에도
+# 몇 번 있을 수 있어 실패한 플로에서만 부른다. test/unit/e2e/environment-hint.test.ts 가 이 함수를 떼어 돌린다.
+environment_hint() {
+  local out=$1 stalls connect
+  stalls=$(grep -c 'Active window root not found' "$out/logcat.txt" 2>/dev/null || true)
+  if [ "${stalls:-0}" -gt 0 ]; then
+    echo "E2E: 환경 흔적 - 기기 로그에 UiAutomator 의 'Active window root not found' ${stalls}번 - Maestro 가 앱 창을 찾지 못한 정지일 수 있다(에뮬레이터를 다시 부팅해 가른다: test/e2e/android.sh boot)" >&2
+  fi
+  connect=$(grep -m 1 'java.net.ConnectException' "$out/maestro.log" 2>/dev/null || true)
+  if [ -n "$connect" ]; then
+    echo "E2E: 환경 흔적 - Maestro 가 연결하지 못했다: $connect (adb devices 와 백엔드를 본다)" >&2
+  fi
+  return 0
+}
+
 run_flow() {
-  local flow=$1 name locale allowed email other_email out since rc=0 logcat_rc=0
+  local flow=$1 name locale allowed platforms email other_email out since rc=0 logcat_rc=0
   local device_args=()
   name=$(basename "$flow" .yaml)
   locale=$(header "$flow" e2e-app-locale)
   allowed=$(header "$flow" e2e-allow-http)
+  platforms=$(header "$flow" e2e-platforms)
+  if [ -n "$platforms" ] && [[ " $platforms " != *" android "* ]]; then
+    echo "--- $name (건너뛴다 - e2e-platforms: $platforms)"
+    skipped+=("$name")
+    return 0
+  fi
   email=$(probe_email "$name")
   other_email=$(probe_email "$name-other")
   out="$OUT/$name"
@@ -246,15 +296,17 @@ run_flow() {
   fi
 
   echo "--- $name${locale:+ ($locale)}"
-  # 백엔드 접근 로그를 이 플로의 몫만 남긴다 - 5초 앞에서 자른다(호스트와 Docker 의 시계 차이).
-  since=$(date -u -d '5 seconds ago' +%Y-%m-%dT%H:%M:%SZ)
+  # 백엔드 접근 로그를 이 플로의 몫만 남긴다 - 5초 앞에서 자른다(호스트와 Docker 의 시계 차이). Unix 시각이라
+  # GNU·BSD date 모두에서 같다(docker compose logs --since 가 받는다).
+  since=$(($(date +%s) - 5))
   "$MAESTRO" test --no-ansi ${device_args[@]+"${device_args[@]}"} --debug-output "$out/debug" \
     -e "EMAIL=$email" -e "OTHER_EMAIL=$other_email" -e "PASSWORD=$E2E_PASSWORD" \
-    -e "API_URL=http://127.0.0.1:$API_PORT" "$flow" >"$out/maestro.log" 2>&1 || rc=$?
-  # adb 의 오류도 그 파일에 남긴다(2>&1) - 모으지 못한 까닭을 거기서 본다.
-  "$ADB" logcat -d -v brief -s ReactNativeJS:V AndroidRuntime:E >"$out/logcat.txt" 2>&1 || logcat_rc=$?
+    -e "API_URL=http://127.0.0.1:$API_PORT" -e "APP_LOCALE=$locale" "$flow" >"$out/maestro.log" 2>&1 || rc=$?
+  # adb 의 오류도 그 파일에 남긴다(2>&1) - 모으지 못한 까닭을 거기서 본다. UiDevice 의 경고는 Maestro 의 기기
+  # 드라이버 것이다 - 가드는 보지 않고 실패한 플로의 환경 흔적(environment_hint)이 센다.
+  "$ADB" logcat -d -v brief -s ReactNativeJS:V AndroidRuntime:E UiDevice:W >"$out/logcat.txt" 2>&1 || logcat_rc=$?
   # 백엔드 접근 로그는 원인을 가르는 기록일 뿐 가드가 아니다 - 모으지 못해도 플로를 실패로 치지 않는다.
-  compose --profile fastapi logs --no-color --since "$since" api-fastapi >"$out/api.log" 2>&1 || true
+  compose --profile "$BACKEND_KIND" logs --no-color --since "$since" "api-$BACKEND_KIND" >"$out/api.log" 2>&1 || true
   if ! ime_restore; then
     echo "E2E: $name 뒤에 입력기 설정을 되돌리지 못했다 - adb shell settings get secure default_input_method 로 확인한다(되돌리는 법은 test/e2e/AGENTS.md)" >&2
     return 1
@@ -263,6 +315,7 @@ run_flow() {
   if [ "$rc" -ne 0 ]; then
     tail -n 30 "$out/maestro.log" >&2
     echo "E2E: $name 플로가 실패했다(exit $rc) - 기록: $out" >&2
+    environment_hint "$out"
     return 1
   fi
   # 기기 로그를 모으지 못했으면 가드가 잰 것이 없다 - 통과로 치지 않는다. adb 가 exit 0 이어도 앱의 줄이
@@ -277,6 +330,55 @@ run_flow() {
     echo "E2E: $name 의 기기 로그가 가드에 걸렸다 - $out/logcat.txt" >&2
     return 1
   fi
+  # 앱의 요청 수(쓰기마다 회전, 돌아온 목록의 재조회, 두 번 누른 제출의 요청 하나)를 이 플로의 접근 로그에서 단언한다 -
+  # D4 실측 W2–W4 가 손으로 센 것이다. FastAPI 의 접근 로그만 센다(test/e2e/request-counts.ts 머리말).
+  if ! node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON test/e2e/request-counts.ts "$name" "$out/api.log" "$BACKEND_KIND"; then
+    echo "E2E: $name 의 백엔드 요청 수가 어긋났다 - $out/api.log" >&2
+    return 1
+  fi
+}
+
+# ── 멈춘 서버 확인(E2E_CHECKS=1) ─────────────────────────────────────
+# 백엔드를 내리고 같은 포트에 test/e2e/stall-server.ts 를 띄워 test/e2e/checks/ 를 돈다. 확인 플로는 두 요청이 모두
+# 타임아웃으로 끝나야 통과다 - 서버가 없어 연결이 거절되면(NETWORK_ERROR) 화면은 같으므로 기기 로그의
+# REQUEST_TIMEOUT 두 줄과 서버 기록의 두 방식을 함께 본다.
+STALL_PID=''
+
+stop_stall_server() {
+  [ -n "$STALL_PID" ] || return 0
+  kill "$STALL_PID" 2>/dev/null || true
+  wait "$STALL_PID" 2>/dev/null || true
+  STALL_PID=''
+}
+
+run_checks() {
+  local flow name stall_log="$OUT/stall-server.log" failed_checks=0 waited=0
+  compose_down
+  node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON test/e2e/stall-server.ts "$API_PORT" >"$stall_log" 2>&1 &
+  STALL_PID=$!
+  until grep -q '^stall-server ' "$stall_log" 2>/dev/null; do
+    kill -0 "$STALL_PID" 2>/dev/null || { cat "$stall_log" >&2; fail "멈춘 서버가 뜨지 못했다"; }
+    [ "$waited" -lt 20 ] || fail "멈춘 서버가 10초 안에 뜨지 않았다"
+    sleep 0.5
+    waited=$((waited + 1))
+  done
+  for flow in test/e2e/checks/*.yaml; do
+    name=$(basename "$flow" .yaml)
+    if ! run_flow "$flow"; then
+      failed_checks=1
+      failed+=("checks/$name")
+      continue
+    fi
+    cp "$stall_log" "$OUT/$name/api.log"
+    if [ "$(grep -c 'REQUEST_TIMEOUT' "$OUT/$name/logcat.txt" || true)" -lt 2 ] ||
+      ! grep -q 'mode=headers' "$stall_log" || ! grep -q 'mode=body' "$stall_log"; then
+      echo "E2E: checks/$name - 두 요청이 모두 멈춘 서버에서 REQUEST_TIMEOUT 으로 끝나지 않았다(기록: $OUT/$name, $stall_log)" >&2
+      failed_checks=1
+      failed+=("checks/$name")
+    fi
+  done
+  stop_stall_server
+  return "$failed_checks"
 }
 
 # ── 실행 ────────────────────────────────────────────────────────────
@@ -288,12 +390,16 @@ build_and_install
 # 끝날 때(실패해도) 입력기 설정을 되돌리고 스택을 내린다.
 cleanup() {
   ime_restore || echo "E2E: 입력기 설정을 되돌리지 못했다 - adb shell settings get secure default_input_method 로 확인한다(되돌리는 법은 test/e2e/AGENTS.md)" >&2
+  stop_stall_server
   compose_down
 }
 trap cleanup EXIT
+node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --input-type=module \
+  -e "import { backendKind, reportKnownDivergences } from './test/e2e/matrix.ts'; reportKnownDivergences(backendKind())"
 compose_down
-compose --profile fastapi up -d --build --wait
-curl -fsS "http://127.0.0.1:$API_PORT/health/ready" >/dev/null || fail "FastAPI 가 127.0.0.1:$API_PORT 에서 준비되지 않았다"
+compose --profile "$BACKEND_KIND" up -d --build --wait
+curl -fsS "http://127.0.0.1:$API_PORT/health/ready" >/dev/null ||
+  fail "$BACKEND_KIND 백엔드가 127.0.0.1:$API_PORT 에서 준비되지 않았다"
 
 flows=()
 for flow in test/e2e/flows/*.yaml; do
@@ -304,9 +410,14 @@ done
 [ -z "${E2E_FLOW:-}" ] || echo "E2E_FLOW 로 플로 ${#flows[@]}개만 돈다: $E2E_FLOW"
 
 failed=()
+skipped=()
 for flow in "${flows[@]}"; do
   run_flow "$flow" || failed+=("$(basename "$flow" .yaml)")
 done
+if [ "${E2E_CHECKS:-}" = 1 ]; then
+  run_checks || true
+fi
 
+[ "${#skipped[@]}" -eq 0 ] || echo "Android 에서 건너뛴 플로 ${#skipped[@]}개: ${skipped[*]}"
 [ "${#failed[@]}" -eq 0 ] || fail "실패한 플로 ${#failed[@]}개: ${failed[*]}"
-echo "=== E2E 통과 - 플로 ${#flows[@]}개 ==="
+echo "=== E2E 통과 - 플로 $((${#flows[@]} - ${#skipped[@]}))개 ==="

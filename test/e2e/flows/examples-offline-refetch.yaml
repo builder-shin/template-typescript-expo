@@ -1,9 +1,11 @@
 # e2e-allow-http: 0
+# e2e-platforms: android
 # 재조회가 닿지 못해도 읽은 목록은 남는다(스펙 8.5·9.3 의 D3 정정, lib/resources/screen-state.ts). 비행기 모드로
 # 연결을 끊고 당겨서 새로고침하면 읽은 행은 그대로이고 목록 위에 작은 실패(request-failed-compact)가 붙는다 - 전체
 # 화면 실패(request-failed)가 아니다. 연결을 되살리면 네트워크 복귀의 재조회(NetInfo → onlineManager)가 읽은 쪽을
 # 다시 읽고 작은 실패를 걷는다. 끊긴 요청은 e2e 변형이 상태 0 실패로 남긴다(선언한 0).
 # 비행기 모드는 이 플로가 끝나면 실패해도 끈다(onFlowComplete) - 켜 둔 채 끝나면 다음 플로가 백엔드에 닿지 못한다.
+# Android 에서만 돈다 - Maestro 2.11.0 의 iOS 시뮬레이터에는 비행기 모드가 없다(setAirplaneMode 가 경고만 남긴다).
 appId: com.example.templateexpo.e2e
 onFlowComplete:
   - setAirplaneMode: disabled

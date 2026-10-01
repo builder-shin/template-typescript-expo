@@ -4,8 +4,11 @@
 # 끊기면 백엔드가 ko 로 떨어져 이 플로가 한글을 보고 실패한다.
 appId: com.example.templateexpo.e2e
 ---
-# clearState 를 쓰지 않는다 - 하네스가 정한 앱별 언어가 지워진다(D1 실측 M3).
-- launchApp
+# clearState 를 쓰지 않는다 - 하네스가 정한 앱별 언어가 지워진다(D1 실측 M3). iOS 는 앱별 언어 대신 실행 인자로
+# 언어를 건다(하네스가 넘기는 APP_LOCALE - Android 는 이 인자를 쓰지 않는다).
+- launchApp:
+    arguments:
+      AppleLanguages: '(${APP_LOCALE})'
 - extendedWaitUntil:
     visible:
       id: home-screen

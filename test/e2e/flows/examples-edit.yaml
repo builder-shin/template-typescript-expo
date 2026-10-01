@@ -39,7 +39,7 @@ appId: com.example.templateexpo.e2e
     timeout: 20000
 - assertNotVisible:
     id: edit-example-screen
-- pressKey: back
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       id: home-screen
@@ -149,14 +149,14 @@ appId: com.example.templateexpo.e2e
       id: field-input-title
       text: ${output.prefix} b
     timeout: 20000
-- pressKey: back
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       id: detail-heading
       text: ${output.prefix} b
     timeout: 20000
 # 목록도 새 제목이다 - 옛 제목은 없다.
-- pressKey: back
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       id: resource-row-title
