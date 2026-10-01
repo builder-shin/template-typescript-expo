@@ -170,8 +170,9 @@ export async function createResource(
 
 /**
  * 수정 - `PATCH <자원 경로>/<id>`. PUT 이 아니다 - PUT 은 요청에 없는 필드까지 지운다(원본 실측
- * W-3). 속성과 관계를 매번 전부 보낸다 - 바뀐 것만 보내면 필드를 하나도 안 바꾼 제출에서 세 백엔드가
- * 갈린다(원본 `updateExampleAction` 의 두 절). URL 의 id 와 본문의 `data.id` 는 한 변수다(다르면 409).
+ * W-3). 쓰기 가능한 속성과 관계를 매번 전부 보낸다 - 빈 PATCH 는 세 백엔드 모두 422 다(2026-10-02 실측,
+ * `docs/superpowers/notes/2026-10-01-d7-measurements.md` 의 K4). 바뀐 값이 없는 저장도 유효한 전체 수정으로 보낸다.
+ * URL 의 id 와 본문의 `data.id` 는 한 변수다(다르면 409).
  */
 export async function updateResource(
   resource: ResourceDefinition,

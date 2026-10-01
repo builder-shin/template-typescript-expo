@@ -216,6 +216,11 @@
       "why": "스펙 11.1 - 이 앱에는 컴포넌트 시험이 없어서 원본이 컴포넌트와 화면 파일에 두던 판단을 lib 에 두고 test/unit/resources/form-expo.test.ts 가 잰다. 참조 조회의 실패는 목록·상세처럼 lib/resources/screen-state.ts 의 referenceState 가 정한다(이 저장소의 새 파일)."
     },
     {
+      "path": "lib/resources/form.ts",
+      "what": "relationshipWireValue 의 중복 태그 id 주석을 2026-10-02 실측으로 고쳤다 - 세 백엔드 모두 400 으로 거절하고 NestJS 는 예전에 중복을 조용히 제거했다고 적었다. docs/superpowers/notes/2026-10-01-d7-measurements.md 의 K4 를 근거로 가리키며, 보내기 전에 중복을 제거하는 이유와 코드는 그대로다.",
+      "why": "D7 K4 가 세 백엔드 모두 중복 태그 id 를 400 으로 거절한다고 쟀다. 원본의 NestJS 만 조용히 제거한다는 문장은 그 실측보다 앞선 기록이어서 현재 사실로 읽히지 않게 고쳤다."
+    },
+    {
       "path": "test/unit/resources/form.test.ts",
       "what": "readFormValues describe(8개)와 그 도우미 probeForm, import 의 readFormValues 를 지웠다.",
       "why": "form.ts 가 readFormValues 를 뺐다(스펙 6.2). 폼 상태 객체를 고치는 함수는 test/unit/resources/form-expo.test.ts 가 잰다."

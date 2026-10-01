@@ -290,9 +290,10 @@ function attributeWireValue(attribute: AttributeDefinition, raw: string): unknow
  * 올바른 값은 `exampleCategories` 다).
  *
  * to-many 는 **순서를 지키며 중복을 제거한다** - `Set` 은 삽입 순서를
- * 보존하므로 `[...new Set(ids)]` 가 그 둘을 동시에 만족한다. 중복 id 는
- * 400 이다(실측, 정본·Rails - NestJS 만 조용히 제거한다. 가장 관대한
- * 백엔드에 맞추면 나머지 둘에서 깨진다).
+ * 보존하므로 `[...new Set(ids)]` 가 그 둘을 동시에 만족한다. 중복 태그 id 는
+ * 세 백엔드 모두 400 으로 거절한다(2026-10-02 실측,
+ * `docs/superpowers/notes/2026-10-01-d7-measurements.md` 의 K4). NestJS 는
+ * 예전에 중복을 조용히 제거했지만, 지금은 어느 백엔드에서도 거절되지 않도록 보내기 전에 제거한다.
  */
 function relationshipWireValue(
   relationship: RelationshipDefinition,
