@@ -9,8 +9,9 @@ import { labExperimentMutationOptions } from '@/queries/lab'
 
 /**
  * 실험 하나의 쓰기 옵션(queries/lab.ts) - 훅과 시험이 함께 쓴다. TanStack Query 의 MutationObserver 로 그대로 돌려
- * 두 가지를 잰다: 던져진 것이 오류 경계로 가는지(`throwOnError`)와 훅이 꽂는 세션 관리자·API 클라이언트·기기 언어의
- * 배선(`LAB_DEPS`). 훅 자체는 시험하지 않는다(스펙 11.1) - 훅은 이 옵션을 `useMutation` 에 넘길 뿐이다.
+ * 셋을 잰다: 던져진 것이 오류 경계로 가는지(`throwOnError`), 훅이 꽂는 세션 관리자·API 클라이언트·기기 언어의
+ * 배선(`LAB_DEPS`), 그리고 실험 id 가 실행부와 쓰기 키에 닿는지. 훅 자체는 시험하지 않는다(스펙 11.1) - 훅은 이
+ * 옵션을 `useMutation` 에 넘길 뿐이다.
  *
  * 세션 관리자와 API 클라이언트만 가짜다 - 실행부(lib/lab/run.ts)·쓰기의 토큰 길(lib/resources/write.ts)과 Query
  * 캐시는 진짜다. 실험마다의 갈래는 test/unit/lab/run.test.ts 가 잰다.
@@ -64,6 +65,10 @@ describe('실험의 throwOnError - 결함만 오류 경계로 간다', () => {
     expect(status).toBe('error')
     expect(error?.message).toBe('probe-defect')
     expect(surfaced).toBe(true)
+    // 훅이 실험 id 를 실행부에 넘겼다 - invalidFilter 는 세션이 필요 없어 토큰을 묻지 않고 목록 경로로 나간다
+    // (putUpsert 였다면 토큰을 묻고 한 건의 경로로 나간다).
+    expect(mocks.getAccessToken).not.toHaveBeenCalled()
+    expect(mocks.send.mock.calls[0]?.[0]).toBe(EXAMPLE.path)
   })
 
   it('세션 거절은 오류 경계로 가지 않는다 - 쓰기 캐시의 onError 와 화면의 콜백이 받는다', async () => {
@@ -92,6 +97,9 @@ describe('배선 - 세션 관리자·API 클라이언트·기기 언어', () => 
       acceptLanguage: LANGUAGE,
     })
     expect(labExperimentMutationOptions('putUpsert').mutationKey).toEqual(['lab', 'putUpsert'])
+    // 키는 실험 id 를 따른다 - 다른 id 로도 재야 고정된 키를 잡는다.
+    const otherKey = labExperimentMutationOptions('invalidFilter').mutationKey
+    expect(otherKey).toEqual(['lab', 'invalidFilter'])
   })
 
   it('세션 관리자의 지금 세션이 이미 만료됐으면 보내지 않는다 - unusable 이고 오류가 아니다(만료 가드)', async () => {
