@@ -48,9 +48,11 @@
     "test/e2e/probe-email.ts",
     "test/unit/e2e/probe-email.test.ts",
     "lib/resources/view.ts",
-    "test/unit/resources/view.test.ts"
+    "test/unit/resources/view.test.ts",
+    "lib/resources/form.ts",
+    "test/unit/resources/form.test.ts"
   ],
-  "note": "복사본이다. 원본에서 계약 버그가 고쳐지면 이 커밋과 원본을 비교해 반영 여부를 판단한다. 개별 이탈은 divergences 배열에 기록한다(스펙 6.3). 복사본의 주석이 말하는 '스펙'·'D2 Task N'·'proxy.ts' 같은 자리는 원본 저장소의 것이다. scripts/check-citations.sh 머리말의 게이트 단계 번호 '[5/9]' 도 원본 게이트의 번호다(이 저장소의 게이트에서는 [5/12]). 같은 머리말이 계약이 적혀 있다고 가리키는 '루트 AGENTS.md 의 R21 절'도 원본 저장소의 것이고 이 저장소의 루트 AGENTS.md 에는 없다(이 저장소에서 그 계약은 '사라질 자리를 인용하지 마라' 절이다). test/unit/scripts/check-citations.test.ts 의 toPosix 주석은 원본의 실측 문장(계정 이름이 든 예시 경로)을 그대로 둔 것이다. 복사한 시드 파일과 시드 시험도 원본 저장소의 것을 가리킨다 - 원본의 web 서비스와 TZ, test/e2e/*.spec.ts, 원본 루트 AGENTS.md 의 문장은 이 저장소에 없다. sourceBlobs 는 원본 그대로인 경로마다 원본 커밋의 blob SHA-1 이다(git -C <원본> rev-parse <commit>:<경로>) - 그 파일을 고치면 divergences 에 적고 sourceBlobs 에서 항목을 지운다. lib/resources/view.ts 의 주석이 말하는 page.tsx·RSC·headers()·app/error.tsx·filter-bar.tsx·loading.tsx·'Task N' 같은 자리도 원본 저장소의 것이다. lib/jsonapi/query.ts 의 주석이 가리키는 view.ts 의 쪽 이동(paginationView)은 이 저장소의 view.ts 에서 뺐다 - 목록은 커서다(스펙 8.3).",
+  "note": "복사본이다. 원본에서 계약 버그가 고쳐지면 이 커밋과 원본을 비교해 반영 여부를 판단한다. 개별 이탈은 divergences 배열에 기록한다(스펙 6.3). 복사본의 주석이 말하는 '스펙'·'D2 Task N'·'proxy.ts' 같은 자리는 원본 저장소의 것이다. scripts/check-citations.sh 머리말의 게이트 단계 번호 '[5/9]' 도 원본 게이트의 번호다(이 저장소의 게이트에서는 [5/12]). 같은 머리말이 계약이 적혀 있다고 가리키는 '루트 AGENTS.md 의 R21 절'도 원본 저장소의 것이고 이 저장소의 루트 AGENTS.md 에는 없다(이 저장소에서 그 계약은 '사라질 자리를 인용하지 마라' 절이다). test/unit/scripts/check-citations.test.ts 의 toPosix 주석은 원본의 실측 문장(계정 이름이 든 예시 경로)을 그대로 둔 것이다. 복사한 시드 파일과 시드 시험도 원본 저장소의 것을 가리킨다 - 원본의 web 서비스와 TZ, test/e2e/*.spec.ts, 원본 루트 AGENTS.md 의 문장은 이 저장소에 없다. sourceBlobs 는 원본 그대로인 경로마다 원본 커밋의 blob SHA-1 이다(git -C <원본> rev-parse <commit>:<경로>) - 그 파일을 고치면 divergences 에 적고 sourceBlobs 에서 항목을 지운다. lib/resources/view.ts 의 주석이 말하는 page.tsx·RSC·headers()·app/error.tsx·filter-bar.tsx·loading.tsx·'Task N' 같은 자리도 원본 저장소의 것이다. lib/jsonapi/query.ts 의 주석이 가리키는 view.ts 의 쪽 이동(paginationView)은 이 저장소의 view.ts 에서 뺐다 - 목록은 커서다(스펙 8.3). lib/resources/form.ts 의 주석이 말하는 Server Action·app/(app)/examples/actions.ts·useActionState·<select>·체크박스·'Task N'·'계획서 §N'·view.ts 의 줄 번호도 원본 저장소의 것이다.",
   "divergences": [
     {
       "path": "lib/config/settings.ts",
@@ -196,6 +198,46 @@
       "path": "test/unit/resources/view.test.ts",
       "what": "쪽 이동 시험(pageHref 7개·paginationView 11개)과 그 도우미(canonicalLinks·okResult)를 지웠다. referenceList 시험 주석의 pageHref NestJS 픽스처 참조를 view-expo.test.ts 로 고쳤다.",
       "why": "view.ts 가 offset 쪽 이동을 뺐다(스펙 8.3). 같은 판정(linkPresent)의 NestJS 모양은 view-expo.test.ts 의 nextPageQuery 시험이 잰다."
+    },
+    {
+      "path": "lib/resources/form.ts",
+      "what": "FormData 를 읽는 readFormValues 와 그 도우미 셋(stringValue·toOneIds·toManyIds)을 빼고, 폼 상태 객체를 만들고 고치는 newFormValues(필수 enum 은 첫 값)·withAttribute·withRelationshipChoice(to-many 는 켜면 끝에 붙인다)를 더했다. 머리말과 ResourceFormValues 주석에 그 사실을 적었고, rawAttributeValue 주석이 가리키던 readFormValues 를 '폼 입력이 만드는 모양' 으로 고쳤다.",
+      "why": "스펙 6.2 - 입력이 FormData 가 아니라 화면이 들고 있는 폼 상태 객체다. 필수 enum 의 첫 값은 원본의 생성 화면에서 빈 보기 없는 소재 <select> 가 브라우저 기본으로 보내던 값이다 - 이 앱의 선택 칸에는 그 기본이 없다."
+    },
+    {
+      "path": "lib/resources/form.ts",
+      "what": "관계 선택기의 판단을 더했다 - relationshipTargets(원본 app/(app)/examples/relationship-lists.ts 의 대상 찾기), relationshipChoice(원본 components/resource/relationship-picker.tsx 의 목록 밖 선택 되살리기, RelationshipOption·RelationshipChoice). import 에 resourceByType·ReferenceList·isRequiredAttribute 를 더했다.",
+      "why": "스펙 11.1 - 이 앱에는 컴포넌트 시험이 없어서 원본이 컴포넌트와 화면 파일에 두던 판단을 lib 에 두고 test/unit/resources/form-expo.test.ts 가 잰다. 참조 조회의 실패는 목록·상세처럼 lib/resources/screen-state.ts 의 referenceState 가 정한다(이 저장소의 새 파일)."
+    },
+    {
+      "path": "test/unit/resources/form.test.ts",
+      "what": "readFormValues describe(8개)와 그 도우미 probeForm, import 의 readFormValues 를 지웠다.",
+      "why": "form.ts 가 readFormValues 를 뺐다(스펙 6.2). 폼 상태 객체를 고치는 함수는 test/unit/resources/form-expo.test.ts 가 잰다."
+    },
+    {
+      "path": "lib/resources/view.ts",
+      "what": "nextPageQuery 의 본문 판정(빈 쪽·없는 링크·읽을 수 없는 링크·쿼리가 빈 링크)을 nextLinkQuery 로 빼고, referenceList 의 truncated 를 linkPresent(links.next) 대신 nextLinkQuery(document) !== null 로 판정한다 - 빈 쪽과 쿼리가 빈 링크('' 이거나 경로뿐)는 잘림이 아니다. ReferenceList.truncated·linkPresent·referenceList 의 주석을 그에 맞췄다.",
+      "why": "D3 최종 검토 53e - 같은 next 를 무한 스크롤은 끝으로, 관계 선택기는 잘림으로 읽었다('' 이면). 첫 소비자인 D4 의 관계 선택기에서 한 규칙으로 맞춘다. 세 백엔드는 그런 링크를 보내지 않는다. test/unit/resources/next-link.test.ts 가 같은 응답을 두 함수에 넣어 잰다."
+    },
+    {
+      "path": "lib/resources/view.ts",
+      "what": "referenceList 머리말 주석의 '던지지 않는다' 절 끝에 (template-typescript-expo) 문단을 더했다 - 그 '던지지 않는다' 는 이 함수가 받는 성공 본문의 일이고, 참조 목록의 거절(오류 문서)은 이 함수에 오지 않고 referenceState(lib/resources/screen-state.ts)가 먼저 읽는다(합성 오류는 닿지 못함, 문구가 있는 오류 문서는 그 문구의 배너, 문구가 하나도 없는 오류 문서는 목록·상세처럼 던져 쓰기 화면 전체가 오류 경계로 간다). 원본의 '폼 전체가 죽어서는 안 된다' 는 원본의 근거이고 이 저장소에서 그대로인 것은 알아볼 수 없는 성공 본문의 빈 보기뿐이라고 적었다. 코드는 그대로다.",
+      "why": "원본의 근거('참조 목록 하나가 실패하거나 모양이 이상하다고 폼 전체가 죽어서는 안 된다', '던지게 바꾸면 쓰기 화면 전체를 app/error.tsx 로 보낸다')가 이 저장소의 정책과 반대로 읽힌다 - 이 저장소는 문구 없는 오류 문서에서 일부러 던져 쓰기 화면 전체를 오류 경계로 보낸다(스펙 9.3 의 D4 정정). 주석만 믿고 이 함수나 referenceState 를 원본 쪽으로 되돌리는 사고를 막는다."
+    },
+    {
+      "path": "lib/auth/rotation.ts",
+      "what": "interpretRotationOutcome 이 5xx·408·429 도 unreachable 로 돌려준다(원본은 status 0 만) - 그 갈래 하나를 더했다. 판정은 lib/jsonapi/status.ts 의 isUnjudgedStatus 로 한다(import 하나) - 조회의 throwIfUnreachable 과 한 규칙이다. 함수 주석은 원본의 두 문단('status !== 0 인 ok:false 는 전부 destroy 로 수렴시킨다', '오직 status === 0 만 unreachable 이다')이 새 동작과 어긋나서, 갈래 셋의 목록(판정하지 않음 → unreachable, 판정하고 거절 → destroy, 성공 → rotated)으로 다시 썼다. 원본의 근거(코드가 아니라 판정 여부로 가른다, 422 도 파기한다, 잠깐 죽은 백엔드에 모두를 로그아웃시키지 않는다)는 남기고, 5xx·408·429 의 근거와 대가, 회전이 판정을 받지 못한 채 돌아온 access 가 이미 만료돼 있을 수 있다는 것과 쓰기의 만료 가드(lib/resources/write.ts)를 더했다.",
+      "why": "스펙 7.2 의 D4 정정 - 그 셋은 백엔드가 refresh token 을 판정하지 않은 응답이라 \"인증 거절\" 이 아니다. 원본처럼 파기로 모으면 세션이 30일인 앱에서 회전 순간의 502 하나가 사용자를 로그아웃시킨다(docs/superpowers/notes/2026-10-01-d2-carry-forward.md 의 D4 절). 판정 규칙을 한 파일에 두는 것은 회전과 조회의 queryFn 이 따로 베끼면 한 곳만 고치는 사고가 나기 때문이다 - test/unit/jsonapi/status.test.ts 가 두 소비자가 모든 HTTP 상태에서 그 규칙과 같은 답을 내는지 잰다. 오래된 주석의 두 문단을 남기면 새 갈래와 모순된다."
+    },
+    {
+      "path": "test/unit/auth/rotation.test.ts",
+      "what": "5xx·408·429 → unreachable 시험(6행), 그 밖의 4xx → destroy 시험(4행), 프록시가 준 HTML 502 가 unreachable 인 rotateSession 시험을 더했다. 422 시험의 이름 'status!==0 이면' 을 '4xx 거절이면' 으로 고쳤다.",
+      "why": "위 rotation.ts 의 이탈을 따라간다."
+    },
+    {
+      "path": "docker-compose.e2e.yml",
+      "what": "세 백엔드의 환경(x-rails-env 앵커·api-fastapi·api-nestjs)에 JWT_ACCESS_EXPIRES_SECONDS 를 '${E2E_ACCESS_EXPIRES_SECONDS:-900}' 으로 더하고 그 뜻을 주석 두 줄로 적었다.",
+      "why": "E2E 하네스(test/e2e/run-android.sh)가 access token 수명을 10초로 줘서 앱의 쓰기가 전부 실제 회전(스펙 7.2)을 지나게 한다 - 세 백엔드의 기본값 900초로는 플로 안에서 회전이 한 번도 일어나지 않는다(D2 계획의 결정 5 가 실제 회전 왕복을 D4 의 쓰기 E2E 에 넘겼다). 변수를 주지 않으면(게이트의 compose 설정 검사 등) 기본값 그대로다."
     }
   ],
   "sourceBlobs": {

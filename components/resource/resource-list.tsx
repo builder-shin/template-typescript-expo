@@ -1,7 +1,7 @@
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { RequestFailed } from '@/components/app/request-failed'
+import { BannerScreen, RequestFailed } from '@/components/app/request-failed'
 import { FormBanner } from '@/components/form/form-banner'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -15,6 +15,8 @@ import { ResourceRow } from './resource-row'
  * 자원 목록 - 스펙 8.1 의 목록 화면 몸통. 무엇을 그릴지는 `listScreen`(lib/resources/screen-state.ts)이 이미
  * 정해 왔다: 스켈레톤(첫 쪽 전) · 닿지 못함(첫 조회 - 앱 문구와 다시 시도가 화면 전부) · 배너(백엔드 문구) · 목록.
  *
+ * - 배너는 백엔드 문구 그대로다. 첫 조회가 판정하지 않은 응답(5xx·408·429)을 받았으면(`retryable`) 문구 아래에
+ *   "다시 시도" 를 함께 그린다 - 판정한 4xx 의 배너에는 없다(`BannerScreen` - 상세·수정 폼의 자리와 같은 한 곳이다).
  * - 재조회(당겨서 새로고침·앱 복귀·네트워크 복귀)가 닿지 못해도 읽은 행은 그대로 두고 목록 위에 작은 실패
  *   (`RequestFailed` 의 `compact`)와 "다시 시도" 를 그린다(`refreshFailed`) - 다시 시도는 읽은 쪽을 모두 다시 읽는다.
  * - 무한 스크롤: 끝에 닿으면 `loadMore` 를 부르고, 읽는 동안 끝에 스피너만 그린다(스펙 8.7).
@@ -45,14 +47,7 @@ export function ResourceListView({
     return <RequestFailed retrying={list.retrying} onRetry={list.retry} />
   }
   if (screen.kind === 'banner') {
-    return (
-      <View className="gap-3 p-4">
-        <FormBanner messages={screen.messages} />
-        {screen.refreshFailed ? (
-          <RequestFailed compact retrying={list.retrying} onRetry={list.retry} />
-        ) : null}
-      </View>
-    )
+    return <BannerScreen screen={screen} retrying={list.retrying} onRetry={list.retry} />
   }
 
   return (

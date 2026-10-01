@@ -19,7 +19,20 @@ export const queryKeys = {
   detail: (type: string, id: string) => [RESOURCES_KEY, type, 'detail', id] as const,
 }
 
-/** 캐시를 바꾸는 쓰기 - 스펙 8.5 의 표의 행이다. 생성·수정·삭제의 호출부는 D4 가 만든다. */
+/**
+ * 자원 쓰기의 키 - 조회 캐시의 키가 아니다(쓰기 캐시는 따로다). 폼이 같은 쓰기가 진행 중인지 렌더를 거치지
+ * 않고 볼 때 쓴다(queries/submit-once.ts). 수정·삭제는 id 까지 좁힌다.
+ */
+export const mutationKeys = {
+  create: (type: string) => [RESOURCES_KEY, type, 'create'] as const,
+  update: (type: string, id: string) => [RESOURCES_KEY, type, 'update', id] as const,
+  delete: (type: string, id: string) => [RESOURCES_KEY, type, 'delete', id] as const,
+}
+
+/**
+ * 캐시를 바꾸는 쓰기 - 스펙 8.5 의 표의 행이다. 호출부는 `queries/writes.ts`(생성·수정·삭제)와
+ * `queries/auth.ts`(로그아웃)다.
+ */
 export type CacheWrite =
   | { kind: 'create'; type: string }
   | { kind: 'update'; type: string; id: string }

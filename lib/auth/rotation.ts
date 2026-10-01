@@ -20,6 +20,7 @@
 
 import type { JsonApiResult } from '@/lib/jsonapi/client'
 import type { JsonApiSend } from '@/lib/jsonapi/send'
+import { isUnjudgedStatus } from '@/lib/jsonapi/status'
 import { sessionFromTokenDocument, type AuthTokenAttributes, type Session } from './tokens'
 
 /*
@@ -66,19 +67,24 @@ export interface AuthTokensDocument {
  * `status: 0`을 쓰고, 백엔드가 실제로 응답한 모든 경우는 `response.status`
  * 를 그대로 쓴다)이 이미 "백엔드가 판정을 냈는가"를 정확히 나눠 준다.
  *
- * `status !== 0`인 ok:false 는 전부 destroy 로 수렴시킨다 - TOKEN_REVOKED
- * 뿐 아니라 422 VALIDATION_ERROR(예: refreshToken 이 깨진 형식으로 갔을 때,
- * 실측: docs/superpowers/plans/2026-09-06-auth-and-session.md 의 실측표)
- * 등 **어떤 거절 코드든** 같다 - 재시도하지 않는 정책 아래, 백엔드가 실제로
- * 응답해 거절한 토큰을 계속 들고 있어 봐야 다음 요청에서도 똑같이
- * 거절된다. code 별로 분기하지 않는 이유는 새 거절 코드가 추가돼도(백엔드
- * 카탈로그가 바뀌어도) 이 함수가 코드를 몰라도 옳게 동작해야 하기
- * 때문이다 - 판단 기준은 "백엔드가 응답했는가"이지 "어떤 코드였는가"가
- * 아니다.
+ * (template-typescript-expo) 갈래는 셋이고, 판단 기준은 "이 refresh token 을 백엔드가 판정했는가"이지
+ * "어떤 코드였는가"가 아니다 - 새 거절 코드가 추가돼도(백엔드 카탈로그가 바뀌어도) 이 함수가 코드를 몰라도
+ * 옳게 동작해야 하기 때문이다.
  *
- * 오직 `status === 0`(백엔드가 아예 판정을 내지 못함)만 unreachable 이다 -
- * 세션이 죽었다는 증거가 없으므로 파기하지 않는다. 파기하면 백엔드가
- * 잠깐 죽었을 때 그 순간 회전이 필요했던 모든 사용자가 로그아웃된다.
+ * - **판정하지 않았다 → unreachable.** `status === 0`(백엔드가 아예 응답하지 못함)과, 응답은 했지만
+ *   판정하지 않은 상태(`isUnjudgedStatus`: 5xx·408·429 - 서버 오류·시간 초과·요청 과다. 백엔드나 그 앞의
+ *   프록시가 답했을 뿐 이 refresh token 을 읽지 않았다)다. 세션이 죽었다는 증거가 없으므로 파기하지 않는다.
+ *   파기하면 백엔드가 잠깐 죽었을 때(또는 회전 순간의 502 하나로) 그 순간 회전이 필요했던 모든 사용자가
+ *   로그아웃된다. 원본은 `status === 0` 만 이 갈래였고, 조회의 `queryFn` 이 같은 규칙으로 읽은 데이터를 둔다
+ *   (lib/resources/screen-state.ts). 대가: 서버가 회전을 마친 뒤 5xx 를 냈다면 옛 refresh 를 들고 있다가 다음
+ *   회전의 재사용 감지로 그 사용자의 세션이 전부 끊긴다 - 로그아웃이 쓰기 한 번만큼 늦게 오고 다른 기기의
+ *   세션도 함께 끊긴다. 또 이 갈래의 회전은 지금의 access 를 그대로 돌려주므로 이미 만료돼 있을 수 있다 - 쓰기가
+ *   그 토큰을 싣지 않는다(lib/resources/write.ts 의 만료 가드).
+ * - **판정하고 거절했다 → destroy.** 나머지 `status !== 0` 의 ok:false 는 전부다 - TOKEN_REVOKED 뿐 아니라
+ *   422 VALIDATION_ERROR(예: refreshToken 이 깨진 형식으로 갔을 때, 실측:
+ *   docs/superpowers/plans/2026-09-06-auth-and-session.md 의 실측표) 등 **어떤 거절 코드든** 같다 - 재시도하지
+ *   않는 정책 아래, 백엔드가 실제로 응답해 거절한 토큰을 계속 들고 있어 봐야 다음 요청에서도 똑같이 거절된다.
+ * - **성공 → rotated.** 본문이 없는 성공(204)은 계약 위반이라 destroy 다.
  */
 export function interpretRotationOutcome(
   result: JsonApiResult<AuthTokensDocument>,
@@ -104,6 +110,14 @@ export function interpretRotationOutcome(
     return {
       kind: 'unreachable',
       reason: `백엔드에 닿지 못했다: ${result.errors[0]?.code ?? 'UNKNOWN'}`,
+    }
+  }
+
+  // (template-typescript-expo) 판정하지 않은 응답 - 위 주석의 첫 갈래. 조회의 `queryFn` 과 한 규칙이다.
+  if (isUnjudgedStatus(result.status)) {
+    return {
+      kind: 'unreachable',
+      reason: `백엔드가 회전을 판정하지 못했다(status ${result.status}, code ${result.errors[0]?.code ?? 'UNKNOWN'})`,
     }
   }
 

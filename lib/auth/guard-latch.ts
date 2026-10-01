@@ -31,7 +31,10 @@ export interface GuardInput {
   loggingOut: boolean
   /** 지난 렌더가 돌려준 `latched`. 처음에는 false 다. */
   latched: boolean
-  /** Expo Router 의 usePathname() 값. */
+  /**
+   * 대조할 라우트 모양 - 앱 셸은 `routePattern(useSegments())` 를 넘긴다(protected-paths.ts). 파라미터 값이
+   * 풀린 `usePathname()` 은 id 에 `/` 가 들면 보호 경로를 벗어난다.
+   */
   pathname: string
 }
 

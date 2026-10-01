@@ -1,9 +1,9 @@
-import { Redirect, Stack, usePathname, type Href } from 'expo-router'
+import { Redirect, Stack, usePathname, useSegments, type Href } from 'expo-router'
 import { useState } from 'react'
 
 import { LogoutButton } from '@/components/app/logout-button'
 import { decideGuard } from '@/lib/auth/guard-latch'
-import { loginHref } from '@/lib/auth/protected-paths'
+import { loginHref, routePattern } from '@/lib/auth/protected-paths'
 import { useSessionStatus } from '@/platform/session'
 import { useIsLoggingOut } from '@/queries/auth'
 
@@ -38,11 +38,14 @@ const renderLogoutButton = () => <LogoutButton />
 
 export default function AppLayout() {
   const pathname = usePathname()
+  // 보호 판정은 라우트 모양으로 한다 - usePathname() 은 id 의 %2F 를 풀어 경로를 다시 만들어 보호 경로를
+  // 벗어난다(lib/auth/protected-paths.ts). 로그인 뒤 돌아올 경로(next)는 그대로 pathname 이다.
+  const route = routePattern(useSegments())
   const status = useSessionStatus()
   const loggingOut = useIsLoggingOut()
   const [latched, setLatched] = useState(false)
 
-  const guard = decideGuard({ status, loggingOut, latched, pathname })
+  const guard = decideGuard({ status, loggingOut, latched, pathname: route })
   // 래치를 렌더 중에 갱신한다(이전 렌더의 값에서 파생하는 상태). 돌려준 값을 다시 넣으면 같은 판단이
   // 나오므로(시험이 모든 입력에서 잰다) 한 번의 재렌더로 가라앉는다. 효과에서 갱신하면 그만큼 늦다.
   if (guard.latched !== latched) setLatched(guard.latched)

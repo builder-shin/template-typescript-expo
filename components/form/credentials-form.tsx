@@ -1,3 +1,4 @@
+import type { MutationKey } from '@tanstack/react-query'
 import { useRef, useState, type ReactNode } from 'react'
 import { ScrollView, View, type TextInput } from 'react-native'
 
@@ -9,6 +10,7 @@ import { Text } from '@/components/ui/text'
 import type { Credentials } from '@/lib/auth/credentials'
 import { EMAIL_FIELD, PASSWORD_FIELD, type AuthFormState } from '@/lib/auth/form-state'
 import { cn } from '@/lib/utils'
+import { useSubmitOnce } from '@/queries/submit-once'
 
 interface CredentialsFormProps {
   /** 화면 전체의 testID(login-screen · register-screen) - E2E 플로가 찾는다. */
@@ -19,6 +21,8 @@ interface CredentialsFormProps {
   passwordAutoComplete: 'current-password' | 'new-password'
   state: AuthFormState
   pending: boolean
+  /** 제출이 부르는 쓰기의 키 - 그 쓰기가 진행 중이면 제출을 버린다(queries/submit-once.ts). */
+  mutationKey: MutationKey
   onSubmit: (credentials: Credentials) => void
   footer: ReactNode
   /** 가입에서만 쓴다 - 계정은 만들어졌는데 이어지는 로그인이 실패했을 때의 안내. */
@@ -46,7 +50,8 @@ function errorHint(messages: readonly string[]): { accessibilityHint?: string } 
  *
  * 키보드가 떠 있어도 제출 버튼이 한 번에 눌리게 keyboardShouldPersistTaps 를 준다. 키보드의 확인 키도
  * 같은 길을 탄다: 이메일의 다음 키는 비밀번호로 초점을 옮기고(키보드를 내리지 않는다), 비밀번호의 이동 키는
- * 제출 버튼과 같은 제출이다(제출 중에는 무시한다). iOS 는 키보드가 입력을 가리지 않게 스크롤을 조정한다.
+ * 제출 버튼과 같은 제출이다. 제출 중에는 둘 다 무시한다 - 렌더 때의 `pending` 이 아니라 쓰기 캐시를 본다
+ * (useSubmitOnce): 둘이 한 틱 안에 눌려도 요청은 하나다. iOS 는 키보드가 입력을 가리지 않게 스크롤을 조정한다.
  * testID 는 E2E 플로(test/e2e/)가 찾는 이름이다 - 바꾸면 플로도 함께 바꾼다.
  */
 export function CredentialsForm({
@@ -56,6 +61,7 @@ export function CredentialsForm({
   passwordAutoComplete,
   state,
   pending,
+  mutationKey,
   onSubmit,
   footer,
   notice,
@@ -63,12 +69,14 @@ export function CredentialsForm({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const passwordInput = useRef<TextInput>(null)
+  const submitOnce = useSubmitOnce(mutationKey)
   const emailErrors = state.fieldErrors[EMAIL_FIELD] ?? []
   const passwordErrors = state.fieldErrors[PASSWORD_FIELD] ?? []
 
   const submit = () => {
-    if (pending) return
-    onSubmit({ email, password })
+    submitOnce(() => {
+      onSubmit({ email, password })
+    })
   }
 
   return (

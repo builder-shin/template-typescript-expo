@@ -63,7 +63,8 @@ const TRANSPORT: ErrorObject = {
   detail: 'PROBE 전송 실패',
   meta: { synthetic: true },
 }
-const BACKEND: ErrorObject = { status: '500', code: 'PROBE_BROKEN', detail: 'PROBE 백엔드 문구' }
+/** 판정한 백엔드 오류 문서(그 밖의 4xx) - 값으로 캐시에 들 수 있는 것이다. 5xx 는 `queryFn` 이 던지므로 캐시에 들지 않는다. */
+const BACKEND: ErrorObject = { status: '400', code: 'PROBE_BROKEN', detail: 'PROBE 백엔드 문구' }
 
 function failed<T>(errors: ErrorObject[], status = 0): JsonApiResult<T> {
   return { ok: false, status, errors }
@@ -75,10 +76,19 @@ describe('throwIfUnreachable - 조회의 queryFn 이 캐시에 넣을 값', () =
   it('백엔드가 응답조차 주지 못했으면 던진다 - TanStack Query 가 앞의 데이터를 둔다', () => {
     expect(() => throwIfUnreachable(failed([TRANSPORT]), '목록')).toThrowError(UnreachableError)
     expect(() => throwIfUnreachable(failed([TRANSPORT]), '목록')).toThrowError(/목록/)
+
+    // 응답이 없었으니 실을 응답도 없다 - 합성 오류는 상태가 5xx 여도(게이트웨이의 HTML 오류 페이지) 닿지 못함이다.
+    // 싣으면 첫 조회의 참조 목록이 앱 문구와 "다시 시도" 대신 합성한 영어 문구의 배너가 된다.
+    const gateway = failed<CollectionDocument>([{ ...TRANSPORT, status: '502' }], 502)
+    for (const result of [failed<CollectionDocument>([TRANSPORT]), gateway]) {
+      expect(() => throwIfUnreachable(result, '목록')).toThrowError(
+        expect.objectContaining({ response: undefined }),
+      )
+    }
   })
 
-  it('백엔드 오류 문서는 값 그대로다 - 협상된 문구를 배너로 그린다', () => {
-    const result = failed<CollectionDocument>([BACKEND], 500)
+  it('판정한 백엔드 오류 문서(그 밖의 4xx)는 값 그대로다 - 협상된 문구를 배너로 그린다', () => {
+    const result = failed<CollectionDocument>([BACKEND], 400)
     expect(throwIfUnreachable(result, '목록')).toBe(result)
   })
 
@@ -143,7 +153,7 @@ describe('listScreen - 목록 화면이 그릴 것', () => {
 
   it('뒤따르는 쪽의 백엔드 오류(배너)는 그대로 목록 끝에 있고, 재조회가 닿지 못한 것과 함께 실린다', () => {
     const screen = listScreen(resource, PLAN, {
-      pages: [okPage(['c1']), failed([BACKEND], 500)],
+      pages: [okPage(['c1']), failed([BACKEND], 400)],
       error: OFFLINE,
       nextPageFailed: false,
     })
@@ -155,14 +165,14 @@ describe('listScreen - 목록 화면이 그릴 것', () => {
   it('첫 쪽이 백엔드 오류(배너)였고 재조회가 닿지 못했으면 배너에 작은 실패를 더한다', () => {
     expect(
       listScreen(resource, PLAN, {
-        pages: [failed([BACKEND], 500)],
+        pages: [failed([BACKEND], 400)],
         error: OFFLINE,
         nextPageFailed: false,
       }),
     ).toEqual({ kind: 'banner', messages: ['PROBE 백엔드 문구'], refreshFailed: true })
     expect(
       listScreen(resource, PLAN, {
-        pages: [failed([BACKEND], 500)],
+        pages: [failed([BACKEND], 400)],
         error: null,
         nextPageFailed: false,
       }),
@@ -220,7 +230,7 @@ describe('detailScreen - 상세 화면이 그릴 것', () => {
   })
 
   it('백엔드 오류(배너)는 그대로, 재조회가 닿지 못했으면 작은 실패를 더한다', () => {
-    expect(detailScreen(resource, { result: failed([BACKEND], 500), error: OFFLINE })).toEqual({
+    expect(detailScreen(resource, { result: failed([BACKEND], 400), error: OFFLINE })).toEqual({
       kind: 'banner',
       messages: ['PROBE 백엔드 문구'],
       refreshFailed: true,

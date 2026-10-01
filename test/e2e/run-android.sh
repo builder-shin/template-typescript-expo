@@ -14,6 +14,10 @@
 #   E2E_API_PORT      백엔드를 여는 호스트 포트. 기본 4100(docker-compose.e2e.yml 과 같은 값)
 #   E2E_STAGE_DIR     Windows 에서 저장소 경로가 길 때 빌드할 짧은 경로. 기본 C:/t/e
 #   E2E_FORCE_BUILD   1 이면 빌드 입력이 같아도 APK 를 다시 만든다
+#   E2E_ACCESS_EXPIRES_SECONDS
+#                     백엔드의 access token 수명(초). 기본 10 - 60 이하라 앱이 쓰기마다 먼저 회전한다
+#                     (lib/auth/session-manager.ts, 스펙 7.2). 플로가 앱 밖에서 쓰는 토큰(test/e2e/scripts/)도
+#                     이 수명을 따른다
 #   E2E_FLOW          돌릴 플로 이름(공백으로 구분, 확장자 없이). 비우면 전부 - 게이트는 비우고 부른다
 #   MAESTRO           Maestro 실행 파일. 기본은 PATH 의 maestro, 없으면 ~/.maestro/bin/maestro. 2.11.x 여야 한다
 #
@@ -47,6 +51,8 @@ readonly OUT=.maestro-output/e2e
 readonly E2E_PASSWORD=probe-password-value
 
 export E2E_API_PORT="$API_PORT"
+# docker-compose.e2e.yml 이 세 백엔드의 JWT_ACCESS_EXPIRES_SECONDS 로 넘긴다.
+export E2E_ACCESS_EXPIRES_SECONDS="${E2E_ACCESS_EXPIRES_SECONDS:-10}"
 export MAESTRO_CLI_NO_ANALYTICS=1
 export MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true
 
@@ -174,7 +180,8 @@ stage_sources() {
   mkdir -p "$STAGE_DIR"
   # node_modules 만 남기고 지운 뒤 다시 복사한다 - 저장소에서 지운 라우트 파일이 사본에 남으면
   # Expo Router 가 그것까지 라우트로 묶는다. node_modules 는 락파일이 같으면 설치가 몇 초로 끝난다.
-  find "$STAGE_DIR" -mindepth 1 -maxdepth 1 ! -name node_modules -exec rm -rf {} +
+  # 표식은 지우지 않는다 - 지우기가 도중에 멈춰도(다른 프로세스가 쥔 파일) 다음 실행이 이 사본을 알아본다.
+  find "$STAGE_DIR" -mindepth 1 -maxdepth 1 ! -name node_modules ! -name "$STAGE_MARK" -exec rm -rf {} +
   touch "$STAGE_DIR/$STAGE_MARK"
   git ls-files -z -co --exclude-standard | existing_files | tar --null -T - -cf - | (cd "$STAGE_DIR" && tar -xf -)
   (cd "$STAGE_DIR" && pnpm install --frozen-lockfile)

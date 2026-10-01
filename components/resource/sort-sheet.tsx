@@ -2,6 +2,7 @@ import ArrowDown from 'lucide-react-native/icons/arrow-down'
 import ArrowUp from 'lucide-react-native/icons/arrow-up'
 import ArrowUpDown from 'lucide-react-native/icons/arrow-up-down'
 import SlidersHorizontal from 'lucide-react-native/icons/sliders-horizontal'
+import type { ReactNode } from 'react'
 import { Pressable, View } from 'react-native'
 
 import { Sheet } from '@/components/app/sheet'
@@ -26,7 +27,8 @@ function spoken(option: SortOption): string {
  * 화살표를 달고, 누르면 방향이 뒤집힌 주소로 간다.
  *
  * 정렬 메뉴와 필터 시트는 오류 상태에서도 연다 - 잘못된 조건의 URL 에서 빠져나갈 수단이다.
- * testID 는 E2E 플로(test/e2e/)가 찾는 이름이다 - 항목은 `sort-option-<정렬 키>`.
+ * testID 는 E2E 플로(test/e2e/)가 찾는 이름이다 - 항목은 `sort-option-<정렬 키>`. `children` 은 도구 줄
+ * 오른쪽 끝에 그린다 - 화면이 주는 이동("새로 만들기" 같은)의 자리다.
  *
  * 정렬 버튼은 글자로 지금의 필드만 보이고 방향은 메뉴에서만 보인다 - 접근성 라벨이 "정렬" 조작임과
  * 지금의 필드·방향을 함께 말한다.
@@ -35,10 +37,12 @@ export function ListToolbar({
   sortOptions,
   onFilter,
   onSort,
+  children,
 }: {
   sortOptions: readonly SortOption[]
   onFilter: () => void
   onSort: () => void
+  children?: ReactNode
 }) {
   const current = sortOptions.find((option) => option.direction !== null)
 
@@ -58,6 +62,7 @@ export function ListToolbar({
         <Icon as={ArrowUpDown} className="size-4" />
         <Text>{current === undefined ? '정렬' : current.label}</Text>
       </Button>
+      {children === undefined ? null : <View className="ml-auto">{children}</View>}
     </View>
   )
 }

@@ -2,9 +2,12 @@ import { router, Stack, useLocalSearchParams, type Href } from 'expo-router'
 import { useState } from 'react'
 import { View } from 'react-native'
 
+import { useNavigateOnce } from '@/components/app/navigate-once'
 import { FilterSheet } from '@/components/resource/filter-sheet'
 import { ResourceListView } from '@/components/resource/resource-list'
 import { ListToolbar, SortSheet } from '@/components/resource/sort-sheet'
+import { Button } from '@/components/ui/button'
+import { Text } from '@/components/ui/text'
 import { EXAMPLE } from '@/lib/resources'
 import { isCurrentListHref, listRouteParams } from '@/lib/resources/route-params'
 import { clearFiltersHref, filterFields, filterHref, sortOptions } from '@/lib/resources/view'
@@ -16,6 +19,9 @@ import { useResourceList } from '@/queries/resources'
  *
  * 이 파일에는 훅 호출과 JSX 만 있다(스펙 8.4) - 쿼리 조립·행 변환·오류 갈래는
  * lib/resources/view.ts, 요청과 캐시는 queries/resources.ts 가 한다.
+ *
+ * "새로 만들기" 는 누구에게나 보인다 - 생성 화면은 보호 경로라 세션이 없으면 경로 가드가 로그인으로
+ * 보내고, 로그인하면 생성 화면으로 돌아온다(스펙 7.3). 행·조건 바꾸기와 같이 이동 가드를 지난다.
  */
 
 /** 이 화면의 주소. 필터·정렬을 바꾼 주소는 이 경로에 쿼리를 붙인 것이다. */
@@ -28,6 +34,9 @@ export default function ExamplesScreen() {
   const [sheet, setSheet] = useState<'filter' | 'sort' | null>(null)
   const fields = filterFields(EXAMPLE, params)
   const options = sortOptions(EXAMPLE, LIST_PATH, params)
+  // 화면을 쌓는 이동(행·조건 바꾸기·새로 만들기)은 한 번만 한다 - 빠른 두 번 누름이 같은 화면을 두 벌 쌓지
+  // 않게(components/app/navigate-once.ts).
+  const navigateOnce = useNavigateOnce()
 
   // 조건을 바꾸는 이동은 push 다 - 뒤로 가기가 이전 조건의 목록으로 돌아간다(스펙 8.2). 지금과 같은 조건의 주소로는
   // 가지 않는다: 같은 목록 화면이 한 벌 더 쌓여 뒤로 가기가 같은 조건을 두 번 보여 준다(필터를 바꾸지 않은 "적용",
@@ -38,7 +47,9 @@ export default function ExamplesScreen() {
     // lib 가 만든 앱 안 주소다 - 타입드 라우트가 모르는 문자열이라 단언한다. 단언은 변수에 담는다
     // (D2 의 login.tsx 와 같은 이유 - 인자 자리의 단언은 새 체크아웃의 lint 가 막는다).
     const target = href as Href
-    router.push(target)
+    navigateOnce(() => {
+      router.push(target)
+    })
   }
   const clearFilters = () => {
     go(clearFiltersHref(LIST_PATH, params))
@@ -55,12 +66,26 @@ export default function ExamplesScreen() {
         onSort={() => {
           setSheet('sort')
         }}
-      />
+      >
+        <Button
+          testID="new-example-link"
+          size="sm"
+          onPress={() => {
+            navigateOnce(() => {
+              router.push('/examples/new')
+            })
+          }}
+        >
+          <Text>새로 만들기</Text>
+        </Button>
+      </ListToolbar>
       <ResourceListView
         list={list}
         onClearFilters={clearFilters}
         onOpen={(id) => {
-          router.push({ pathname: '/examples/[id]', params: { id } })
+          navigateOnce(() => {
+            router.push({ pathname: '/examples/[id]', params: { id } })
+          })
         }}
       />
       <FilterSheet

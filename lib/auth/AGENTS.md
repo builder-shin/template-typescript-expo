@@ -14,6 +14,15 @@
 - 인증이 필요한 요청은 `getAccessToken()`을 지난다. 진행 중인 회전이 있으면 그 Promise 를 같이
   기다린다. 새 세션은 저장소에 먼저 쓰고 그다음 돌려준다.
 - 401 에 회전·재시도를 붙이지 않는다. 인증 오류를 받으면 `signOut()`하고 로그인으로 보낸다.
+- 백엔드가 답했지만 토큰을 판정하지 않은 회전 응답은 세션을 건드리지 않는다 - 상태 0(닿지 못함)과 같다. 어느
+  상태가 그런지는 `isUnjudgedStatus`(`lib/jsonapi/status.ts`) 한 규칙이 가른다 - 회전의 해석(`rotation.ts` 의
+  `interpretRotationOutcome`)과 조회 화면의 상태(`lib/resources/screen-state.ts`)가 함께 쓰므로 상태 목록을 여기서
+  다시 적지 않는다. 나머지 4xx 는 세션을 지운다(스펙 7.2 의 D4 정정).
+  대가 둘. 서버가 회전을 마친 뒤 5xx 를 냈다면 앱은 옛 refresh 를 들고 있다가 다음 회전의 재사용 감지로 그 사용자의
+  세션이 전부 끊긴다. 또 회전이 판정을 받지 못하면 `getAccessToken()` 은 지금의 access 를 그대로 돌려주는데 그것이
+  이미 만료돼 있을 수 있다 - 그 토큰을 실은 쓰기는 401 로 거절돼 세션이 지워진다. 그래서 쓰기는 만료 가드를 지난다
+  (`lib/resources/write.ts` - 받은 토큰의 세션이 이미 만료됐으면 요청하지 않고 앱 문구로 알리며 세션은 그대로다).
+  `getAccessToken()` 을 부르는 새 자리도 돌려받은 토큰이 만료돼 있을 수 있음을 다룬다.
 
 ## 저장소가 실패하거나 늦어도 메모리가 먼저
 
@@ -32,7 +41,8 @@
   회전이 있으면 끝나길 기다린 뒤(가장 새 refresh 를 폐기하려는 것이다) 캐시 비움과 refresh 폐기 요청도
   끝낸다(스펙 7.4).
 - 오류는 그 뒤에 거절로 나간다(`establish`·`getAccessToken`·`signOut`·`logout`). 호출자는 삼키지 말고
-  알린다. 화면 이동은 거절이 아니라 `status()`(구독)를 따른다.
+  알린다 - 로그에는 `errorDetail`(`error-detail.ts`)을 쓴다: 오류의 이름과 문구뿐이고, 오류가 아닌 값은 종류만 적어
+  토큰이 실리지 않는다. 화면 이동은 거절이 아니라 `status()`(구독)를 따른다.
 - 구독자가 던져도 나머지 구독자는 불린다. 던진 것은 `console.error`로 남는다.
 
 ## 요청은 주입받은 전송으로만
@@ -51,10 +61,11 @@
 | `form-state.ts`      | (복사·수정) 폼 입력 이름과 상태, 쓸 수 없는 응답의 문구                          |
 | `logout.ts`          | (복사·수정) 기기 쪽을 먼저 비우고 refresh 폐기를 요청                            |
 | `rotation.ts`        | (복사·수정) 회전 요청과 응답 해석                                                |
-| `protected-paths.ts` | 보호 경로 목록 하나와 로그인 주소                                                |
+| `protected-paths.ts` | 보호 경로 목록 하나와 로그인 주소, 앱 셸이 대조할 라우트 모양(`routePattern`)    |
 | `guard-latch.ts`     | 경로 가드의 판단 - 로그아웃 중과 직후에는 보내지 않는다                          |
 | `session-store.ts`   | 저장 모양(항목 하나의 JSON)과 복원 판단                                          |
 | `session-manager.ts` | 회전의 유일한 자리, 세션 상태와 구독                                             |
+| `error-detail.ts`    | 거절을 남기는 로그 한 줄 - 오류는 "이름: 문구", 그 밖의 값은 종류(`typeof`)만    |
 
 (복사) 표시 파일은 `template-typescript-nextjs`에서 복사했다. 출처와 이탈은
 `docs/provenance/copied-core.json`이다. 그 주석의 "쿠키"·"proxy.ts"·"Server Action" 같은 자리는

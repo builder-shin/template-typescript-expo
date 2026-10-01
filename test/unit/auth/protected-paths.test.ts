@@ -6,11 +6,12 @@ import {
   PROTECTED_PATH_PATTERNS,
   isProtectedPath,
   loginHref,
+  routePattern,
 } from '@/lib/auth/protected-paths'
 
 /**
- * 보호 경로 목록(스펙 7.3). 경로는 Expo Router 의 usePathname() 값이다 - 쿼리가 없고 동적
- * 세그먼트는 실제 값으로 채워져 있다.
+ * 보호 경로 목록(스펙 7.3). 패턴은 실제 경로(`/examples/42/edit`)와 앱 셸이 넘기는 라우트 모양
+ * (`/examples/[id]/edit`, routePattern) 둘 다 받는다.
  */
 describe('isProtectedPath', () => {
   it.each(['/examples/new', '/examples/42/edit', '/examples/probe-id/edit'])(
@@ -36,6 +37,29 @@ describe('isProtectedPath', () => {
 
   it('목록은 원본의 PROTECTED_PATH_PATTERNS 와 같은 범위다 - 생성, 수정·삭제', () => {
     expect(PROTECTED_PATH_PATTERNS).toHaveLength(2)
+  })
+})
+
+describe('routePattern - 앱 셸이 대조하는 라우트 모양', () => {
+  it.each<[string[], string]>([
+    [['(app)'], '/'],
+    [['(app)', 'examples'], '/examples'],
+    [['(app)', 'examples', 'new'], '/examples/new'],
+    [['(app)', 'examples', '[id]'], '/examples/[id]'],
+    [['(app)', 'examples', '[id]', 'edit'], '/examples/[id]/edit'],
+    [['(auth)', 'login'], '/login'],
+  ])('%j → %s - 그룹 세그먼트는 뺀다', (segments, pattern) => {
+    expect(routePattern(segments)).toBe(pattern)
+  })
+
+  it('생성과 수정의 라우트 모양은 보호 경로이고 상세는 아니다 - id 의 값과 무관하다', () => {
+    expect(isProtectedPath(routePattern(['(app)', 'examples', 'new']))).toBe(true)
+    expect(isProtectedPath(routePattern(['(app)', 'examples', '[id]', 'edit']))).toBe(true)
+    expect(isProtectedPath(routePattern(['(app)', 'examples', '[id]']))).toBe(false)
+  })
+
+  it('usePathname() 이 id 의 %2F 를 풀어 만든 경로는 패턴을 벗어난다 - 그래서 경로가 아니라 라우트 모양으로 대조한다', () => {
+    expect(isProtectedPath('/examples/a/b/edit')).toBe(false)
   })
 })
 

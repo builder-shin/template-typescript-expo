@@ -1,6 +1,7 @@
-import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query'
+import { mutationOptions, useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { signIn, signUpThenSignIn, type Credentials } from '@/lib/auth/credentials'
+import { errorDetail } from '@/lib/auth/error-detail'
 import { decideAfterLogin, decideAfterRegistration, type SignInPlan } from '@/lib/auth/flow'
 import type { LogoutOutcome } from '@/lib/auth/logout'
 import { apiRequest } from '@/platform/api'
@@ -16,12 +17,11 @@ import { applyCacheEffects, cacheEffects } from '@/queries/keys'
  */
 
 /**
- * 던져진 오류를 로그로 남긴다. 이름과 문구만 적는다 - 세션·자격증명을 인자로 받지 않으므로 토큰이
+ * 던져진 오류를 로그로 남긴다. 이름과 문구만 적는다(`errorDetail`) - 세션·자격증명을 인자로 받지 않으므로 토큰이
  * 로그에 실리지 않는다(스펙 7.1).
  */
 function logFailure(what: string, error: unknown): void {
-  const detail = error instanceof Error ? `${error.name}: ${error.message}` : typeof error
-  console.error(`[auth] ${what} - ${detail}`)
+  console.error(`[auth] ${what} - ${errorDetail(error)}`)
 }
 
 /**
@@ -61,9 +61,17 @@ const DISCARD_SOON_MS = 1_000
  */
 const NETWORK_MODE = 'always' as const
 
-/** 로그인. `rawNext` 는 화면이 받은 `next` 파라미터 그대로다 - 검사는 decideAfterLogin 이 한다. */
-export function useLoginMutation(rawNext: unknown) {
-  return useMutation({
+/** 로그인·가입 쓰기의 키 - 화면이 진행 중인 제출을 렌더를 거치지 않고 본다(queries/submit-once.ts). */
+export const LOGIN_MUTATION_KEY = ['auth', 'login'] as const
+export const REGISTER_MUTATION_KEY = ['auth', 'register'] as const
+
+/**
+ * 로그인 쓰기의 옵션 - 훅이 쓰고, 시험(test/unit/queries/auth.test.ts)이 TanStack Query 의 MutationObserver 로
+ * 그대로 돌린다. `rawNext` 는 화면이 받은 `next` 파라미터 그대로다 - 검사는 decideAfterLogin 이 한다.
+ */
+export function loginMutationOptions(rawNext: unknown) {
+  return mutationOptions({
+    mutationKey: LOGIN_MUTATION_KEY,
     mutationFn: async (credentials: Credentials) =>
       establishIfSignedIn(
         decideAfterLogin(await signIn(credentials, apiRequest), rawNext, credentials.email),
@@ -77,9 +85,18 @@ export function useLoginMutation(rawNext: unknown) {
   })
 }
 
-/** 가입 - register 다음 login(스펙 7.4). 계정은 만들어졌는데 로그인이 실패하면 상태가 그것을 싣는다. */
-export function useRegisterMutation(rawNext: unknown) {
-  return useMutation({
+/** 로그인. */
+export function useLoginMutation(rawNext: unknown) {
+  return useMutation(loginMutationOptions(rawNext))
+}
+
+/**
+ * 가입 쓰기의 옵션 - register 다음 login(스펙 7.4). 계정은 만들어졌는데 로그인이 실패하면 상태가 그것을
+ * 싣는다. 훅과 시험이 함께 쓴다(`loginMutationOptions` 와 같다).
+ */
+export function registerMutationOptions(rawNext: unknown) {
+  return mutationOptions({
+    mutationKey: REGISTER_MUTATION_KEY,
     mutationFn: async (credentials: Credentials) =>
       establishIfSignedIn(
         decideAfterRegistration(
@@ -94,6 +111,11 @@ export function useRegisterMutation(rawNext: unknown) {
       logFailure('가입이 예외로 끝났다', error)
     },
   })
+}
+
+/** 가입. */
+export function useRegisterMutation(rawNext: unknown) {
+  return useMutation(registerMutationOptions(rawNext))
 }
 
 /**

@@ -79,9 +79,11 @@ appId: com.example.templateexpo.e2e
     env:
       STEP: rename
       TITLE: ${output.prefix} 01 renamed
+# 돌아온 목록은 다시 구독하며 부른다(쌓인 화면은 구독을 끊는다 - 스펙 8.5 의 D4 정정). 그 재조회가 이름 바꾸기보다
+# 늦게 끝나면 행이 이미 새 제목이다 - 어느 쪽이든 누른다.
 - tapOn:
     id: resource-row-title
-    text: ${output.prefix} 01
+    text: '${output.prefix} 01( renamed)?'
 - extendedWaitUntil:
     visible:
       id: detail-heading

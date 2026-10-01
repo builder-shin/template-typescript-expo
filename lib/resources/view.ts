@@ -690,8 +690,18 @@ function failureOf(request: string, errors: readonly ErrorObject[]): ListFailure
  */
 export function nextPageQuery(result: JsonApiResult<CollectionDocument>): URLSearchParams | null {
   if (!result.ok || result.document === null) return null
-  if (result.document.data.length === 0) return null
-  const next = result.document.links?.next
+  return nextLinkQuery(result.document)
+}
+
+/**
+ * (template-typescript-expo) 응답 본문 하나의 다음 쪽 쿼리 - 위 목록 가운데 본문에 관한 넷(빈 쪽, 없는 링크, 읽을 수
+ * 없는 링크, 쿼리가 빈 링크)이면 `null` 이다. 참조 목록의 잘림(`referenceList`)도 이 함수로 판정한다 - 둘이 `next`
+ * 를 달리 읽으면 같은 응답이 무한 스크롤에서는 끝이고 관계 선택기에서는 "더 있다" 가 된다(D3 최종 검토 53e: 빈 링크
+ * `''` 를 무한 스크롤은 끝으로, 선택기는 잘림으로 읽었다).
+ */
+function nextLinkQuery(document: CollectionDocument): URLSearchParams | null {
+  if (document.data.length === 0) return null
+  const next = document.links?.next
   if (!linkPresent(next)) return null
   const query = linkQuery(next)
   if (query === null || query.toString() === '') return null
@@ -1562,8 +1572,9 @@ export function sortOptions(
  * 비교로 판정하면 NestJS 에서 언제나 "있다" 가 된다.
  *
  * (template-typescript-expo) 무한 스크롤의 `nextPageQuery`(더 읽을 것이 있는가)와 참조 목록의
- * `referenceList`(더 있는가, D4 Task 4 아래) 둘 다 **이 함수 하나로만** 판정한다 - 판정 규칙이
- * 두 자리로 갈라지면 하나만 고치는 사고가 난다. 원본의 쪽 이동(`pageHref`·`paginationView`)은
+ * `referenceList`(더 있는가, D4 Task 4 아래) 둘 다 `nextLinkQuery` 를 지나 **이 함수 하나로만**
+ * 판정한다 - 판정 규칙이 두 자리로 갈라지면 하나만 고치는 사고가 난다. 원본의 쪽 이동
+ * (`pageHref`·`paginationView`)은
  * offset 목록의 것이라 뺐다(스펙 8.3: 목록은 커서다).
  */
 function linkPresent(link: string | null | undefined): link is string {
@@ -1949,7 +1960,7 @@ export interface ReferenceOption {
 /** 참조 목록 응답 하나에서 선택기가 그릴 것 전부. */
 export interface ReferenceList {
   readonly options: readonly ReferenceOption[]
-  /** 백엔드가 더 있다고 말하는가. `links.next != null` 이다. */
+  /** (template-typescript-expo) 따라갈 다음 쪽이 있는가 - `nextLinkQuery`(무한 스크롤의 끝과 같은 판정)다. */
   readonly truncated: boolean
 }
 
@@ -2034,12 +2045,19 @@ export function referenceRequest(target: ResourceDefinition): ReferenceRequest {
  * 알아볼 수 없는 값은 "고를 것이 없다" 로 조용히 물러선다 - `options: []`,
  * `truncated: false`. 이 자리를 던지게 바꾸면 참조 자원 하나의 결함이 쓰기
  * 화면 전체를 `app/error.tsx` 로 보낸다.
+ * (template-typescript-expo) 위의 "던지지 않는다" 는 이 함수가 받는 성공 본문의 일이다 - 거절(오류 문서)은 이 함수에
+ * 오지 않는다. `referenceState`(screen-state.ts)가 먼저 읽는다: 합성 오류(응답조차 없었다)는 닿지 못함, 문구가 있는 오류
+ * 문서는 그 문구의 배너이고, 문구가 하나도 없는 오류 문서는 목록·상세처럼 던진다 - 참조 자원 하나의 계약 위반이 쓰기 화면
+ * 전체를 오류 경계로 보낸다(스펙 9.3 의 D4 정정). 위의 "폼 전체가 죽어서는 안 된다" 는 원본의 근거이고, 이 저장소에서
+ * 그대로인 것은 알아볼 수 없는 성공 본문이 빈 보기로 물러서는 것뿐이다.
  *
  * ## 잘림 판정은 `nextPageQuery` 와 같은 함수를 공유한다(R-10①)
  *
  * 없는 `next` 를 정본·Rails 는 `null` 로 주고 NestJS 는 키째 지운다 - 위
  * `linkPresent` 주석과 같은 자리다. 판정 규칙이 두 자리로 갈라지면 하나만
  * 고치는 사고가 나므로 새로 만들지 않고 그 함수를 그대로 불렀다.
+ * (template-typescript-expo) 그 함수가 `nextLinkQuery` 다 - 빈 쪽과 쿼리가 빈 링크(`''`·경로뿐)도
+ * 잘림이 아니다(무한 스크롤의 끝과 같다).
  *
  * ## 보기 라벨은 `displayText` 와 같은 함수를 공유한다
  *
@@ -2057,6 +2075,6 @@ export function referenceList(target: ResourceDefinition, document: unknown): Re
       id: object.id,
       label: displayText(target, object),
     })),
-    truncated: linkPresent(document.links?.next),
+    truncated: nextLinkQuery(document) !== null,
   }
 }

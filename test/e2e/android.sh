@@ -9,7 +9,8 @@
 #   test/e2e/android.sh check-path  이 위치에서 Android 네이티브 빌드가 되는가 - Windows 에서 저장소
 #                                   경로가 47자를 넘으면 실패한다
 #   test/e2e/android.sh build       e2e 변형 Release APK 를 만든다 (BACKEND_URL 필요).
-#                                   만든 APK 의 assets/app.config 가 e2e 변형인지 확인한다
+#                                   빌드 앞에 Metro 의 디스크 캐시를 비우고, 만든 APK 의
+#                                   assets/app.config 가 e2e 변형인지 확인한다
 #   test/e2e/android.sh install     만든 APK 를 설치한다
 #   test/e2e/android.sh wait-text <텍스트>
 #                                   그 텍스트가 화면에 나타날 때까지(최대 60초) 기다리고
@@ -119,13 +120,29 @@ assert_apk_variant() {
   echo "APK 의 앱 설정: extra.appVariant=$variant"
 }
 
+# Metro 의 디스크 캐시(Metro 가 쓰는 os.tmpdir() 의 metro-cache - Windows 는 %TEMP%, 그 밖은 $TMPDIR)를 비운다. Gradle
+# 의 번들 단계(createBundleReleaseJsAndAssets)가 번들을 다 쓴 뒤 node 의 종료에서 0xC0000005 로 죽은 빌드가 있었고, 이
+# 캐시를 지운 뒤에는 재현되지 않았다(docs/superpowers/notes/2026-09-30-d3-measurements.md 의 L7). 그 번들 명령도
+# --reset-cache 를 주므로 캐시가 원인이라는 증명은 아니다 - 재시도가 아니라, 알려진 계기를 빌드마다 없애 빌드가 늘
+# 같은 자리에서 시작하게 한다. 지우지 못하면(개발 서버가 쥐고 있다 등) set -e 로 빌드하지 않고 멈춘다.
+clear_metro_cache() {
+  local cache
+  cache=$(node -p 'require("path").join(require("os").tmpdir(), "metro-cache")')
+  rm -rf "$cache"
+  echo "Metro 캐시를 비웠다: $cache"
+}
+
 build() {
   : "${BACKEND_URL:?BACKEND_URL 이 필요하다 - 에뮬레이터에서 호스트는 http://10.0.2.2:<포트>}"
   check_path || exit 1
   # prebuild 와 Gradle 이 같은 변형을 받도록 export 한다(접두 대입은 그 명령 하나에만 적용된다).
   export APP_VARIANT=e2e
   pnpm exec expo prebuild --platform android --clean --no-install
-  (cd android && ./gradlew assembleRelease)
+  clear_metro_cache
+  # 데몬 없이 빌드한다 - 빌드가 끝나면 Gradle 프로세스도 끝난다. 남은 데몬은 지난 빌드의 산출물(mergeDexRelease 의
+  # classes*.dex)을 쥐고 있어서 Windows 에서 다음 빌드 앞의 사본 지우기(run-android.sh 의 stage_sources)가 "Device or
+  # resource busy" 로 멈췄다 - 그 데몬을 멈추자 지워졌다(docs/superpowers/notes/2026-10-01-d4-measurements.md 의 W1).
+  (cd android && ./gradlew assembleRelease --no-daemon)
   assert_apk_variant
   ls -l "$APK"
 }

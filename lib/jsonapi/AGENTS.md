@@ -66,3 +66,4 @@ vitest에서 그대로 돌고, 앱에서는 SDK 57의 `expo/fetch` 위에서 돈
 | `send.ts`            | 요청을 보내는 함수의 모양(`JsonApiSend`). 인증 호출은 `request()` 대신 이것을 주입받는다 - 앱에서는 `platform/api.ts`의 클라이언트가 들어온다(스펙 9.4) |
 | `accept-language.ts` | 기기 언어 목록 → `Accept-Language` 값. 품질값을 앞에서부터 낮춘다(스펙 9.4)                                                                             |
 | `failure-log.ts`     | e2e 변형이 기기 로그에 남기는 실패 한 줄(`[e2e-http] …`). E2E 가드가 읽는다(스펙 11.3)                                                                  |
+| `status.ts`          | `isUnjudgedStatus` - 백엔드가 답했지만 판정하지 않은 HTTP 상태(500 이상·408·429)를 가르는 한 규칙. 회전 해석과 조회 화면 상태가 함께 쓴다(스펙 7.2·9.3) |
