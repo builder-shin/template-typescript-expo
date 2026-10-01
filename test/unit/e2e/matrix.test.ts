@@ -23,8 +23,9 @@ import { BASH_TIMEOUT_MS, resolveBash } from '../support/bash'
  * `docker compose --profile <존재하지 않는 값>` 은 에러 없이 끝나고 프로파일이 붙지 않은 `db`·`redis` 만 뜬
  * 부분 스택으로 조용히 해석된다(원본 저장소의 실측). 그래서 CI 매트릭스의 `BACKEND_KIND` 오타 하나가 백엔드가
  * 아예 없는 스택 위의 실행을 만들 수 있었다 - "세 백엔드를 커버한다" 는 주장이 조용히 거짓이 되는 길이다. 이
- * 저장소에서는 하네스 스크립트(`test/contract/run.sh`·`test/e2e/run-android.sh`)가 도커·기기를 건드리기 전에
- * `backendKind()` 를 부른다 - 그 배선을 아래 "하네스의 BACKEND_KIND 배선" 절이 스크립트를 실제로 돌려 잰다.
+ * 저장소에서는 하네스 스크립트(`test/contract/run.sh`·`test/e2e/run-android.sh`·`test/e2e/run-ios.sh`·
+ * `test/e2e/native-backend.sh`)가 도커·기기를 건드리기 전에 `backendKind()` 를 부른다 - 그 배선을 아래
+ * "하네스의 BACKEND_KIND 배선" 절이 스크립트를 실제로 돌려 잰다.
  *
  * ## 목록이 0건인 동안 이 파일이 재는 것
  *
@@ -283,7 +284,12 @@ describe('reportKnownDivergences()', () => {
 })
 
 /** 백엔드를 띄우는 하네스 스크립트 - 모두 도커·기기·백엔드를 건드리기 전에 종류를 검증해야 한다. */
-const HARNESS_SCRIPTS = ['test/contract/run.sh', 'test/e2e/run-android.sh'] as const
+const HARNESS_SCRIPTS = [
+  'test/contract/run.sh',
+  'test/e2e/run-android.sh',
+  'test/e2e/run-ios.sh',
+  'test/e2e/native-backend.sh',
+] as const
 
 /** 검증 앞에 오면 안 되는 부수 효과 - 도커·기기·시뮬레이터·패키지 관리자·파일 지우기. */
 const SIDE_EFFECT =

@@ -2,7 +2,7 @@
 
 Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). 게이트의 E2E 단계는
 `test/e2e/run-android.sh` 하나다. 세 백엔드와 iOS 는 CI 가 같은 플로로 돈다(스펙 13장 - 아래 "두 플랫폼"·"백엔드
-매트릭스" 절).
+매트릭스"·"iOS" 절).
 
 ## 플로를 쓸 때
 
@@ -141,10 +141,10 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
 ## 백엔드 매트릭스
 
 `BACKEND_KIND`(fastapi·nestjs·rails, 기본 fastapi)가 띄울 백엔드를 고른다 - `run-android.sh`·`test/contract/run.sh` 는
-compose 프로파일로. 원본 그대로 복사한 `matrix.ts` 의 `backendKind()` 가 도커·기기를 건드리기 전에 값을 검증하고(compose
+compose 프로파일로, `run-ios.sh` 는 Docker 없이 `native-backend.sh` 로(아래 "iOS"). 원본 그대로 복사한 `matrix.ts` 의 `backendKind()` 가 도커·기기를 건드리기 전에 값을 검증하고(compose
 는 모르는 프로파일을 오류 없이 부분 스택으로 푼다), 하네스가 스택을 띄울 때 `reportKnownDivergences()` 가 그 백엔드의
 알려진 드리프트(오늘 0건)를 한 줄로 찍는다. 게이트는 FastAPI 하나로 돌고, 세 백엔드는 CI 가 돈다. CI 는 APK 를 한 번 만들어
-`E2E_APK` 로 넘긴다 - 하네스는 빌드하지 않고 그 APK 를 설치한다.
+`E2E_APK` 로 넘긴다 - 하네스는 빌드하지 않고 그 APK 를 설치한다(iOS 는 `.app` 을 `E2E_APP` 으로).
 
 ## 멈춘 서버 확인 (`checks/`)
 
@@ -181,6 +181,8 @@ E2E_AVD=Pixel_9_API_36 ./test/e2e/run-android.sh            # 전부
 E2E_FLOW="register-conflict" ./test/e2e/run-android.sh       # 일부 - 개발용
 BACKEND_KIND=nestjs ./test/e2e/run-android.sh                # 다른 백엔드(CI 의 매트릭스와 같다)
 E2E_CHECKS=1 ./test/e2e/run-android.sh                       # 플로 뒤에 멈춘 서버 확인까지
+./test/e2e/run-ios.sh                                        # iOS - macOS 에서만(아래 "iOS")
+BACKEND_KIND=rails ./test/e2e/run-ios.sh                     # iOS 의 다른 백엔드(Docker 없이)
 ```
 
 빌드 입력(시험·문서·스크립트를 뺀 파일과, `test/` 안에 있지만 빌드 레시피인 `test/e2e/android.sh`)이 지난번과
@@ -242,3 +244,50 @@ prebuild 가 만드는 `android/gradle.properties` 의 기본값(Metaspace 512Mi
 기본 입력기가 음성 입력으로 남아, 다음 실행의 로캘 없는 플로도 키보드 없이 돈다 - "키보드가 떠 있어도 제출 버튼이 한
 번에 눌리는지"를 조용히 재지 않는다. 그렇게 끝난 뒤에는 `adb shell settings get secure default_input_method` 로
 확인하고 `adb shell ime set com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME` 로 되돌린다.
+
+## iOS
+
+`run-ios.sh` 는 macOS 에서만 돈다(Xcode·Homebrew·Java 17 - CI 의 e2e-ios 잡, Mac 을 쓰는 사람의 로컬). 플로·머리말·가드·요청 수 단언은
+Android 와 같고, 다른 것은 이렇다.
+
+- 앱: `ios.sh build` 가 `expo prebuild --platform ios --clean`(pod install 포함) 뒤 시뮬레이터용 Release `.app` 을
+  만든다. `APP_VARIANT=e2e`·`BACKEND_URL` 을 export 한다 - Xcode 빌드의 설정·번들 단계가 `app.config.ts` 를 다시
+  평가한다. `ios.sh assert-app` 이 `.app` 의 앱 설정(`EXConstants.bundle/app.config` - 변형·주소·OTA 끔), `Expo.plist`
+  (`EXUpdatesEnabled`), `Info.plist`(번들 ID·`NSAllowsLocalNetworking`)를 단언한다 - `E2E_APP` 으로 받은 `.app` 도
+  설치 전에 다시 잰다. 빌드 기록은 `.maestro-output/ios-build.log` 다.
+- 백엔드: macOS 러너에는 Docker 가 없다. `native-backend.sh` 가 Homebrew 의 PostgreSQL 18·Redis 를 저장소
+  밖(`E2E_NATIVE_DIR`)에서 127.0.0.1 에만 띄우고, 백엔드 저장소 `main` 을 받아(`fetch`) 런타임을 갖춘 뒤(`prepare`)
+  DB 를 새로 만들어 마이그레이션 → 같은 SQL 시드(`seed/`) → API 를 4100 에 띄운다(`start`). 롤·DB 이름·JWT 더미·Rails 의
+  환경은 `docker-compose.e2e.yml` 과 같다. 저장소 주소는 `native-backend.sh repo-url` 한 곳이고
+  `test/unit/e2e/native-backend.test.ts` 가 compose 의 빌드 컨텍스트와 맞댄다. 하네스는 `start`·`stop` 만 부른다 -
+  `services`·`fetch`·`prepare` 는 CI 가 앞 단계로, 로컬에서는 손으로 한 번 돈다(아래).
+- 가드: 플로마다 시뮬레이터 로그(`log stream` - 서브시스템 `com.facebook.react.log`)를 `<플로>/device.ndjson` 으로
+  받아 `ios-log.ts` 가 `adb logcat -v brief` 모양(`<플로>/device.log`)으로 옮기고 같은 `guard-log.sh` 에 넘긴다.
+  React Native 의 iOS 는 JS 의 info 와 warn 을 같은 유형으로 남긴다 - e2e 변형이 경고 앞에 `[e2e-warn]` 을
+  붙이고(`platform/e2e-log.ts`) 변환이 그 줄을 `W/` 로 옮긴다. 붙기 전과 끊은 뒤의 줄은 받지 못한다 - 하네스가
+  붙은 뒤 2초, 끊기 전 2초를 둔다.
+- 로캘 플로 앞에서 하네스가 앱을 다시 설치하고 키체인을 비운다(Android 의 `pm clear` 자리). 언어는 플로의
+  `launchApp` 이 싣는 `-AppleLanguages` 다(위 "두 플랫폼").
+- `# e2e-platforms:` 에 `ios` 가 없는 플로는 건너뛰고 끝에 그 이름을 적는다.
+
+Mac 에서 처음 돌릴 때(한 번):
+
+```bash
+test/e2e/install-maestro.sh                                  # Maestro 2.11.0 을 ~/.maestro 에(Java 17 필요)
+test/e2e/native-backend.sh services                          # Homebrew 의 PostgreSQL 18·Redis
+BACKEND_KIND=fastapi test/e2e/native-backend.sh fetch        # 백엔드 저장소 main(nestjs·rails 도 같다)
+BACKEND_KIND=fastapi test/e2e/native-backend.sh prepare      # uv·pnpm·bundler - Rails 는 .ruby-version 의 Ruby
+```
+
+iOS 하네스(`run-ios.sh`·`ios.sh`·`native-backend.sh`)가 더 읽는 환경 변수다. `BACKEND_KIND`·`E2E_API_PORT`·`E2E_FLOW`·
+`E2E_CHECKS`·`E2E_ACCESS_EXPIRES_SECONDS`·`MAESTRO` 는 위 표와 같다.
+
+| 변수                             | 뜻                                                                                                                         |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `E2E_APP`                        | 미리 만든 e2e `.app`(CI 의 build-ios 잡). 주면 빌드하지 않고 단언한 뒤 설치한다                                            |
+| `E2E_SIMULATOR`                  | 부팅할 시뮬레이터 이름(예: `iPhone 17`). 켜진 iPhone 이 있으면 그것을, 없으면 가장 새 iOS 런타임의 `iPhone <숫자>` 를 쓴다 |
+| `E2E_NATIVE_DIR`                 | 백엔드 저장소·DB·로그를 두는 곳(절대 경로, 기본 `~/.cache/template-typescript-expo-e2e`)                                   |
+| `E2E_DB_PORT`                    | 네이티브 PostgreSQL 의 포트(기본 55432)                                                                                    |
+| `E2E_REDIS_PORT`                 | 네이티브 Redis 의 포트(기본 56379)                                                                                         |
+| `E2E_PG_BIN`                     | PostgreSQL 의 bin 디렉터리(기본 Homebrew 의 `postgresql@18`)                                                               |
+| `MAESTRO_DRIVER_STARTUP_TIMEOUT` | Maestro 의 iOS 드라이버를 기다리는 ms(하네스 기본 180000)                                                                  |

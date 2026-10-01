@@ -226,7 +226,7 @@ describe('node 로 돌린다(하네스가 부르는 모양)', () => {
 })
 
 /** 요청 수를 단언하는 하네스 - 가드 뒤에, 그 플로의 api.log 로 부른다. */
-const HARNESSES = ['test/e2e/run-android.sh'] as const
+const HARNESSES = ['test/e2e/run-android.sh', 'test/e2e/run-ios.sh'] as const
 
 describe('하네스 배선', () => {
   it.each(HARNESSES)('%s 는 가드 뒤에 플로마다 요청 수를 단언한다', (script) => {

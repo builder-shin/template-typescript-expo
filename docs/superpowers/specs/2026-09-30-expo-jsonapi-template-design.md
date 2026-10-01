@@ -1021,6 +1021,16 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > `test/e2e/checks/request-stall.yaml` 로 잰다 - 헤더 전에 멈추는 요청과 헤더 뒤 본문에서 멈추는 요청이 모두 전체 화면
 > 실패로 끝나고, 기기 로그에 `REQUEST_TIMEOUT` 둘, 서버 기록에 두 방식이 있어야 통과다. Android 의 결과는 D7 실측 기록 K1.
 
+> 정정(2026-10-01, D7): iOS 의 가드와 로캘. 하네스(`test/e2e/run-ios.sh`)가 플로마다 시뮬레이터 로그를
+> `log stream --style ndjson`(서브시스템 `com.facebook.react.log`)으로 받고 `test/e2e/ios-log.ts` 가 `adb logcat -v brief`
+> 모양으로 옮겨 Android 와 같은 `test/e2e/guard-log.sh` 에 넘긴다. React Native 0.86 의 iOS 는 JS 의 info 와 warn 을 같은
+> os_log 유형(Info)으로 남겨(`React/Base/RCTLog.mm`) 로그만으로는 경고를 가를 수 없다 - e2e 변형이 경고 수준의 줄 앞에
+> `[e2e-warn]` 을 붙이고(`platform/e2e-log.ts` 가 `nativeLoggingHook` 을 감싼다, 표식의 판단은
+> `lib/jsonapi/failure-log.ts`) 변환이 그 줄을 `W` 로 옮긴다. 루트 레이아웃이 모듈 평가 시점에 감싸므로 그보다 먼저
+> 평가된 모듈의 iOS 경고는 표식이 없다(같은 번들을 도는 Android 가 수준으로 잡는다). 로캘 플로 앞에서 하네스가 앱을
+> 다시 설치하고 키체인을 비운다(Android 의 `pm clear` 자리) - 언어는 플로의 `launchApp` 이 싣는
+> `-AppleLanguages (<태그>)` 다(위 첫 D7 정정). iOS 에서 실제로 되는지는 CI 의 첫 실행이 잰다(D7 실측 기록 K3).
+
 ### 11.4 E2E 스택
 
 - `docker-compose.e2e.yml`은 Next.js 파일에서 `web` 서비스를 뺀 것이다. 백엔드마다
@@ -1034,6 +1044,18 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
   하나로 세 백엔드를 검증한다.**
 - 백엔드 이미지는 GitHub `main`에서 빌드한다. 백엔드 `main`이 바뀐 뒤에는
   `--pull`로 다시 빌드해야 최신 코드가 검증된다(Next.js README의 교훈).
+
+> 정정(2026-10-01, D7): 띄울 백엔드는 `BACKEND_KIND`(fastapi·nestjs·rails, 기본 fastapi)가 고른다 - `test/contract/run.sh`·
+> `test/e2e/run-android.sh` 는 그 compose 프로파일을, `test/e2e/run-ios.sh` 는 `test/e2e/native-backend.sh` 를 쓴다. 13장의
+> `native-backend.sh <종류>` 는 인자가 아니라 이 변수이고, 하위 명령으로 나뉜다 - `services`(Homebrew 의 PostgreSQL 18·
+> Redis)·`fetch`(백엔드 저장소 `main`)·`prepare`(uv·pnpm·bundler)·`start`(DB 를 새로 만들어 마이그레이션 → 같은 SQL 시드 →
+> API 를 4100 에)·`stop`. DB·Redis 는 127.0.0.1 의 55432·56379 에 뜨고, 저장소·DB·로그는 이 저장소 밖(`E2E_NATIVE_DIR`,
+> 기본 `~/.cache/template-typescript-expo-e2e`)에 둔다 - lint·format·secretlint 가 백엔드 저장소를 훑지 않게. 롤·DB 이름·
+> JWT 더미·Rails 의 환경은 `docker-compose.e2e.yml` 과 같고, 세 저장소의 주소는 `native-backend.sh repo-url` 한 곳에서 나와
+> 단위 시험이 compose 의 빌드 컨텍스트와 맞댄다. iOS 앱은 `test/e2e/ios.sh build` 가 한 번 만든다 - `APP_VARIANT=e2e`·
+> `BACKEND_URL=http://localhost:4100` 을 export 해 Xcode 빌드가 `app.config.ts` 를 다시 평가하고, `ios.sh assert-app` 이
+> `.app` 의 앱 설정·`Expo.plist`·`Info.plist`(`NSAllowsLocalNetworking`)를 단언한다(Android 의 `android.sh build` 와 같은
+> 자리).
 
 ## 12. 검증 게이트
 
