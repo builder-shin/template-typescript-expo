@@ -33,6 +33,7 @@ describe('variantProfile', () => {
       nameSuffix: ' (Dev)',
       allowCleartext: true,
       logsHttpFailures: false,
+      updatesChannel: null,
     })
     expect(variantProfile('preview')).toEqual({
       idSuffix: '.preview',
@@ -40,6 +41,7 @@ describe('variantProfile', () => {
       nameSuffix: ' (Preview)',
       allowCleartext: false,
       logsHttpFailures: false,
+      updatesChannel: 'preview',
     })
     expect(variantProfile('production')).toEqual({
       idSuffix: '',
@@ -47,6 +49,7 @@ describe('variantProfile', () => {
       nameSuffix: '',
       allowCleartext: false,
       logsHttpFailures: false,
+      updatesChannel: 'production',
     })
     expect(variantProfile('e2e')).toEqual({
       idSuffix: '.e2e',
@@ -54,12 +57,24 @@ describe('variantProfile', () => {
       nameSuffix: ' (E2E)',
       allowCleartext: true,
       logsHttpFailures: true,
+      updatesChannel: null,
     })
   })
 
   it('HTTP 실패를 기기 로그에 남기는 것은 e2e 뿐이다 - E2E 가드의 재료(스펙 11.3)', () => {
     expect(APP_VARIANTS.filter((variant) => variantProfile(variant).logsHttpFailures)).toEqual([
       'e2e',
+    ])
+  })
+
+  it('OTA 채널은 배포 변형(preview·production)에만 있고 변형 이름과 같다 - 스펙 10.2·10.6', () => {
+    expect(
+      APP_VARIANTS.map((variant) => [variant, variantProfile(variant).updatesChannel]),
+    ).toEqual([
+      ['development', null],
+      ['preview', 'preview'],
+      ['production', 'production'],
+      ['e2e', null],
     ])
   })
 

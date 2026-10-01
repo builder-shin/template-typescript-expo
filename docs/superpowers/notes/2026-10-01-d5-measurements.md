@@ -100,6 +100,8 @@ connect` - 앱 상태를 지우기 시작하고 5.6초 뒤). 게이트가 끝난
 제한 시간과 단언은 그대로 두었다. 증거 게이트 앞에 adb 서버를 다시 띄우고 에뮬레이터를 새로 부팅했다(`test/e2e/android.sh
 boot` - 에뮬레이터는 6시간 가까이 켜져 있었고 이 태스크에서만 플로 83번을 돈 뒤였다). 실패한 두 회차는 통과로 세지 않는다.
 
+이후 expo-updates 를 더하며 고친 빌드 레시피의 우회책은 `docs/superpowers/notes/2026-10-01-d6-measurements.md` 의 O4 에 있다.
+
 ## C3 — 계약 실험실 (기기)
 
 **가드.** 선언한 실패 표식 - `contract-lab-anonymous` 의 400(정책에 없는 필터 연산자) (1), `contract-lab-signed-in`
@@ -147,6 +149,8 @@ tap")로 누르니 실험실이 하나만 쌓였다 - 뒤로 한 번에 홈이�
 수다. 둘째 누름이 실험실에 닿았다면 그 자리는 관계 전용 쓰기 카드의 설명 글(누를 것이 없다 - UI 덤프로 봤다)이라 아무 일도
 일어나지 않는다 - 그래서 이 측정은 이동 가드(`useNavigateOnce`)가 둘째 누름을 버린 것과 둘째 누름이 헛누름이 된 것을 가르지
 못한다.
+D6 에서 홈 배치를 바꾼 뒤 둘째 누름이 닿는 자리는 첫 카드 `lab-card-putUpsert` 의 설명 글이다 - 재측정은
+`docs/superpowers/notes/2026-10-01-d6-measurements.md` 의 O4 에 있다.
 
 **게이트 뒤에 더한 단언.** 증거 게이트 뒤에 `contract-lab-anonymous` 에 관계 전용 쓰기의 세션 안내
 (`lab-session-note-relationshipWrite`) 단언 하나를 더했다 - 이제 세션이 필요한 셋의 안내를 모두 본다. 앱은 바뀌지 않아 그

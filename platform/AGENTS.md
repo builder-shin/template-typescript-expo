@@ -10,6 +10,7 @@ Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 
 | `secure-session-storage.ts` | 세션 항목의 SecureStore 저장 매체                                                                                                                                                                                                                |
 | `session.ts`                | 세션 관리자 `sessionManager` 하나와 상태 훅 `useSessionStatus()`                                                                                                                                                                                 |
 | `query-client.ts`           | Query 캐시 `queryClient` 하나와 기본 옵션(스펙 8.5, `networkMode: 'offlineFirst'`), 앱 복귀·네트워크 복귀의 재조회 `useQueryRefetchTriggers()`(AppState·NetInfo), 인증 오류의 한 곳(쓰기 캐시의 `onError` - 세션 거절이면 `signOut()`, 스펙 9.2) |
+| `updates.ts`                | 빌드 정보 카드가 읽는 이 실행의 값(`readBuildInfo` - expo-updates·expo-constants)과 업데이트 확인이 부르는 expo-updates 의 세 호출(`updatesApi`). 판단은 `lib/updates/build-info.ts`                                                             |
 | `theme.ts`                  | 내비게이션 테마. 색은 `nav-colors.ts`                                                                                                                                                                                                            |
 | `nav-colors.ts`             | 내비게이션 색 - `global.css` 토큰의 sRGB 값. import 가 없다 - `test/unit/ui/nav-colors.test.ts` 가 토큰과 맞댄다                                                                                                                                 |
 
@@ -40,3 +41,7 @@ Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 
 것 - 은 `test/unit/platform/api.test.ts`가 `vi.mock`으로 잰다(기기 모듈·설정 자리·`request`를 가짜로
 바꾼다). 언어 조립·실패 한 줄·변형 표의 판단은 `lib/`의 시험이 잰다. `query-client.ts`의 인증 오류 배선은
 `test/unit/platform/query-client.test.ts`가 실제 쓰기 캐시로 잰다(기기 모듈과 세션 관리자만 가짜다).
+
+`updates.ts`의 배선 - expo-updates·expo-constants 의 값을 빌드 정보로 옮기는 것과 업데이트 확인의 세 호출 - 은
+`test/unit/platform/updates.test.ts`가 `vi.mock`으로 잰다(기기 모듈과 설정 자리를 가짜로 바꾼다). 카드의 행과 확인의 순서는
+`lib/updates/`의 시험이 잰다.

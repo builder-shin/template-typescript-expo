@@ -18,6 +18,7 @@
 | `lib/lab/`             | 실험 정의, 실험의 실행(전송·토큰을 주입받는다), 결과 표현                                                            | 화면, 세션                                |
 | `lib/config/`          | 설정 계약과 변형 규칙 - `app.config.ts`가 M7 제약 아래 직접 불러온다                                                 | 네이티브 모듈, 설정 자리의 바인딩         |
 | `lib/navigation/`      | 밖에서 들어온 URL·딥링크를 앱 안 주소로 바꾸는 정규화, 화면을 쌓는 이동을 한 번만 하는 가드(`once.ts`)               | 화면, fetch, 네이티브 모듈                |
+| `lib/updates/`         | 빌드 정보 카드의 판단 - 카드의 행, 업데이트 확인의 순서와 문구                                                       | 네이티브 모듈, 화면                       |
 | `platform/`            | SecureStore·로캘·AppState·NetInfo·Updates·Constants 호출, React Provider, API 클라이언트 조립                        | 판단                                      |
 | `queries/`             | 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화                                                                                | JSX, 쿼리 문자열 조립                     |
 | `app/`                 | 화면, 라우팅, 가드 배치                                                                                              | fetch, `request()` 호출, 쿼리 문자열 조립 |
@@ -41,6 +42,9 @@
 `settings.ts`가 읽는 설정 자리(`process.env`, 앱에서는 `extra`)를 정하는 바인딩은
 `platform/config.ts`가 한다. `components/lab/`도 스펙의 트리에 없다 - 계약 실험실 화면(`app/(lab)/contract.tsx`)의
 조각이 자원 UI 도 폼 조각도 아니어서 따로 뒀다.
+
+`lib/updates/`도 스펙의 트리에 없다 - 홈의 빌드 정보 카드(스펙 10.6)의 판단을 D6가 뒀다. 이 실행의 expo-updates
+값을 다루고 설정 계약이 아니어서 `lib/config/`에 두지 않았다.
 
 위반의 정의:
 
@@ -130,10 +134,17 @@ Android SDK·Maestro·에뮬레이터)은 그 파일 머리말에 있다. Window
 `./scripts/check.sh`로 돌린다 - `package.json`의 `check` 스크립트(`pnpm check`)는 pnpm이 cmd.exe로
 돌려 `./`를 못 찾고 실패한다. 실행 권한이 살아 있어야 통과한다 - `git ls-tree HEAD scripts/ test/e2e/ test/contract/`에서
 `scripts/check.sh`·`scripts/check-citations.sh`·`test/e2e/android.sh`·`test/e2e/run-android.sh`·
-`test/e2e/guard-log.sh`·`test/contract/run.sh` 여섯이 `100755`인지 확인한다(`scripts/check-provenance.mjs`는 `node`가
-부르므로 `100644`가 맞다). `core.filemode=false`인 머신에서는 권한이 빠져도 `git status`로 드러나지
+`test/e2e/guard-log.sh`·`test/contract/run.sh` 여섯이 `100755`인지 확인한다(`scripts/check-provenance.mjs`·
+`scripts/check-variant-config.mjs`는 `node`가 부르므로 `100644`가 맞다). `core.filemode=false`인 머신에서는 권한이 빠져도 `git status`로 드러나지
 않는다. E2E 플로를 쓰는 규칙과 하네스의 환경 변수는 `test/e2e/AGENTS.md`에, 계약 거울의 규칙과 돌리는 법은
 `test/contract/AGENTS.md`에 있다.
+
+설정 단계 [8]은 네 변형을 EAS 프로젝트가 없을 때와 있을 때(가짜 id)로 평가해, 설정 플러그인이 네이티브 설정으로
+옮길 값(`expo config --type introspect`)이 변형 표·OTA 판단(`lib/config/`)과 같은지 `scripts/check-variant-config.mjs`로
+본다. 평가는 저장소 루트가 아니라 커밋 대상 파일의 깨끗한 사본(`.maestro-output/variant-config-src`, `android/`·`ios/`
+없음, 끝나면 지운다)에서 한다 - 저장소 안에서 빌드하는 E2E 하네스나 dev client의 prebuild가 루트에 남긴 `android/`를 설정
+플러그인이 바탕으로 삼으면 앞선 빌드의 scheme이 섞여 설정이 어긋난 것처럼 보인다. 셸이 내보낸 `EAS_PROJECT_ID`가 섞이지
+않도록 그 단계는 프로젝트 id 두 자리를 빈 값으로도 명시한다.
 
 번들 단계는 `expo export --clear`라서 Metro·Uniwind 캐시를 지운다 - 게이트를 돌리기 전에 이 저장소의
 `expo start`를 끈다. 캐시를 두면 이 개발 머신(Windows)에서 `expo export`가 끝날 때 간헐적으로 죽었다(실측 기록
@@ -161,3 +172,5 @@ secretlint 단계는 `pnpm lint:secrets`다. 스크립트 이름을 `secretlint`
 누름(D4 실측 W1–W4)은 `docs/superpowers/notes/2026-10-01-d4-measurements.md`에 있다.
 계약 거울의 드리프트 감지와 게이트 13단계, 계약 실험실의 기기 E2E(D5 실측 C1–C3)는
 `docs/superpowers/notes/2026-10-01-d5-measurements.md`에 있다.
+EAS·OTA 설정의 변형별 검증, 설정이 다르면 fingerprint runtime version 이 갈리는 것, 빌드 정보 카드(D6 실측 O1–O4)는
+`docs/superpowers/notes/2026-10-01-d6-measurements.md`에 있다.

@@ -1,0 +1,33 @@
+# 홈의 빌드 정보 카드(스펙 10.6) - e2e 변형의 APK 가 제 설정을 기기에서 그대로 보이는지 본다. 앱 버전, 변형 e2e,
+# OTA 꺼짐, runtime version·채널·업데이트 ID 없음(OTA 를 끈 빌드), 업데이트 확인 버튼 대신 안내. 같은 설정이 APK 의
+# 앱 설정과 AndroidManifest.xml 에 있는지는 test/e2e/android.sh build 가 APK 를 만들 때 단언한다. 이 플로는 백엔드를
+# 부르지 않는다.
+appId: com.example.templateexpo.e2e
+---
+- runFlow: ../subflows/start-signed-out.yaml
+- scrollUntilVisible:
+    element:
+      id: build-info-card
+    direction: DOWN
+- assertVisible:
+    id: build-info-version
+    text: '0\.1\.0'
+- assertVisible:
+    id: build-info-variant
+    text: e2e
+- assertVisible:
+    id: build-info-ota
+    text: 꺼짐
+- assertVisible:
+    id: build-info-runtime
+    text: 없음
+- assertVisible:
+    id: build-info-channel
+    text: 없음
+- assertVisible:
+    id: build-info-update
+    text: 없음
+- assertVisible:
+    id: build-info-ota-off
+- assertNotVisible:
+    id: build-info-check

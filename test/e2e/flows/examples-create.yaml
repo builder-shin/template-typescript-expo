@@ -37,7 +37,7 @@ appId: com.example.templateexpo.e2e
 - assertNotVisible:
     id: login-screen
 # subflows/login.yaml 을 부르지 않고 같은 단계를 풀어 쓴다 - 그 서브플로는 제출을 한 번 누르고, 여기서는 두 번 누른다. 로그인이
-# 끝난 뒤에 닿은 둘째 누름은 홈의 빈 자리다.
+# 끝난 뒤에 닿은 둘째 누름은 홈의 빌드 정보 카드(버전·변형 행 사이)다 - OTA 를 끈 e2e 빌드의 카드에는 누를 것이 없다.
 - openLink: templateexpo-e2e://login
 - extendedWaitUntil:
     visible:

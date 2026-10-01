@@ -201,6 +201,12 @@ docs/superpowers/specs/ · plans/ · notes/
 > `lib/lab/` 에는 실험 정의와 결과 표현(복사)에 더해 실험을 요청으로 돌리는 실행부(`run.ts`)가 있고, 실험 하나를 돌리는 쓰기
 > 훅은 `queries/lab.ts` 다(8.6 의 D5 정정). 소유 규칙은 루트 `AGENTS.md` 의 표다.
 
+> 정정(2026-10-01, D6): 트리에 셋을 더한다. `lib/updates/` 는 홈의 빌드 정보 카드(10.6)의 판단 - 카드의 행, "업데이트
+> 확인" 의 순서(확인 → 받기 → 다시 켜기)와 문구 - 이고, expo-updates 의 값과 호출은 `platform/updates.ts` 가
+> 넘긴다. 이 실행의 값을 다루고 설정 계약이 아니어서 `lib/config/` 에 두지 않았다. `lib/config/updates.ts` 는 OTA
+> 설정의 판단(10.6 의 D6 정정)이고, `scripts/check-variant-config.mjs` 는 게이트 8단계의 변형별 설정 검사(12장의 D6
+> 정정)다. 소유 규칙은 루트 `AGENTS.md` 의 표다.
+
 ## 5. 계층 소유권
 
 | 위치 | 소유하는 것 | 소유하지 않는 것 |
@@ -776,6 +782,19 @@ Next.js와 같다.
 - 선택 변수의 기본값은 `app.config.ts`·`.env.example`·README 표 셋에 같은 값으로
   적는다(Next.js와 같다).
 
+> 정정(2026-10-01, D6): `EAS_PROJECT_ID` 는 UUID 여야 한다 - 다른 모양이면 설정을 평가하는 순간 멈추고(틀린 id 는
+> 업데이트 주소를 틀리게 만들어 OTA 가 소리 없이 멈춘다), 오류는 실제로 읽은 변수의 이름을 말한다(`EAS_PROJECT_ID` 가
+> 비었고 `EAS_BUILD_PROJECT_ID` 에서 읽었다면 그 이름). 대소문자는 가리지 않고 받되 소문자로 맞춰 싣는다 - EAS 빌드
+> 서버는 설정의 `extra.eas.projectId` 를 자신이 주는 `EAS_BUILD_PROJECT_ID` 와 글자 그대로 맞대 보고 다르면 빌드를
+> 멈추므로(`@expo/build-tools` 24.8.0 의 설정 검사, `EAS_BUILD_PROJECT_ID_MISMATCH`) 대문자로 적은 id 가 그대로
+> 실리면 빌드가 시작한 뒤에야 멈춘다. 값이 없고 EAS 빌드 서버가 주는 `EAS_BUILD_PROJECT_ID` 가 있으면 그 값을 쓴다 -
+> 빌드를 시작한 eas-cli 는 로컬의 `EAS_PROJECT_ID` 로 설정을 평가하는데, 서버의 평가에 id 가 빠지면 OTA 가 꺼져 두
+> 평가의 runtime version 이 달라지고 EAS 빌드가 멈춘다(`@expo/build-tools` 24.8.0 의
+> `configureExpoUpdatesIfInstalledAsync`). 프로젝트 id 는 `extra.eas.projectId` 로 실린다 - eas-cli 와 EAS 빌드가
+> 프로젝트를 찾는 자리다. Expo CLI 는 `.env` 를 읽으므로 개발자의 `.env` 가 평가에 섞일 수 있다 - 게이트의 8단계(설정)는
+> `.env` 가 없는 깨끗한 사본에서 평가하고(12장의 D6 정정) 셸이 내보낸 값도 섞이지 않도록 `EAS_PROJECT_ID`·
+> `EAS_BUILD_PROJECT_ID` 를 빈 값으로도 명시한다. 판단은 `lib/config/updates.ts` 의 `easProjectId`.
+
 ### 10.2 변형
 
 | 변형 | 번들 ID 접미사 | 평문 HTTP | OTA | 용도 |
@@ -821,6 +840,17 @@ Native Generation). 네이티브 설정은 `app.config.ts`와 config plugin으�
   같은 계정 고유 값은 저장소에 가짜 값으로 넣지 않는다 — 첫 `eas submit` 때
   EAS가 묻고 저장한다.
 
+> 정정(2026-10-01, D6): `eas.json` 의 빌드 프로필은 변형과 같은 넷뿐이다 - 공통 설정을 담는 `base` 프로필을 두지
+> 않는다(그 프로필을 빌드하면 `APP_VARIANT` 없이 development 로 평가된다). 네 프로필이 모두 Node `24.19.0`·pnpm
+> `11.22.0` 을 고정한다 - `app.config.ts` 가 `lib/config` 를 Node 의 type stripping 으로 불러오고(22.18 이상, D1 실측
+> M7), `engines.node`(`>=24.11.0`)를 pnpm 이 강제한다. `environment` 는 프로필 이름과 같은 EAS 환경이다
+> (`BACKEND_URL` 을 넣는 자리) - `e2e` 는 정하지 않는다(로컬·CI 는 prebuild + Gradle·xcodebuild 로 빌드한다, 10.7).
+> `e2e` 는 자격 증명 없이(`withoutCredentials`) 빌드한다. `development` 의 `developmentClient` 는 `expo-dev-client` 를
+> 요구하는데 D6 는 그 패키지를 설치하지 않았다 - 그 설정 플러그인은 기본으로 모든 변형에 같은 scheme
+> `exp+<slug>` 를 더해 10.2 의 D1 정정(변형마다 다른 scheme)을 깬다. `eas build --profile development` 는 설치를
+> 묻는다(비대화형이면 멈춘다). 프로필과 변형이 맞는지(이름·`APP_VARIANT`·채널·Node·pnpm, `BACKEND_URL` 없음)는
+> `test/unit/config/eas-json.test.ts` 가 보고, 스키마는 `@expo/eas-json` 24.8.0 의 해석기로 쟀다(D6 실측 O2).
+
 ### 10.6 OTA 업데이트
 
 - `runtimeVersion`은 `fingerprint` 정책이다. 네이티브 구성이 같은 빌드에만
@@ -834,6 +864,26 @@ Native Generation). 네이티브 설정은 `app.config.ts`와 config plugin으�
 - 홈의 **빌드 정보 카드**가 앱 버전, runtime version, 채널, 업데이트 ID를 보여
   주고, "업데이트 확인" 버튼으로 받은 업데이트를 바로 적용한다. OTA가 실제로
   도는지 눈으로 확인하는 최소 장치다.
+
+> 정정(2026-10-01, D6): (a) OTA 설정은 `app.config.ts` 의 `updates` 다 - 켜면 `url`(`https://u.expo.dev/<id>`),
+> `checkAutomatically: 'ON_LOAD'`, `fallbackToCacheTimeout: 0`, 채널 머리글 `requestHeaders['expo-channel-name']` 이고,
+> 끄면 `{ enabled: false }` 뿐이다. EAS 빌드는 `eas.json` 의 `channel` 로 같은 머리글을 네이티브 설정에 다시 쓰고, EAS
+> 밖의 빌드(prebuild + Gradle·xcodebuild)는 앱 설정의 머리글을 쓴다 - 두 값이 같은지 시험이 본다. 판단은
+> `lib/config/updates.ts`, 채널은 변형 표(`lib/config/app-variant.ts` 의 `updatesChannel`)다. (b) `runtimeVersion:
+> { policy: 'fingerprint' }` 는 OTA 를 켠 빌드에만 둔다 - 끈 빌드(development·e2e, 프로젝트가 없는 배포 변형)는 받을
+> 업데이트가 없으니 빌드 중에 지문을 계산하지 않는다. (c) fingerprint 는 공개 설정 전체(식별자·이름·scheme,
+> `updates`, `extra` 의 `backendUrl`·`appVariant`·`eas.projectId`)를 해시에 넣는다 - `BACKEND_URL`·`APP_VARIANT`·프로젝트
+> id 가 다른 환경에서 발행한 업데이트는 runtime version 이 달라 어떤 빌드에도 닿지 않고, JS 만 바뀐 발행은 같은
+> runtime version 이다(D6 실측 O1). 16장의 "설정 오류가 OTA로 배포된다" 에 든 `fingerprint` 대응이 잰 사실이 됐다 -
+> 앱 시작의 재검증(10.1)은 그 뒤의 두 번째 방어선이다.
+
+> 정정(2026-10-01, D6): 빌드 정보 카드는 앱 버전·변형·OTA(켜짐·꺼짐)·runtime version·채널·업데이트 ID 를 보인다 -
+> 내장 번들로 떴으면 업데이트 ID 뒤에 그렇다고 적고, 값이 없으면 "없음" 이다(OTA 를 끈 Android 빌드는 runtime
+> version·채널을 빈 문자열로 준다 - expo-updates 57.0.24 의 `DisabledUpdatesController`). OTA 를 끈 빌드는 "업데이트
+> 확인" 대신 안내를 그린다. 확인은 서버에 새 업데이트(또는 내장 번들로 되돌리라는 지시)가 있으면 받아서 곧바로 다시
+> 켜고, 없으면 그렇다고, 거절되면 그 문구를 적는다 - 도는 동안과 다시 켜는 동안은 스피너만 그린다(8.7). 판단은
+> `lib/updates/build-info.ts`, 호출은 `platform/updates.ts`, 훅은 `queries/updates.ts`, 카드는
+> `components/app/build-info-card.tsx` 다.
 
 ### 10.7 계정이 필요한 실증은 따로 둔다
 
@@ -952,6 +1002,12 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > 협상의 422 둘 - ko 본문에 한글이 있고 en 본문에 없다). 결과의 단계마다 testID 가 있어 단계의 본문끼리 본다. 결과는
 > `docs/superpowers/notes/2026-10-01-d5-measurements.md` 의 C3.
 
+> 정정(2026-10-01, D6): E2E `home-build-info` 가 e2e 변형 APK 의 빌드 정보 카드를 기기에서 본다 - 변형 e2e, OTA 꺼짐,
+> runtime version·채널·업데이트 ID 없음, 확인 버튼 대신 안내. `test/e2e/android.sh build` 는 만든 APK 의 앱 설정
+> (`assets/app.config` - `updates` 가 `{ enabled: false }` 이고 `runtimeVersion` 이 없다)과 병합된 AndroidManifest.xml
+> (`aapt2` - expo-updates 의 `ENABLED` 가 `false`, 업데이트 주소·채널 머리글이 없고 평문 HTTP 가 켜져 있다)을
+> 단언한다. OTA 를 켠 변형의 기기 실증은 계정이 필요해 15장 9단계다. 결과는 D6 실측 O4.
+
 ### 11.4 E2E 스택
 
 - `docker-compose.e2e.yml`은 Next.js 파일에서 `web` 서비스를 뺀 것이다. 백엔드마다
@@ -1018,6 +1074,16 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > 두 단계는 같은 compose 프로젝트(`template-typescript-expo-e2e`)를 각자 띄우고 내린다 - 거울은 백엔드 기본 access
 > 수명으로, E2E 는 10초(11.3 의 D4 정정)로 띄우므로 스택을 나눠 쓰지 않는다. 거울은 기기가 없어도 돌아 E2E 의 APK
 > 빌드 전에 선언의 어긋남을 알린다.
+
+> 정정(2026-10-01, D6): 8단계(설정)는 평가만 하지 않고 검사한다. 네 변형을 EAS 프로젝트가 없을 때와 있을 때(닿지 않는
+> 가짜 id)로 `expo config --type introspect` 한다 - 빌드하지 않고 설정 플러그인을 돌려 AndroidManifest.xml·
+> strings.xml·Info.plist·Expo.plist 가 될 값을 낸다. 그 값이 변형 표와 OTA 판단(`lib/config/`)이 정한 것과 같은지
+> `scripts/check-variant-config.mjs` 가 본다 - 식별자·scheme·앱 이름, 평문 HTTP, OTA(켬·끔, 주소, 채널, 확인 시점,
+> runtime version 정책), 프로젝트 id. 평가는 저장소 루트가 아니라 커밋 대상 파일의 깨끗한 사본(`.maestro-output/` 안,
+> `android/`·`ios/` 없음, 끝나면 지운다)에서 한다 - 루트에 `android/` 가 있으면(저장소 안에서 빌드하는 E2E 하네스나 dev
+> client 의 prebuild 가 남긴다) 설정 플러그인이 그것을 바탕으로 삼고 scheme 은 더하기만 해서, 앞선 빌드의 값이 섞여 설정이
+> 어긋난 것처럼 보인다. 사본을 만들고 지우는 것까지 여덟 평가가 이 개발 머신에서 10초 안팎이고, 설정에 어긋남을 넣으면 그
+> 자리를 알리며 멈춘다(D6 실측 O3).
 
 ## 13. CI (GitHub Actions)
 
@@ -1149,6 +1215,20 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > `Platform.select`·`Platform.OS` 로 클래스 문자열을 고른다. 패치는 Metro 변환기 안쪽을 고쳐야 하고, 고쳐진
 > 릴리스는 아직 없다(npm `latest` 1.12.0). 폰과 태블릿이 같은 크기를 쓴다. 근거는
 > `docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L2.
+
+> 정정(2026-10-01, D6): 위 "설정 오류가 OTA로 배포된다" 의 대응 가운데 `fingerprint` 정책은 잰 사실이다 - 설정이 다른
+> 환경의 발행은 runtime version 이 달라 빌드에 닿지 않는다(10.6 의 D6 정정 (c), D6 실측 O1). 게이트 8단계가 변형별
+> 네이티브 설정을 검사한다(12장의 D6 정정). "OTA 실증에 Expo 계정이 필요하다" 는 그대로다 - D6 는 계정 없이 설정과
+> 빌드 정보 카드만 쟀다.
+
+> 정정(2026-10-01, D6): D6 에서 더한 E2E 빌드 우회책 둘은 `test/e2e/android.sh` 에만 있다. 하네스의 `gradlew`
+> 명령줄에 JVM 인자 `-Xmx4096m -XX:MaxMetaspaceSize=1024m` 를 준다 - expo-updates 의 Room 컴파일러(KSP2)가
+> 병렬 lint 와 함께 돈 32코어 머신에서 prebuild 기본값인 Metaspace 512MiB 를 채워 OOM 이 났다. 또 Metro 캐시를 비우고
+> `:app:createReleaseUpdatesResources` 를 먼저 돌린 뒤, 캐시를 다시 비우고 `assembleRelease` 를 돌려 그 단계가
+> UP-TO-DATE 로 건너뛰게 한다 - Windows 에서 번들 단계가 채운 캐시 위의 Metro 가 node 종료 때 0xC0000005 로 죽었다.
+> CI(D7)가 `test/e2e/android.sh build` 로 빌드하면 같은 JVM 인자와 두 단계 Gradle 을 물려받는다. EAS 빌드(15장 9단계,
+> D9)는 prebuild 기본값(512MiB)을 쓴다 - 같은 OOM 을 만나면 넓은 고침은 `withGradleProperties` 설정 플러그인이고,
+> 이 고침은 fingerprint 를 바꾼다. 근거와 레시피 유지 조건은 D6 실측 O4.
 
 ## 17. 완료 조건
 

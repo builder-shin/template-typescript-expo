@@ -6,6 +6,7 @@ import {
   variantProfile,
 } from './lib/config/app-variant.ts'
 import { loadSettings } from './lib/config/settings.ts'
+import { easProjectId, RUNTIME_VERSION_POLICY, updatesConfig } from './lib/config/updates.ts'
 
 /**
  * 앱 식별자와 빌드 설정의 정본(스펙 10.1).
@@ -17,6 +18,10 @@ import { loadSettings } from './lib/config/settings.ts'
  * 기본 식별자는 일부러 배포할 수 없는 값이다. Google Play 는 com.example 로 시작하는
  * 패키지 이름을 받지 않는다 - 템플릿 사용자는 배포 전에 BASE_APP_ID 를 반드시
  * 바꾸게 된다(스펙 10.3).
+ *
+ * OTA(스펙 10.6)는 채널이 있는 변형(preview·production)에 EAS 프로젝트(EAS_PROJECT_ID)가 있을 때만 켠다
+ * (lib/config/updates.ts). 켠 빌드만 runtime version 을 fingerprint 정책으로 둔다 - 끈 빌드(development·e2e,
+ * 프로젝트가 없는 배포 변형)는 받을 업데이트가 없으니 빌드 중에 지문을 계산하지 않는다.
  */
 export const BASE_APP_ID = 'com.example.templateexpo'
 export const BASE_SCHEME = 'templateexpo'
@@ -26,6 +31,8 @@ export default function appConfig({ config }: ConfigContext): ExpoConfig {
   const variant = parseAppVariant(process.env.APP_VARIANT)
   const { backendUrl } = loadSettings({ BACKEND_URL: process.env.BACKEND_URL })
   assertBackendUrlAllowed(backendUrl, variant)
+  const projectId = easProjectId(process.env)
+  const updates = updatesConfig(variant, projectId)
   const profile = variantProfile(variant)
   const appId = `${BASE_APP_ID}${profile.idSuffix}`
 
@@ -38,6 +45,8 @@ export default function appConfig({ config }: ConfigContext): ExpoConfig {
     icon: './assets/icon.png',
     scheme: `${BASE_SCHEME}${profile.schemeSuffix}`,
     userInterfaceStyle: 'automatic',
+    ...(updates.enabled ? { runtimeVersion: RUNTIME_VERSION_POLICY } : {}),
+    updates,
     ios: {
       supportsTablet: true,
       bundleIdentifier: appId,
@@ -67,6 +76,11 @@ export default function appConfig({ config }: ConfigContext): ExpoConfig {
       ['expo-secure-store', { configureAndroidBackup: true, faceIDPermission: false }],
     ],
     experiments: { typedRoutes: true, reactCompiler: true },
-    extra: { backendUrl, appVariant: variant },
+    // eas-cli 와 EAS 빌드는 extra.eas.projectId 로 프로젝트를 찾는다.
+    extra: {
+      backendUrl,
+      appVariant: variant,
+      ...(projectId === null ? {} : { eas: { projectId } }),
+    },
   }
 }

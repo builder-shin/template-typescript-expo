@@ -74,6 +74,9 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
 - 빠른 두 번 누름은 `tapOn` 의 `repeat: 2`(`delay: 1`)로 누른다 - Maestro 는 명령마다 화면이 멈추기를 기다리므로 두 명령으로는
   두 누름이 한 요청 안에 들지 않는다. 둘째 누름은 첫 누름이 연 다음 화면의 같은 자리에 닿을 수 있다 - 그 자리에 누를 것이 없는
   곳에서만 쓴다(생성 폼의 제출 자리에는 상세의 "수정" 이 온다). 나간 요청은 `api.log` 로 센다.
+- `examples-create` 의 로그인 제출 둘째 누름은 홈의 `build-info-card` 안에서 행 사이에 닿는다는 전제로 쓴다 - Pixel 9 AVD 의
+  로그인 전 홈 덤프에서 버전 행은 y≈975px 까지, 변형 값은 y≈996px 부터이고 누름은 (540, 993) 이었다(D6 실측 O4).
+  OTA 를 끈 카드에는 누를 수 있는 노드가 없어 늦은 누름도 아무 일도 하지 않는다. 그 자리에 버튼이 생기면 다시 잰다.
 
 ## 계약 실험실 플로
 
@@ -93,8 +96,19 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
   순으로 목록·쓰기 플로보다 먼저 돈다(뒤에 행이 늘어도 20쪽 상한 안이면 끝에 닿는다).
 - 딥링크로 곧장 연 실험실은 앱을 멈춘 뒤(`stopApp`) `openLink` 로 연다 - 앱이 떠 있으면 딥링크가 홈 위에 실험실을 쌓아
   헤더의 "홈으로"(`back-to-home-button`)가 그려지지 않는다. 홈의 진입(`home-lab-link`)을 `repeat: 2` 로 누르면 둘째 누름은
-  이동 가드가 버리거나 실험실의 같은 자리(관계 전용 쓰기 카드의 설명 글 - 누를 것이 없다)에 닿는다. 홈의 진입이나 그
-  카드를 옮기면 그 자리를 다시 본다.
+  이동 가드가 버리거나 실험실의 같은 자리(첫 카드인 PUT upsert 의 설명 글 - 누를 것이 없다)에 닿는다. 홈의 진입이나
+  실험실의 첫 카드를 옮기면 그 자리를 다시 본다.
+
+## 빌드 정보 플로
+
+- 홈의 빌드 정보 카드(`components/app/build-info-card.tsx`)는 카드 `build-info-card`, 행 `build-info-<키>`(`version`·
+  `variant`·`ota`·`runtime`·`channel`·`update`), OTA 를 끈 빌드의 안내 `build-info-ota-off`, 켠 빌드의 확인 버튼
+  `build-info-check`, 확인 결과 문구 `build-info-message` 에 testID 가 있다. e2e 변형은 OTA 를 끄므로
+  `flows/home-build-info.yaml` 은 "없음"·"꺼짐" 과 안내를 본다 - 발행한 업데이트의 적용과 "새 업데이트가 없습니다." 를
+  보는 기기 실증은 계정이 필요해 스펙 15장 9단계다. 계정 없이 확인 실패·스크린 리더 읽기를 재는 미실측 경로는 D6 실측 O4.
+- `android.sh build` 는 만든 APK 의 앱 설정(`assets/app.config` 의 `updates`·`runtimeVersion`)과 병합된
+  AndroidManifest.xml(Android SDK build-tools 의 `aapt2` 로 읽는다 - expo-updates 의 `ENABLED`·주소·채널 머리글,
+  평문 HTTP)이 e2e 변형의 것인지 단언한다. 빌드 레시피라 이 파일을 고치면 APK 를 다시 만든다.
 
 ## 돌리기
 
@@ -106,12 +120,25 @@ E2E_FLOW="register-conflict" ./test/e2e/run-android.sh       # 일부 - 개발�
 빌드 입력(시험·문서·스크립트를 뺀 파일과, `test/` 안에 있지만 빌드 레시피인 `test/e2e/android.sh`)이 지난번과
 같으면 APK 를 다시 만들지 않는다 - 플로만
 고친 실행은 빌드 없이 돈다. Windows 에서 저장소 경로가 47자를 넘으면 `E2E_STAGE_DIR`(기본
-`C:/t/e`)의 사본에서 빌드한다. 결과는 `.maestro-output/e2e/<플로>/`에 남는다. 빌드할 때마다 Gradle 앞에서 Metro 의 디스크
+`C:/t/e`)의 사본에서 빌드한다. 경로가 짧은 Windows 와 Linux·macOS 는 저장소 안에서 빌드하므로 prebuild 가 루트에
+`android/`(`.gitignore` 의 `/android`)를 남긴다 - 게이트의 [8] 은 그것이 설정의 바탕이 되지 않도록 깨끗한 사본에서 평가한다
+(`scripts/check.sh` 의 [8] 머리말). 결과는 `.maestro-output/e2e/<플로>/`에 남는다. 빌드할 때마다 Gradle 앞에서 Metro 의 디스크
 캐시(`os.tmpdir()` 의 `metro-cache`)를 비운다(`android.sh` 의 `clear_metro_cache`) - 캐시가 남은 채 돈 번들 단계가
 0xC0000005 로 죽은 적이 있고 지운 뒤에는 재현되지 않았다(`docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L7).
-재시도로 덮지 않는다. Gradle 은 데몬 없이 돈다(`--no-daemon`) - 남은 데몬이 지난 빌드의 산출물(`classes*.dex`)을 쥐고 있어
+재시도로 덮지 않는다. Gradle 은 두 번 돈다 - expo-updates 의 단계(`:app:createReleaseUpdatesResources`)를 빈 캐시에서 먼저
+돌리고, 캐시를 다시 비운 뒤 `assembleRelease` 를 돌린다(그 단계는 거기서 UP-TO-DATE). 두 단계 레시피는 둘째 Gradle 에서
+`createReleaseUpdatesResources` 가 UP-TO-DATE 인 것에 기댄다 - 지금 입력은 파일 없이 문자열·문자열 목록·불리언뿐이다. expo-updates 를 올릴 때마다 게이트
+로그에 `> Task :app:createReleaseUpdatesResources UP-TO-DATE` 가 여전히 있는지 확인한다. 두 번째 Metro 캐시 비우기는 번들
+단계도 빈 캐시에서 시작하게 하려는 것이다(D3 실측 L7 의 불변식). 그 단계는 Metro 를 캐시를 지우지 않고
+돌리는데, 번들 단계가 채운 캐시 위에서는 node 의 종료에서 0xC0000005 로 죽었다(`docs/superpowers/notes/2026-10-01-d6-measurements.md`
+의 O4). Gradle 은 상주 데몬 없이 돈다(`--no-daemon`, 빌드마다 일회용 Gradle 데몬을 띄운다) - 남은 데몬이 지난 빌드의
+산출물(`classes*.dex`)을 쥐고 있어
 Windows 에서 다음 빌드 앞의 사본 지우기가 "Device or resource busy" 로 멈췄다(`docs/superpowers/notes/2026-10-01-d4-measurements.md`
-의 W1). 사본 지우기가 도중에 멈춰도 표식(`.e2e-stage`)은 남아 다음 실행이 그 사본을 알아본다.
+의 W1). 사본 지우기가 도중에 멈춰도 표식(`.e2e-stage`)은 남아 다음 실행이 그 사본을 알아본다. 하네스의 `--no-daemon` 빌드가
+띄우는 일회용 Gradle 데몬의 JVM 인자는 명령줄(`-Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m"`)로 준다 -
+prebuild 가 만드는 `android/gradle.properties` 의 기본값(Metaspace 512MiB)으로는 expo-updates 의 KSP 가 병렬 lint 와 함께
+돌 때 데몬의 Metaspace 가 차서 빌드가 죽었다
+(`docs/superpowers/notes/2026-10-01-d6-measurements.md` 의 O4).
 
 하네스(`run-android.sh`·`android.sh`)가 읽는 환경 변수다.
 
