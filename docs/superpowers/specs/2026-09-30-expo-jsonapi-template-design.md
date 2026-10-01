@@ -875,6 +875,15 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > 재현하는지 `test/e2e/flows/examples-browse.yaml` 이 기기에서 잰다 - 들어온 딥링크를 앱 안 주소로 바꾸는 정규화
 > (8.2 의 둘째 D3 정정)가 그 전제다(같은 기록의 L1·L6).
 
+> 정정(2026-10-01, D4): 쓰기 E2E(생성·수정·삭제·실패 처리)는 앱 밖에서 백엔드를 바꾸는 단계를 `runScript`
+> (`test/e2e/scripts/examples-api.js`)로 둔다 - 계정 만들기(`account`), 고칠 행(`example`, 참조 목록 밖의 관계를 단
+> `unlisted`), 자원 없애기(`delete`), 세션 끊기(`revoke`). 제목은 실행·플로마다 다른 짧은 접두사(`d4-<이메일 끝
+> 8자>`)로 시작한다. 하네스는 백엔드의 access token 수명을 10초로 준다(`E2E_ACCESS_EXPIRES_SECONDS` → 세 백엔드의
+> `JWT_ACCESS_EXPIRES_SECONDS`) - 앱은 만료 60초 전부터 회전하므로 쓰기가 전부 실제 회전을 지난다(7.2 의 D4 정정).
+> 입력 뒤에는 폼의 제목 라벨을 눌러 키보드를 내린 다음 아래쪽 요소를 누른다. 빠른 두 번 누름은 Maestro `tapOn` 의
+> `repeat: 2` 로 누른다 - 로그인 제출·"새로 만들기"·저장 제출·삭제 확인. 나간 요청의 수는 플로마다 남는 백엔드 접근
+> 로그(`api.log`)로 센다. 결과는 `docs/superpowers/notes/2026-10-01-d4-measurements.md`.
+
 ### 11.4 E2E 스택
 
 - `docker-compose.e2e.yml`은 Next.js 파일에서 `web` 서비스를 뺀 것이다. 백엔드마다
