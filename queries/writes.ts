@@ -89,7 +89,8 @@ export interface DeleteWrite {
   remove: (onDeleted: () => void) => void
   /**
    * 지난 삭제의 결과를 지운다 - `messages` 가 다음 `remove()` 까지 살아 있어서, 실패한 확인을 취소하고 다시 열면 이미 지난
-   * 실패를 들고 열린다. 확인을 취소할 때 부른다.
+   * 실패를 들고 열린다. 확인을 취소할 때 부른다. 그 삭제가 아직 진행 중이면 아무것도 하지 않는다 - 지우면 `remove()` 에
+   * 넘긴 성공 콜백이 불리지 않아 화면이 남는다(`resetUnlessPending`).
    */
   reset: () => void
 }
@@ -194,6 +195,22 @@ export function deleteResourceMutationOptions(
   })
 }
 
+/**
+ * 삭제의 `reset` - 그 삭제가 쓰기 캐시에서 진행 중이면 아무것도 하지 않는다. 진행 중인 쓰기를 `reset` 하면
+ * `MutationObserver` 가 그 쓰기에서 떨어져, `mutate()` 에 넘긴 성공 콜백(목록으로 돌아가는 이동)은 불리지 않는데 옵션의
+ * `onSuccess`(상세를 캐시에서 지우고 목록을 무효화)는 그대로 돈다 - 화면은 남고 `deleted` 는 거짓이라 다음 렌더가 지운
+ * 상세의 조회를 다시 만들어 없는 자원을 부른다(404). 확인 시트는 진행 중에 취소를 막지만(`pending`) 그것은 렌더 때의
+ * 값이다 - 진행 중인지는 `submitOnce` 처럼 쓰기 캐시로 본다. 끝난 삭제는 평소처럼 지운다.
+ */
+export function resetUnlessPending(
+  queryClient: QueryClient,
+  mutationKey: MutationKey,
+  reset: () => void,
+): void {
+  if (queryClient.isMutating({ mutationKey }) > 0) return
+  reset()
+}
+
 /** 삭제. */
 export function useDeleteResource(resource: ResourceDefinition, id: string): DeleteWrite {
   const queryClient = useQueryClient()
@@ -213,7 +230,9 @@ export function useDeleteResource(resource: ResourceDefinition, id: string): Del
       })
     },
     reset: () => {
-      mutation.reset()
+      resetUnlessPending(queryClient, options.mutationKey, () => {
+        mutation.reset()
+      })
     },
   }
 }

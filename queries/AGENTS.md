@@ -34,7 +34,8 @@ TanStack Query 의 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화를 소�
 - 자동 재시도는 `platform/query-client.ts`가 끈다.
 - 폼의 제출은 `useSubmitOnce(쓰기의 키)`로 감싼다 - 제출 버튼과 키보드의 이동 키가 한 틱 안에 함께 눌려도 요청은
   하나다. 렌더 때의 `isPending`으로 막지 않는다 - 둘째 누름도 같은 렌더를 본다(`submit-once.ts` 머리말). 그래서 폼을
-  부르는 쓰기 훅에는 `mutationKey`가 있다.
+  부르는 쓰기 훅에는 `mutationKey`가 있다. 삭제 훅의 `reset`(확인을 취소할 때)도 같은 키로 쓰기 캐시를 본다 - 진행 중인
+  삭제는 지우지 않는다(`resetUnlessPending`): 지우면 `remove()` 에 넘긴 성공 콜백이 불리지 않아 화면이 남는다.
 - 쓰기 뒤의 캐시는 `keys.ts` 의 표를 지난다 - 생성·수정·삭제 훅(`writes.ts`)은
   `applyCacheEffects(queryClient, cacheEffects({ kind: 'create', type }))` 처럼 표를 부른다. 키를 손으로 적지 않는다.
 - 삭제는 그 자원의 상세를 캐시에서 지운다. 지운 상세를 지켜보던 화면이 다시 그려지면 TanStack Query 가 새 조회를

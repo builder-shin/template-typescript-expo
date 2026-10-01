@@ -11,17 +11,19 @@ import type { ErrorObject } from '@/lib/jsonapi/document'
 import { defineResource } from '@/lib/resources/define'
 import type { ResourceFormValues } from '@/lib/resources/form'
 import { isSessionRejected } from '@/lib/resources/write'
-import { queryKeys } from '@/queries/keys'
+import { mutationKeys, queryKeys } from '@/queries/keys'
 import {
   createResourceMutationOptions,
   deleteResourceMutationOptions,
+  resetUnlessPending,
   updateResourceMutationOptions,
 } from '@/queries/writes'
 
 /**
  * 쓰기 훅이 쓰는 옵션(queries/writes.ts) - `loginMutationOptions` 처럼 훅과 시험이 함께 쓴다. TanStack Query 의
- * MutationObserver 로 그대로 돌려 두 가지를 잰다: 던져진 것이 오류 경계로 가는지(`throwOnError`)와 성공한 쓰기가 무효화
- * 표를 지나는지. 훅 자체는 시험하지 않는다(스펙 11.1) - 훅은 이 옵션을 `useMutation` 에 넘길 뿐이다.
+ * MutationObserver 로 그대로 돌려 셋을 잰다: 던져진 것이 오류 경계로 가는지(`throwOnError`), 성공한 쓰기가 무효화
+ * 표를 지나는지, 삭제 훅의 `reset` 이 진행 중인 삭제를 지우지 않는지(`resetUnlessPending`). 훅 자체는 시험하지 않는다
+ * (스펙 11.1) - 훅은 이 옵션과 함수를 `useMutation` 에 꽂을 뿐이다.
  *
  * 세션 관리자와 API 클라이언트만 가짜다 - 쓰기 흐름(lib/resources/write.ts)과 Query 캐시는 진짜다. 훅이 쓰는 그
  * 배선(`WRITE_DEPS`)을 그대로 지나므로 토큰이 요청에 실리는지도 함께 본다. 자원은 `probe*` 다.
@@ -277,5 +279,114 @@ describe('쓰기 성공의 캐시 - 무효화 표를 지난다(스펙 8.5)', () 
 
     untouched()
     expect(client.getQueryData(queryKeys.detail(PROBE_CRATE.type, ID))).toBe('probe-detail')
+  })
+})
+
+/** 밖에서 끝내는 Promise - 요청이 "진행 중" 인 동안을 붙들어 둔다. */
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve: (value: T) => void = () => undefined
+  const promise = new Promise<T>((settle) => {
+    resolve = settle
+  })
+  return { promise, resolve }
+}
+
+/** 대기 중인 Promise 연쇄가 한 바퀴 돌게 한다. */
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+describe('삭제의 reset - 진행 중인 삭제는 지우지 않는다(resetUnlessPending)', () => {
+  /**
+   * 삭제 하나를 보낸 채 붙들어 둔다. `useDeleteResource` 가 하는 대로 관찰자를 구독하고(`mutate()` 에 넘긴 콜백은 구독자가
+   * 있어야 불린다) 성공 콜백을 건다. 요청이 나간 뒤에 돌려주므로 그 삭제는 쓰기 캐시에서 진행 중이다.
+   */
+  async function startDelete() {
+    const options = deleteResourceMutationOptions(client, PROBE_CRATE, ID)
+    const observer = new MutationObserver(client, options)
+    const unsubscribe = observer.subscribe(() => undefined)
+    const response = deferred<JsonApiResult<unknown>>()
+    mocks.send.mockReturnValue(response.promise)
+    const onDeleted = vi.fn()
+    const done = observer.mutate(undefined, { onSuccess: onDeleted })
+    await settle()
+    expect(mocks.send).toHaveBeenCalledTimes(1)
+    expect(client.isMutating({ mutationKey: options.mutationKey })).toBe(1)
+    return { options, observer, unsubscribe, response, onDeleted, done }
+  }
+
+  it('전제: 진행 중인 삭제를 그대로 reset 하면 관찰자가 떨어져 성공 콜백은 불리지 않고 옵션의 onSuccess 만 돈다', async () => {
+    client.setQueryData(queryKeys.detail(PROBE_CRATE.type, ID), 'probe-detail')
+    const { observer, unsubscribe, response, onDeleted, done } = await startDelete()
+
+    observer.reset()
+    response.resolve(DELETED)
+    await done
+
+    // 화면은 목록으로 돌아가지 못한 채 남고(`deleted` 는 거짓) 상세만 캐시에서 지워졌다 - 다음 렌더가 그 상세를 다시 부른다.
+    expect(onDeleted).not.toHaveBeenCalled()
+    expect(observer.getCurrentResult().status).toBe('idle')
+    expect(client.getQueryData(queryKeys.detail(PROBE_CRATE.type, ID))).toBeUndefined()
+    unsubscribe()
+  })
+
+  it('진행 중인 삭제는 reset 이 아무것도 하지 않는다 - 끝나면 mutate() 에 넘긴 성공 콜백이 불린다', async () => {
+    client.setQueryData(queryKeys.detail(PROBE_CRATE.type, ID), 'probe-detail')
+    const { options, observer, unsubscribe, response, onDeleted, done } = await startDelete()
+
+    resetUnlessPending(client, options.mutationKey, () => {
+      observer.reset()
+    })
+    expect(observer.getCurrentResult().isPending).toBe(true)
+
+    response.resolve(DELETED)
+    await done
+
+    expect(onDeleted).toHaveBeenCalledTimes(1)
+    expect(observer.getCurrentResult()).toMatchObject({
+      status: 'success',
+      data: { kind: 'deleted' },
+    })
+    expect(client.getQueryData(queryKeys.detail(PROBE_CRATE.type, ID))).toBeUndefined()
+    unsubscribe()
+  })
+
+  it('끝난 삭제는 reset 이 지운다 - 실패한 확인을 취소하면 지난 문구가 사라진다', async () => {
+    mocks.send.mockResolvedValue(CONFLICT)
+    const options = deleteResourceMutationOptions(client, PROBE_CRATE, ID)
+    const observer = new MutationObserver(client, options)
+    await observer.mutate(undefined)
+    expect(observer.getCurrentResult().data).toMatchObject({ kind: 'failed' })
+
+    resetUnlessPending(client, options.mutationKey, () => {
+      observer.reset()
+    })
+
+    expect(observer.getCurrentResult()).toMatchObject({ status: 'idle', data: undefined })
+  })
+
+  it.each([
+    ['다른 id 의 삭제', mutationKeys.delete(PROBE_CRATE.type, 'probe-crate-10')],
+    ['같은 자원의 생성', mutationKeys.create(PROBE_CRATE.type)],
+  ] as const)('%s 가 진행 중이어도 막지 않는다 - 이 삭제의 키만 본다', async (_label, otherKey) => {
+    const gate = deferred<undefined>()
+    const other = new MutationObserver(client, {
+      mutationKey: otherKey,
+      mutationFn: () => gate.promise,
+    })
+    const otherRun = other.mutate(undefined)
+    expect(client.isMutating({ mutationKey: otherKey })).toBe(1)
+    mocks.send.mockResolvedValue(CONFLICT)
+    const options = deleteResourceMutationOptions(client, PROBE_CRATE, ID)
+    const observer = new MutationObserver(client, options)
+    await observer.mutate(undefined)
+
+    resetUnlessPending(client, options.mutationKey, () => {
+      observer.reset()
+    })
+
+    expect(observer.getCurrentResult().status).toBe('idle')
+    gate.resolve(undefined)
+    await otherRun
   })
 })
