@@ -12,11 +12,13 @@ export default function HomeScreen() {
   const navigateOnce = useNavigateOnce()
   const buildInfo = useBuildInfoCard()
 
+  // 위에서부터 쌓는다 - 가운데로 모으면 카드가 길어질 때(확인 결과 문구) 실험실 진입이 움직이고, 그 진입을 빠르게 두 번
+  // 누르는 실험실 플로의 둘째 누름이 닿는 자리가 바뀐다(test/e2e/AGENTS.md).
   return (
     <ScrollView
       testID="home-screen"
       className="flex-1 bg-background"
-      contentContainerClassName="flex-grow items-center justify-center gap-4 p-6"
+      contentContainerClassName="items-center gap-4 p-6"
     >
       <Stack.Screen options={{ title: '홈' }} />
       <Text variant="h3">template-typescript-expo</Text>
