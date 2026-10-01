@@ -139,7 +139,8 @@ Android SDK·Maestro·에뮬레이터)은 그 파일 머리말에 있다. 정적
 `test/e2e/native-backend.sh`·`test/e2e/install-maestro.sh` 열이 `100755`인지 확인한다(`scripts/check-provenance.mjs`·
 `scripts/check-variant-config.mjs`는 `node`가 부르므로 `100644`가 맞다). `core.filemode=false`인 머신에서는 권한이 빠져도 `git status`로 드러나지
 않는다. E2E 플로를 쓰는 규칙과 하네스의 환경 변수는 `test/e2e/AGENTS.md`에, 계약 거울의 규칙과 돌리는 법은
-`test/contract/AGENTS.md`에 있다.
+`test/contract/AGENTS.md`에 있다. CI(`checks`, 세 백엔드 × Android·iOS)는 `.github/workflows/ci.yml`이고, 잡마다
+무엇을 부르는지는 `.github/workflows/AGENTS.md`에 있다.
 
 설정 단계 [8]은 네 변형을 EAS 프로젝트가 없을 때와 있을 때(가짜 id)로 평가해, 설정 플러그인이 네이티브 설정으로
 옮길 값(`expo config --type introspect`)이 변형 표·OTA 판단(`lib/config/`)과 같은지 `scripts/check-variant-config.mjs`로

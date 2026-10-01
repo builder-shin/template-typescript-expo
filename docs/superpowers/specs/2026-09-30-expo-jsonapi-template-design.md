@@ -207,6 +207,12 @@ docs/superpowers/specs/ · plans/ · notes/
 > 설정의 판단(10.6 의 D6 정정)이고, `scripts/check-variant-config.mjs` 는 게이트 8단계의 변형별 설정 검사(12장의 D6
 > 정정)다. 소유 규칙은 루트 `AGENTS.md` 의 표다.
 
+> 정정(2026-10-01, D7): 트리에 `.github/` 가 없다 - `.github/workflows/ci.yml` 하나가 13장의 CI 다(잡이 하는 일의 정본은
+> 스크립트이고 워크플로는 러너·캐시·아티팩트만 정한다 - `.github/workflows/AGENTS.md`). `test/e2e/` 에는 Android
+> 하네스(`run-android.sh`·`android.sh`) 옆에 iOS 하네스(`run-ios.sh`·`ios.sh`·`ios-log.ts`), Docker 없는 백엔드
+> (`native-backend.sh`), 백엔드 종류 검증(`matrix.ts` - Next.js 에서 원본 그대로), 요청 타임아웃 확인(`stall-server.ts`·
+> `checks/`), Maestro 설치(`install-maestro.sh`)가 산다.
+
 ## 5. 계층 소유권
 
 | 위치 | 소유하는 것 | 소유하지 않는 것 |
@@ -1149,6 +1155,17 @@ e2e-ios × 3       macOS    백엔드를 네이티브로 실행 → Maestro
 - macOS 러너 시간은 공개 저장소에서는 무료이고 비공개 저장소에서는 10배로
   계산된다. 저장소 공개 범위는 생성할 때 사용자에게 확인한다(15장 8단계).
 
+> 정정(2026-10-01, D7): CI 는 `.github/workflows/ci.yml` 하나다. 모든 브랜치의 push 와 pull request 에서 돌고(`docs/` 만
+> 바꾼 커밋은 돌지 않고, 같은 브랜치의 앞 실행은 새 실행이 취소한다), 권한은 `contents: read` 이고 비밀 값을 쓰지 않는다. 잡이 하는 일의 정본은 스크립트다 - `checks` 는
+> `./scripts/check.sh --static`(12장의 D7 정정)과 actionlint 1.7.12, `build-android` 는 `test/e2e/android.sh build`(APK 의
+> 변형·OTA 단언, D6 JVM 4GiB/1GiB·빈 캐시 두 단계와 둘째 UP-TO-DATE 기계 단언 포함 - 공개 ubuntu RAM 16GB, Kotlin 힙도 고려, 부족하면 측정·컨트롤러 보고), `e2e-android` 는 백엔드마다 `test/contract/run.sh` → `test/e2e/run-android.sh`(받은 APK 를
+> `E2E_APK` 로 - API 36 Google Play 이미지·`pixel_7`, 로컬 AVD 와 같은 이미지·폭), `build-ios` 는 `test/e2e/ios.sh build`
+> (러너 `macos-26` 의 기본 Xcode), `e2e-ios` 는 `test/e2e/native-backend.sh`(11.4 의 D7 정정) → `test/e2e/run-ios.sh`(받은
+> `.app` 을 `E2E_APP` 으로, 가장 새 iOS 런타임의 iPhone)다. E2E 잡은 `checks` 를 기다리지 않는다. 캐시는 pnpm·Gradle·
+> CocoaPods·AVD 스냅샷·Ruby 젬·uv 이고, 아티팩트는 앱 둘(7일)과 갈래마다의 `.maestro-output/e2e`·iOS 백엔드 로그·iOS
+> 빌드 기록(14일)이다. Maestro 는 `test/e2e/install-maestro.sh` 가 2.11.0 을 체크섬으로 확인해 푼다. 멈춘 서버 확인
+> (`E2E_CHECKS=1`)은 fastapi 갈래 둘이 켠다. 재시도는 0 이고, 실패한 잡을 코드 변경 없이 다시 돌리지 않는다.
+
 ## 14. 문서
 
 ```text
@@ -1273,6 +1290,17 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > CI(D7)가 `test/e2e/android.sh build` 로 빌드하면 같은 JVM 인자와 두 단계 Gradle 을 물려받는다. EAS 빌드(15장 9단계,
 > D9)는 prebuild 기본값(512MiB)을 쓴다 - 같은 OOM 을 만나면 넓은 고침은 `withGradleProperties` 설정 플러그인이고,
 > 이 고침은 fingerprint 를 바꾼다. 근거와 레시피 유지 조건은 D6 실측 O4.
+
+> 정정(2026-10-01, D7): 리스크 넷을 더한다. (1) Maestro 2.11.0 의 iOS 드라이버는 `back`·`pressKey: back`·
+> `setAirplaneMode` 를 조용히 무시한다 - 플로가 엉뚱한 화면에서 단언한다. 대응은 서브플로·머리말과 소스 시험(11.3 의 첫
+> D7 정정)이고, 머리글 뒤로 버튼의 식별자(`BackButton`)는 CI 의 첫 실행이 잰다. (2) iOS 가드의 재료인 시뮬레이터 로그는
+> 스트림으로만 온다(info 수준은 저장되지 않는다) - 붙기 전과 끊은 뒤의 줄을 잃을 수 있어 하네스가 붙은 뒤 2초, 끊기 전
+> 2초를 둔다. 줄을 잃으면 가드의 "선언했는데 없다" 로 드러난다(재시도로 덮지 않는다). (3) macOS 러너의 Xcode·iOS
+> 런타임은 GitHub 이 바꾼다 - 러너 라벨(`macos-26`)의 기본 Xcode 를 따르므로 판이 바뀌면 빌드나 시뮬레이터 이름이 갈릴 수
+> 있다. `build-ios` 가 판을 로그에 남긴다(`xcodebuild -version`·`xcrun simctl list runtimes`). 표의 "iOS 매트릭스의
+> 네이티브 백엔드 구동은 CI에서만 검증된다" 의 대응(처음 통과할 때까지 CI 를 반복해 돌린다)은 코드를 고쳐 새 실행을 만드는
+> 것이다 - 같은 코드로 다시 돌리지 않는다(D7 실측 기록 K3). (4) macOS 러너와 Mac 의 기본 bash 는 3.2 다 - macOS 에서 도는
+> 스크립트는 그 구문만 쓴다(`.github/workflows/AGENTS.md`).
 
 ## 17. 완료 조건
 

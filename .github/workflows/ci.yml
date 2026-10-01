@@ -1,0 +1,412 @@
+name: CI
+
+# 스펙 13장의 잡 다섯 - checks(게이트 [1]–[11]), 앱을 플랫폼마다 한 번 만드는 build-android·build-ios, 그 앱을 세
+# 백엔드가 나눠 쓰는 e2e-android × 3·e2e-ios × 3. 로컬 게이트(./scripts/check.sh)는 FastAPI·Android 하나만 돈다 -
+# 세 백엔드와 iOS 는 여기서만 돈다(스펙 12장).
+#
+# 모든 브랜치의 push 와 pull request 에서 돈다 - 단계별 작업은 브랜치에서 매트릭스를 초록으로 만든 뒤 PR 없이 main 에
+# 병합한다. docs/ 만 바꾼 커밋은 돌지 않는다 - 스펙·계획·실측 기록은 앱도 하네스도 바꾸지 않는다(스펙 16장 - 매트릭스를
+# 가볍게 둔다). 태그 push 는 돌지 않는다.
+on:
+  push:
+    branches: ['**']
+    paths-ignore: ['docs/**']
+  pull_request:
+    paths-ignore: ['docs/**']
+
+permissions:
+  contents: read
+
+# 같은 저장소·같은 브랜치의 앞 실행은 취소한다 - 새 push 가 앞 실행을 대신한다. 같은 저장소의 PR 브랜치에 push 하면
+# push·pull_request 가 둘 다 발화하는데 그중 하나만 끝까지 돈다. 포크의 PR 은 저장소 이름이 달라 이 저장소의 같은 이름
+# 브랜치(main 등)를 취소하지 않는다.
+concurrency:
+  group: ci-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  # Maestro 의 사용 통계·분석 안내·갱신 확인을 끈다 - 하네스도 같은 값을 준다.
+  MAESTRO_CLI_NO_ANALYTICS: '1'
+  MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
+  MAESTRO_DISABLE_UPDATE_CHECK: 'true'
+  HOMEBREW_NO_AUTO_UPDATE: '1'
+  HOMEBREW_NO_INSTALL_CLEANUP: '1'
+
+jobs:
+  checks:
+    name: checks (게이트 [1]–[11])
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v7
+
+      # pnpm 판은 package.json 의 packageManager(pnpm@11.22.0)를 따른다.
+      - name: pnpm 설정
+        uses: pnpm/action-setup@v6
+
+      - name: Node 설정
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+
+      - name: 고정된 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      # bash scripts/check.sh 처럼 우회해서 부르지 않는다 - 실행 권한이 빠지면 이 호출이 Permission denied 로 죽어야
+      # 그 결함이 드러난다. [12] 계약 거울과 [13] E2E 는 아래 e2e-android 잡이 백엔드마다 돈다.
+      - name: 게이트 [1]–[11]
+        run: ./scripts/check.sh --static
+
+      - name: 워크플로 lint (actionlint 1.7.12)
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color
+
+  build-android:
+    name: build-android (e2e APK)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v7
+
+      - name: pnpm 설정
+        uses: pnpm/action-setup@v6
+
+      - name: Node 설정
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+
+      - name: 고정된 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      - name: Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Gradle 의 의존성·빌드 캐시를 실행 사이에 둔다(스펙 16장의 "E2E 빌드 시간").
+      - name: Gradle 캐시
+        uses: gradle/actions/setup-gradle@v6
+
+      # 에뮬레이터에서 호스트는 10.0.2.2 다(스펙 11.4). android.sh build 가 만든 APK 의 변형·OTA·평문 HTTP 를 단언한다.
+      - name: e2e APK
+        env:
+          BACKEND_URL: http://10.0.2.2:4100
+        run: test/e2e/android.sh build
+
+      - name: APK 올리기
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-e2e-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  e2e-android:
+    name: e2e-android (${{ matrix.backend }})
+    needs: build-android
+    runs-on: ubuntu-24.04
+    # 계약 거울(백엔드 이미지 빌드)·AVD·플로 스물둘 - 소프트웨어 렌더링 에뮬레이터는 로컬보다 느리다.
+    timeout-minutes: 90
+    strategy:
+      # 하나가 죽어도 나머지를 끝까지 돌린다 - "어느 백엔드가 어디서 갈리는가" 가 이 잡의 산출물이다.
+      fail-fast: false
+      matrix:
+        backend: [fastapi, nestjs, rails]
+    env:
+      # test/contract/run.sh·test/e2e/run-android.sh 가 compose 프로파일로 쓴다 - test/e2e/matrix.ts 가 검증한다.
+      BACKEND_KIND: ${{ matrix.backend }}
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v7
+
+      - name: pnpm 설정
+        uses: pnpm/action-setup@v6
+
+      - name: Node 설정
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+
+      - name: 고정된 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      # compose 가 백엔드 이미지를 GitHub main 에서 빌드한다(docker-compose.e2e.yml). BuildKit 안의 git 은 자격증명이
+      # 없으므로 여기서도 끄고 익명으로 확인한다 - 저장소가 비공개로 바뀌면 이 단계가 먼저 그 사실을 적는다. 받은
+      # 커밋이 로그에 남는다.
+      - name: 백엔드 저장소 확인
+        env:
+          GIT_TERMINAL_PROMPT: '0'
+          GIT_ASKPASS: ''
+        run: |
+          url=$(test/e2e/native-backend.sh repo-url)
+          if ! git -c credential.helper= -c core.askPass= -c http.https://github.com/.extraheader= \
+            ls-remote --exit-code "$url" main; then
+            echo "::error::$url 의 main 을 익명으로 받을 수 없다 - 저장소가 비공개이거나 사라졌다"
+            exit 1
+          fi
+
+      - name: 계약 거울
+        run: ./test/contract/run.sh
+
+      - name: Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Maestro 2.11.0
+        run: test/e2e/install-maestro.sh
+
+      - name: APK 받기
+        uses: actions/download-artifact@v8
+        with:
+          name: android-e2e-apk
+          path: ${{ runner.temp }}/apk
+
+      - name: KVM 권한
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # 로컬 게이트의 AVD(Pixel_9_API_36, Google Play 이미지)와 같은 API·이미지·화면 폭(411dp)이다. Google Play 이미지에는
+      # 로캘 플로가 쓰는 음성 입력기가 있다(run-android.sh 의 "입력기" 절). 스냅샷을 캐시해 부팅을 줄인다.
+      - name: AVD 캐시
+        id: avd-cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-36-google_apis_playstore-x86_64-pixel_7-v1
+
+      - name: AVD 스냅샷 만들기
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis_playstore
+          arch: x86_64
+          profile: pixel_7
+          cores: 4
+          ram-size: 4096M
+          force-avd-creation: false
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "AVD 스냅샷을 만들었다"
+
+      # 재시도는 0 이다(스펙 16장) - 흔들리는 플로는 원인을 고친다. 멈춘 서버 확인(E2E_CHECKS)은 백엔드와 무관해
+      # fastapi 갈래에서만 돈다.
+      - name: E2E
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          E2E_APK: ${{ runner.temp }}/apk/app-release.apk
+          E2E_CHECKS: ${{ matrix.backend == 'fastapi' && '1' || '' }}
+        with:
+          api-level: 36
+          target: google_apis_playstore
+          arch: x86_64
+          profile: pixel_7
+          cores: 4
+          ram-size: 4096M
+          force-avd-creation: false
+          emulator-boot-timeout: 900
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          disable-spellchecker: true
+          script: ./test/e2e/run-android.sh
+
+      - name: 기록 올리기
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-android-${{ matrix.backend }}
+          path: .maestro-output/e2e
+          if-no-files-found: ignore
+          retention-days: 14
+
+  build-ios:
+    name: build-ios (e2e .app)
+    runs-on: macos-26
+    timeout-minutes: 75
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v7
+
+      - name: pnpm 설정
+        uses: pnpm/action-setup@v6
+
+      - name: Node 설정
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.19.0
+          cache: pnpm
+
+      - name: 고정된 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      - name: Xcode
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes
+
+      # pod install 이 받는 소스·미리 빌드한 React Native 묶음을 실행 사이에 둔다.
+      - name: CocoaPods 캐시
+        uses: actions/cache@v6
+        with:
+          path: ~/Library/Caches/CocoaPods
+          key: pods-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pods-${{ runner.os }}-
+
+      # iOS 시뮬레이터에서 호스트는 localhost 다(스펙 11.4). ios.sh build 가 .app 의 변형·OTA·평문 HTTP 를 단언한다.
+      - name: e2e .app
+        env:
+          BACKEND_URL: http://localhost:4100
+        run: test/e2e/ios.sh build
+
+      # 아티팩트는 실행 권한·심볼릭 링크를 지키지 않는다 - .app 은 ditto 로 묶어 올리고 받는 잡이 푼다.
+      - name: .app 묶기
+        run: |
+          app=$(test/e2e/ios.sh app-path)
+          ditto -c -k --sequesterRsrc --keepParent "$app" "$RUNNER_TEMP/ios-e2e-app.zip"
+
+      - name: .app 올리기
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-e2e-app
+          path: ${{ runner.temp }}/ios-e2e-app.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: 빌드 기록 올리기
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-build-log
+          path: .maestro-output/ios-build.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+  e2e-ios:
+    name: e2e-ios (${{ matrix.backend }})
+    needs: build-ios
+    runs-on: macos-26
+    # 백엔드 런타임 준비(Homebrew·uv·pnpm·bundler)가 Android 갈래의 이미지 빌드보다 길다.
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [fastapi, nestjs, rails]
+    env:
+      # test/e2e/native-backend.sh·test/e2e/run-ios.sh 가 띄울 백엔드 - test/e2e/matrix.ts 가 검증한다.
+      BACKEND_KIND: ${{ matrix.backend }}
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v7
+
+      # 하네스는 Node 만 쓴다(이 저장소의 의존성 설치는 필요 없다). pnpm 은 NestJS 백엔드를 준비할 때 쓴다.
+      - name: pnpm 설정
+        uses: pnpm/action-setup@v6
+
+      - name: Node 설정
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.19.0
+
+      # 백엔드 저장소·DB·로그를 저장소 밖에 둔다 - 기록 올리기 단계가 그 로그도 올린다.
+      - name: 네이티브 백엔드 자리
+        run: echo "E2E_NATIVE_DIR=$RUNNER_TEMP/native-backend" >> "$GITHUB_ENV"
+
+      - name: 백엔드 저장소 확인
+        env:
+          GIT_TERMINAL_PROMPT: '0'
+          GIT_ASKPASS: ''
+        run: |
+          url=$(test/e2e/native-backend.sh repo-url)
+          if ! git -c credential.helper= -c core.askPass= -c http.https://github.com/.extraheader= \
+            ls-remote --exit-code "$url" main; then
+            echo "::error::$url 의 main 을 익명으로 받을 수 없다 - 저장소가 비공개이거나 사라졌다"
+            exit 1
+          fi
+
+      # macOS 러너에는 Docker 가 없다(스펙 13장) - PostgreSQL 18·Redis 를 Homebrew 로 갖춘다. psql·pg_config 를 PATH 에
+      # 둔다(Rails 의 pg 젬이 빌드할 때 찾는다).
+      - name: PostgreSQL·Redis
+        run: |
+          test/e2e/native-backend.sh services
+          echo "$(brew --prefix postgresql@18)/bin" >> "$GITHUB_PATH"
+
+      - name: 백엔드 저장소 받기
+        id: backend
+        run: |
+          test/e2e/native-backend.sh fetch
+          src=$(test/e2e/native-backend.sh src-dir)
+          echo "src=$src" >> "$GITHUB_OUTPUT"
+          if [ -f "$src/.ruby-version" ]; then
+            echo "ruby=$(tr -d '[:space:]' < "$src/.ruby-version")" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: uv
+        if: matrix.backend == 'fastapi'
+        uses: astral-sh/setup-uv@v10
+
+      # Ruby 는 백엔드 저장소의 .ruby-version 이다. 젬은 그 저장소의 Gemfile.lock 으로 캐시한다.
+      - name: Ruby
+        if: matrix.backend == 'rails'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ steps.backend.outputs.ruby }}
+          bundler-cache: true
+          working-directory: ${{ steps.backend.outputs.src }}
+
+      - name: 백엔드 의존성
+        run: test/e2e/native-backend.sh prepare
+
+      - name: Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Maestro 2.11.0
+        run: test/e2e/install-maestro.sh
+
+      - name: .app 받기
+        uses: actions/download-artifact@v8
+        with:
+          name: ios-e2e-app
+          path: ${{ runner.temp }}/app
+
+      - name: .app 풀기
+        run: ditto -x -k "$RUNNER_TEMP/app/ios-e2e-app.zip" "$RUNNER_TEMP/app"
+
+      # 재시도는 0 이다(스펙 16장). 멈춘 서버 확인(E2E_CHECKS)은 백엔드와 무관해 fastapi 갈래에서만 돈다.
+      - name: E2E
+        env:
+          E2E_CHECKS: ${{ matrix.backend == 'fastapi' && '1' || '' }}
+        run: |
+          app=$(find "$RUNNER_TEMP/app" -maxdepth 1 -name '*.app' -type d | head -n 1)
+          E2E_APP="$app" ./test/e2e/run-ios.sh
+
+      - name: 기록 올리기
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-ios-${{ matrix.backend }}
+          path: |
+            .maestro-output/e2e
+            ${{ runner.temp }}/native-backend/*/api.log
+            ${{ runner.temp }}/native-backend/postgres/postgres.log
+          if-no-files-found: ignore
+          retention-days: 14
