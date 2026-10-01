@@ -152,6 +152,7 @@ describe('목록 - 재조회가 판정하지 않은 응답을 받아도 읽은 �
       kind: 'banner',
       messages: ['PROBE 잠시 뒤에'],
       refreshFailed: false,
+      retryable: true,
     })
     backend.state.busy = false
     await observer.refetch()

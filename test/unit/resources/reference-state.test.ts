@@ -84,13 +84,13 @@ describe('referenceState - 관계 선택기의 참조 목록', () => {
     ).toEqual({ list: EMPTY, failure: { kind: 'banner', messages: ['probe-bad-sort'] } })
   })
 
-  it('문구가 하나도 없는 거절은 앱 문구로 물러선다 - 폼을 오류 경계로 보내지 않는다', () => {
-    expect(
+  it('문구가 하나도 없는 거절은 계약 위반이라 목록·상세처럼 던진다 - 선택기에서만 앱 문구로 가리지 않는다', () => {
+    expect(() =>
       referenceState(PROBE_LABEL, {
-        result: { ok: false, status: 500, errors: [{}] },
+        result: { ok: false, status: 400, errors: [{}] },
         error: null,
       }),
-    ).toEqual({ list: EMPTY, failure: { kind: 'unreachable' } })
+    ).toThrowError(/문구 없는 오류/)
   })
 
   it('닿지 못함이 아닌 오류는 결함이라 다시 던진다 - "연결할 수 없다" 로 위장하지 않는다', () => {

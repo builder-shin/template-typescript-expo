@@ -1,5 +1,5 @@
 import type { JsonApiResult } from '@/lib/jsonapi/client'
-import type { CollectionDocument, SingleDocument } from '@/lib/jsonapi/document'
+import type { CollectionDocument, ErrorObject, SingleDocument } from '@/lib/jsonapi/document'
 import { actionForErrors } from '@/lib/jsonapi/errors'
 import type { ResourceDefinition } from '@/lib/resources/define'
 import {
@@ -31,9 +31,11 @@ import {
  * 읽은 데이터를 바꾼다(지워진 상세는 not-found). 협상된 문구를 배너로 그린다(`listView`·`detailView`).
  *
  * 화면 상태: 데이터가 없으면 스켈레톤(`loading`)이거나, 첫 조회가 판정을 받지 못했으면 실패가 화면 전부다 -
- * 응답이 없었으면 앱 문구와 "다시 시도"(`unreachable`), 판정하지 않은 응답이면 그 문구의 배너다. 데이터가
- * 있으면 그것을 그리고, 판정을 받지 못한 재조회는 `refreshFailed`(작은 실패와 "다시 시도" - 읽은 것을 다시
- * 읽는다)로, 판정을 받지 못한 다음 쪽은 목록 끝의 `failure`(그 쪽만 다시 읽는다)로 싣는다.
+ * 응답이 없었으면 앱 문구와 "다시 시도"(`unreachable`), 판정하지 않은 응답이면 그 문구의 배너다 - 그 배너에는
+ * `retryable` 이 붙는다. 5xx·408·429 는 잠시 뒤 다시 부르면 달라질 수 있는 실패라 화면이 "다시 시도" 를 함께 그리고,
+ * 판정한 4xx 의 배너는 다시 불러도 같은 답이라 붙지 않는다. 데이터가 있으면 그것을 그리고, 판정을 받지 못한
+ * 재조회는 `refreshFailed`(작은 실패와 "다시 시도" - 읽은 것을 다시 읽는다)로, 판정을 받지 못한 다음 쪽은 목록
+ * 끝의 `failure`(그 쪽만 다시 읽는다)로 싣는다.
  */
 
 /** 판정하지 않은 응답 - 백엔드가 준 오류 문서다. */
@@ -91,11 +93,15 @@ function unreachableOf(error: unknown): UnreachableError | null {
   throw new Error(`조회가 Error 가 아닌 값으로 실패했다: ${shown}`)
 }
 
-/** 목록 화면이 그릴 것. `list` 의 `failure` 는 목록 끝(뒤따르는 쪽), `refreshFailed` 는 목록 위(재조회)의 실패다. */
+/**
+ * 목록 화면이 그릴 것. `list` 의 `failure` 는 목록 끝(뒤따르는 쪽), `refreshFailed` 는 목록 위(재조회)의 실패다.
+ * `banner` 의 `retryable` 은 첫 조회가 받은 판정하지 않은 응답(5xx·408·429)의 배너에만 붙는다 - 화면이 "다시 시도"
+ * 를 함께 그린다. 판정한 4xx 의 배너에는 없다.
+ */
 export type ListScreen =
   | { kind: 'loading' }
   | { kind: 'unreachable' }
-  | { kind: 'banner'; messages: readonly string[]; refreshFailed: boolean }
+  | { kind: 'banner'; messages: readonly string[]; refreshFailed: boolean; retryable?: true }
   | (Extract<ListView, { kind: 'list' }> & { refreshFailed: boolean })
 
 /** 무한 조회가 준 것 - 읽은 쪽들(없으면 `undefined`), 마지막 조회의 오류, 그 오류가 다음 쪽의 것인가. */
@@ -116,9 +122,12 @@ export function listScreen(
     if (unreachable?.response === undefined) {
       return failed ? { kind: 'unreachable' } : { kind: 'loading' }
     }
-    // 첫 조회가 판정하지 않은 응답을 받았다 - 읽은 행이 없으니 그 문구가 화면 전부다.
+    // 첫 조회가 판정하지 않은 응답을 받았다 - 읽은 행이 없으니 그 문구가 화면 전부이고, 다시 부르면 달라질 수 있는
+    // 실패다(`retryable`). 배너가 아니면 응답이 합성 오류다(`throwIfUnreachable` 는 싣지 않는다) - 닿지 못함이다.
     const first = listView(resource, plan, [unreachable.response])
-    return first.kind === 'banner' ? { ...first, refreshFailed: false } : { kind: 'unreachable' }
+    return first.kind === 'banner'
+      ? { ...first, refreshFailed: false, retryable: true }
+      : { kind: 'unreachable' }
   }
 
   const view = listView(resource, plan, facts.pages)
@@ -148,13 +157,16 @@ export function canLoadMore(facts: LoadMoreFacts): boolean {
   return facts.hasNextPage && !facts.isFetching && !facts.isFetchNextPageError
 }
 
-/** 상세 화면이 그릴 것. `refreshFailed` 는 읽은 상세(또는 배너) 위의 작은 실패다. */
+/**
+ * 상세 화면이 그릴 것. `refreshFailed` 는 읽은 상세(또는 배너) 위의 작은 실패다. `banner` 의 `retryable` 은
+ * `ListScreen` 과 같다 - 첫 조회가 받은 판정하지 않은 응답의 배너에만 붙는다.
+ */
 export type DetailScreen =
   | { kind: 'loading' }
   | { kind: 'unreachable' }
   | { kind: 'notFound' }
   | (Exclude<DetailView, { kind: 'notFound' } | ListFailure> & { refreshFailed: boolean })
-  | { kind: 'banner'; messages: readonly string[]; refreshFailed: boolean }
+  | { kind: 'banner'; messages: readonly string[]; refreshFailed: boolean; retryable?: true }
 
 /** 조회가 준 것 - 응답(없으면 `undefined`)과 마지막 조회의 오류. */
 export interface DetailQueryFacts {
@@ -169,9 +181,13 @@ export function detailScreen(resource: ResourceDefinition, facts: DetailQueryFac
     if (unreachable?.response === undefined) {
       return failed ? { kind: 'unreachable' } : { kind: 'loading' }
     }
-    // 첫 조회가 판정하지 않은 응답을 받았다 - 읽은 상세가 없으니 그 문구가 화면 전부다.
+    // 첫 조회가 판정하지 않은 응답을 받았다 - 읽은 상세가 없으니 그 문구가 화면 전부이고, 다시 부르면 달라질 수 있는
+    // 실패다(`retryable`). 배너가 아니면 닿지 못함이다 - 응답이 합성 오류이거나(`throwIfUnreachable` 는 싣지 않는다),
+    // 코드가 RESOURCE_NOT_FOUND 인 5xx 다(일시적인 실패를 "없는 자원" 으로 읽지 않는다).
     const first = detailView(resource, unreachable.response)
-    return first.kind === 'banner' ? { ...first, refreshFailed: false } : { kind: 'unreachable' }
+    return first.kind === 'banner'
+      ? { ...first, refreshFailed: false, retryable: true }
+      : { kind: 'unreachable' }
   }
 
   const view = detailView(resource, facts.result)
@@ -183,9 +199,10 @@ export function detailScreen(resource: ResourceDefinition, facts: DetailQueryFac
 /**
  * 관계 선택기가 그릴 참조 목록 하나 - 목록·상세와 같은 규칙이다(스펙 9.3). 받기 전이면 `list` 가 `null`(스켈레톤)
  * 이다. 첫 조회가 판정을 받지 못했거나 백엔드가 거절했으면 보기 대신 실패를 그린다 - 응답이 없었으면 앱 문구와
- * "다시 시도"(`unreachable`), 응답이 있으면 그 문구(`banner`)다. 문구가 하나도 없는 거절도 앱 문구로 물러선다(폼
- * 안의 선택기 하나 때문에 화면을 오류 경계로 보내지 않는다). 실패한 동안 `list` 는 빈 목록이다 - 폼은 고른 것을
- * 목록 밖 선택으로 그린다(`relationshipChoice`).
+ * "다시 시도"(`unreachable`), 응답이 있으면 그 문구(`banner`)다. 거절은 목록·상세와 같은 규칙으로 읽는다
+ * (`failureOf`, view.ts) - 합성 오류는 닿지 못함이고, 문구가 하나도 없는 오류 문서는 계약 위반이라 던진다. 선택기에서만
+ * 앱 문구로 가리면 같은 결함이 한 화면에서는 오류 경계로, 다른 화면에서는 정상 실패로 보인다. 실패한 동안 `list` 는
+ * 빈 목록이다 - 폼은 고른 것을 목록 밖 선택으로 그린다(`relationshipChoice`).
  *
  * 읽은 목록이 있으면 재조회가 판정을 받지 못해도 그 목록을 그대로 두고 실패를 싣지 않는다 - 선택기는 고를 것을
  * 보여 줄 뿐이고, 그사이 없어진 보기를 고르면 저장이 관계 오류로 그 선택기 아래에 알린다(스펙 9.1).
@@ -216,9 +233,20 @@ export function referenceState(
       : { list: referenceList(target, null), failure: { kind: 'unreachable' } }
   }
   if (result.ok) return { list: referenceList(target, result.document), failure: null }
-  const messages = bannerMessages(result.errors)
-  return {
-    list: referenceList(target, null),
-    failure: messages.length === 0 ? { kind: 'unreachable' } : { kind: 'banner', messages },
+  return { list: referenceList(target, null), failure: referenceFailure(result.errors) }
+}
+
+/**
+ * 거절 하나 → 보기 대신 그릴 실패. `failureOf`(view.ts)와 같은 규칙이다 - 합성 오류(응답조차 없었다)는 닿지 못함이고,
+ * 문구가 하나도 없는 오류 문서는 던진다(빈 배너는 아무 설명 없는 빈 화면이다). 규칙이 두 자리에 있으므로 시험이 같은
+ * 문서를 목록·상세·참조 목록에 넣어 같은 답인지 잰다(test/unit/resources/screen-state-unjudged.test.ts).
+ */
+function referenceFailure(errors: readonly ErrorObject[]): ListFailure {
+  if (actionForErrors(errors) === 'transport') return { kind: 'unreachable' }
+  const messages = bannerMessages(errors)
+  if (messages.length === 0) {
+    const shown = errors.map((error) => `${error.status ?? '?'} ${error.code ?? '?'}`).join(', ')
+    throw new Error(`참조 목록 요청이 문구 없는 오류로 실패했다: ${shown}`)
   }
+  return { kind: 'banner', messages }
 }

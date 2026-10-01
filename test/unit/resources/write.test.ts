@@ -282,6 +282,47 @@ describe('updateResource', () => {
     expect(await updateResource(PROBE_CRATE, PROBE_ID, VALUES, deps)).toEqual({ kind: 'notFound' })
   })
 
+  it('검증 오류는 필드·관계 오류가 든 폼 상태다 - 제출한 값을 그대로 싣는다', async () => {
+    const { deps } = probeDeps([
+      failed(422, [
+        backendError({
+          status: '422',
+          code: 'VALIDATION_ERROR',
+          source: { pointer: '/data/attributes/probeLabel' },
+        }),
+        backendError({
+          status: '404',
+          code: 'RELATIONSHIP_RESOURCE_NOT_FOUND',
+          source: { pointer: '/data/relationships/probeShelf/data/id' },
+        }),
+      ]),
+    ])
+    expect(await updateResource(PROBE_CRATE, PROBE_ID, VALUES, deps)).toEqual({
+      kind: 'failed',
+      state: {
+        documentErrors: [],
+        fieldErrors: { probeLabel: ['probe-detail-VALIDATION_ERROR'] },
+        relationshipErrors: { probeShelf: ['probe-detail-RELATIONSHIP_RESOURCE_NOT_FOUND'] },
+        submitted: VALUES,
+      },
+    })
+  })
+
+  it('포인터 없는 오류는 배너 문구다', async () => {
+    const { deps } = probeDeps([
+      failed(409, [backendError({ status: '409', code: 'PROBE_CONFLICT' })]),
+    ])
+    expect(await updateResource(PROBE_CRATE, PROBE_ID, VALUES, deps)).toEqual({
+      kind: 'failed',
+      state: {
+        documentErrors: ['probe-detail-PROBE_CONFLICT'],
+        fieldErrors: {},
+        relationshipErrors: {},
+        submitted: VALUES,
+      },
+    })
+  })
+
   it('세션이 없으면 요청하지 않고, 인증 오류면 세션 거절을 던진다', async () => {
     const none = probeDeps([], () => Promise.resolve(null))
     await expect(updateResource(PROBE_CRATE, PROBE_ID, VALUES, none.deps)).rejects.toSatisfy(

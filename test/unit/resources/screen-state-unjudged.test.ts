@@ -74,6 +74,61 @@ function busy(request: string): unknown {
   return thrownBy(failed<CollectionDocument>([BUSY], 503), request)
 }
 
+/** 백엔드가 낸 오류 문서 하나 - 문구가 상태마다 다르다. */
+function backendError(status: number): ErrorObject {
+  return { status: String(status), code: `PROBE_${status}`, detail: `PROBE 문구 ${status}` }
+}
+
+/** 합성 오류 - client.ts 가 지어낸 "응답조차 없었다" 는 표시다. 영어 고정 문장을 `detail` 로 갖는다. */
+const SYNTHETIC: ErrorObject = {
+  status: '0',
+  code: 'PROBE_TRANSPORT',
+  detail: 'PROBE synthetic sentence',
+  meta: { synthetic: true },
+}
+
+/** `UnreachableError` 가 싣는 응답의 모양 - 실패한 `JsonApiResult` 다. */
+function failedResponse(
+  errors: ErrorObject[],
+  status: number,
+): Extract<JsonApiResult<never>, { ok: false }> {
+  return { ok: false, status, errors }
+}
+
+/** 조회의 `queryFn` 이 이 결과를 받았을 때 TanStack Query 가 화면에 건네는 것 - 던졌으면 오류, 아니면 읽은 값이다. */
+function queryOutcome<T>(
+  result: JsonApiResult<T>,
+  request: string,
+): { readonly value: JsonApiResult<T> | undefined; readonly error: unknown } {
+  try {
+    return { value: throwIfUnreachable(result, request), error: null }
+  } catch (error) {
+    return { value: undefined, error }
+  }
+}
+
+/** 목록의 첫 조회가 이 상태의 오류 문서를 받았을 때 화면이 그리는 것. */
+function firstListScreen(status: number) {
+  const { value, error } = queryOutcome(
+    failed<CollectionDocument>([backendError(status)], status),
+    '목록',
+  )
+  return listScreen(PROBE_CRATE, PLAN, {
+    pages: value === undefined ? undefined : [value],
+    error,
+    nextPageFailed: false,
+  })
+}
+
+/** 상세의 첫 조회가 이 상태의 오류 문서를 받았을 때 화면이 그리는 것. */
+function firstDetailScreen(status: number) {
+  const { value, error } = queryOutcome(
+    failed<SingleDocument>([backendError(status)], status),
+    '상세',
+  )
+  return detailScreen(PROBE_CRATE, { result: value, error })
+}
+
 describe('throwIfUnreachable - 판정하지 않은 응답도 던진다', () => {
   it.each([500, 502, 503, 504, 408, 429])('%i 는 던진다 - 응답을 싣는다', (status) => {
     const result = failed<CollectionDocument>([{ ...BUSY, status: String(status) }], status)
@@ -83,22 +138,53 @@ describe('throwIfUnreachable - 판정하지 않은 응답도 던진다', () => {
     expect((error as UnreachableError).message).toContain(String(status))
   })
 
-  it.each([400, 403, 404, 409, 422])('%i 는 판정한 오류라 값 그대로다', (status) => {
+  // 499 는 5xx 의 바로 아래다 - 경계를 고정한다(판정하지 않은 응답은 500 부터다).
+  it.each([400, 403, 404, 409, 422, 499])('%i 는 판정한 오류라 값 그대로다', (status) => {
     const result = failed<CollectionDocument>([{ ...BUSY, status: String(status) }], status)
     expect(throwIfUnreachable(result, '목록')).toBe(result)
   })
 })
 
 describe('listScreen - 판정하지 않은 응답', () => {
-  it('첫 조회면 그 문구의 배너가 화면 전부다 - 작은 실패는 없다', () => {
+  it('첫 조회면 그 문구의 배너가 화면 전부다 - 작은 실패는 없고 다시 시도가 붙는다', () => {
     expect(
       listScreen(PROBE_CRATE, PLAN, {
         pages: undefined,
         error: busy('목록'),
         nextPageFailed: false,
       }),
-    ).toEqual({ kind: 'banner', messages: ['PROBE 잠시 뒤에'], refreshFailed: false })
+    ).toEqual({
+      kind: 'banner',
+      messages: ['PROBE 잠시 뒤에'],
+      refreshFailed: false,
+      retryable: true,
+    })
   })
+
+  it.each([503, 429, 408])(
+    '첫 조회의 %i 는 배너에 다시 시도를 붙인다 - 잠시 뒤 다시 부르면 달라질 수 있다',
+    (status) => {
+      expect(firstListScreen(status)).toEqual({
+        kind: 'banner',
+        messages: [`PROBE 문구 ${status}`],
+        refreshFailed: false,
+        retryable: true,
+      })
+    },
+  )
+
+  it.each([400, 403, 409])(
+    '첫 조회의 %i 는 판정한 답이라 다시 시도가 없는 배너다 - 다시 불러도 같은 답이다',
+    (status) => {
+      const screen = firstListScreen(status)
+      expect(screen).toEqual({
+        kind: 'banner',
+        messages: [`PROBE 문구 ${status}`],
+        refreshFailed: false,
+      })
+      expect(screen).not.toHaveProperty('retryable')
+    },
+  )
 
   it('재조회면 읽은 행을 두고 목록 위에 작은 실패를 싣는다', () => {
     const screen = listScreen(PROBE_CRATE, PLAN, {
@@ -131,12 +217,47 @@ describe('detailScreen - 판정하지 않은 응답과 판정한 응답', () => 
     document: { data: { type: 'probeCrates', id: 'c1', attributes: { probeName: 'PROBE c1' } } },
   }
 
-  it('첫 조회면 그 문구의 배너다', () => {
+  it('첫 조회면 그 문구의 배너다 - 다시 시도가 붙는다', () => {
     expect(detailScreen(PROBE_CRATE, { result: undefined, error: busy('상세') })).toEqual({
       kind: 'banner',
       messages: ['PROBE 잠시 뒤에'],
       refreshFailed: false,
+      retryable: true,
     })
+  })
+
+  it.each([503, 429, 408])(
+    '첫 조회의 %i 는 배너에 다시 시도를 붙인다 - 잠시 뒤 다시 부르면 달라질 수 있다',
+    (status) => {
+      expect(firstDetailScreen(status)).toEqual({
+        kind: 'banner',
+        messages: [`PROBE 문구 ${status}`],
+        refreshFailed: false,
+        retryable: true,
+      })
+    },
+  )
+
+  it.each([400, 403, 409])(
+    '첫 조회의 %i 는 판정한 답이라 다시 시도가 없는 배너다 - 다시 불러도 같은 답이다',
+    (status) => {
+      const screen = firstDetailScreen(status)
+      expect(screen).toEqual({
+        kind: 'banner',
+        messages: [`PROBE 문구 ${status}`],
+        refreshFailed: false,
+      })
+      expect(screen).not.toHaveProperty('retryable')
+    },
+  )
+
+  it('코드가 RESOURCE_NOT_FOUND 인 5xx 는 not-found 가 아니다 - 일시적인 실패는 없는 자원이 아니다', () => {
+    const response = failed<SingleDocument>(
+      [{ status: '503', code: 'RESOURCE_NOT_FOUND', detail: 'PROBE 없음?' }],
+      503,
+    )
+    const { value, error } = queryOutcome(response, '상세')
+    expect(detailScreen(PROBE_CRATE, { result: value, error })).toEqual({ kind: 'unreachable' })
   })
 
   it('재조회면 읽은 상세를 두고 작은 실패를 싣는다', () => {
@@ -170,6 +291,35 @@ describe('referenceState - 판정하지 않은 응답', () => {
       list: { options: [{ id: 'c1', label: 'PROBE c1' }], truncated: false },
       failure: null,
     })
+  })
+})
+
+describe('목록·상세·참조 목록은 첫 조회가 받은 오류 문서를 같게 읽는다 - failureOf 의 규칙', () => {
+  // 응답을 실은 오류를 직접 지어 셋에 같은 문서를 넣는다. 합성 오류를 응답으로 싣는 오류는 `throwIfUnreachable` 가
+  // 만들지 않지만 오류의 모양은 허용한다 - 목록·상세의 `unreachable` 갈래가 이 시험으로 닫힌다.
+  it.each<[string, ErrorObject[], string]>([
+    ['합성 오류(응답조차 없었다)는 닿지 못함이다', [SYNTHETIC], 'unreachable'],
+    ['문구가 있는 오류 문서는 그 문구의 배너다', [BUSY], 'banner'],
+  ])('%s', (_, errors, kind) => {
+    const error = new UnreachableError('조회', failedResponse(errors, 503))
+    expect(
+      listScreen(PROBE_CRATE, PLAN, { pages: undefined, error, nextPageFailed: false }).kind,
+    ).toBe(kind)
+    expect(detailScreen(PROBE_CRATE, { result: undefined, error }).kind).toBe(kind)
+    expect(referenceState(PROBE_CRATE, { result: undefined, error }).failure?.kind).toBe(kind)
+  })
+
+  it('문구가 하나도 없는 오류 문서는 계약 위반이라 셋 다 던진다 - 참조 목록만 앱 문구로 가리지 않는다', () => {
+    const error = new UnreachableError('조회', failedResponse([{ status: '503' }], 503))
+    expect(() =>
+      listScreen(PROBE_CRATE, PLAN, { pages: undefined, error, nextPageFailed: false }),
+    ).toThrowError(/문구 없는 오류/)
+    expect(() => detailScreen(PROBE_CRATE, { result: undefined, error })).toThrowError(
+      /문구 없는 오류/,
+    )
+    expect(() => referenceState(PROBE_CRATE, { result: undefined, error })).toThrowError(
+      /문구 없는 오류/,
+    )
   })
 })
 
