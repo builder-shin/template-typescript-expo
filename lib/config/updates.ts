@@ -15,6 +15,9 @@ export const RUNTIME_VERSION_POLICY = { policy: 'fingerprint' } as const
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+/** 프로젝트 id 를 읽는 변수 - 앞선 것이 먼저다. */
+const PROJECT_ID_VARIABLES = ['EAS_PROJECT_ID', 'EAS_BUILD_PROJECT_ID'] as const
+
 /**
  * EAS 프로젝트 id - 선택 변수 EAS_PROJECT_ID(스펙 10.1). 없거나 비어 있으면 null 이다(EAS 프로젝트도 OTA 도
  * 없다).
@@ -23,18 +26,25 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
  * 시작한 eas-cli 는 로컬의 EAS_PROJECT_ID 로 설정을 평가하는데, 서버의 평가에 id 가 빠지면 OTA 가 꺼져 두
  * 평가의 runtime version 이 달라지고 EAS 빌드가 멈춘다.
  *
- * 값이 있는데 UUID 가 아니면 던진다 - 틀린 id 는 업데이트 주소를 틀리게 만들어 OTA 가 소리 없이 멈춘다.
+ * 값이 있는데 UUID 가 아니면 던진다(오류는 실제로 읽은 변수의 이름을 말한다) - 틀린 id 는 업데이트 주소를 틀리게
+ * 만들어 OTA 가 소리 없이 멈춘다.
+ *
+ * 대소문자는 가리지 않고 받되 소문자로 맞춰 돌려준다. EAS 빌드 서버는 설정의 extra.eas.projectId 를 자신이 주는
+ * EAS_BUILD_PROJECT_ID 와 글자 그대로 맞대 보고 다르면 빌드를 멈춘다(@expo/build-tools 24.8.0 의 설정 검사,
+ * EAS_BUILD_PROJECT_ID_MISMATCH) - 대문자로 적은 id 가 그대로 extra.eas.projectId 와 업데이트 주소에 실리면 빌드가
+ * 시작한 뒤에야 멈춘다.
  */
 export function easProjectId(env: Readonly<Record<string, string | undefined>>): string | null {
-  const raw = [env.EAS_PROJECT_ID, env.EAS_BUILD_PROJECT_ID].find(
-    (value) => value !== undefined && value.trim() !== '',
-  )
-  if (raw === undefined) return null
-  const value = raw.trim()
-  if (!UUID.test(value)) {
-    throw new Error(`EAS_PROJECT_ID must be a UUID (got ${JSON.stringify(raw)})`)
+  for (const name of PROJECT_ID_VARIABLES) {
+    const raw = env[name]
+    if (raw === undefined || raw.trim() === '') continue
+    const value = raw.trim()
+    if (!UUID.test(value)) {
+      throw new Error(`${name} must be a UUID (got ${JSON.stringify(raw)})`)
+    }
+    return value.toLowerCase()
   }
-  return value
+  return null
 }
 
 /** app.config.ts 의 updates 자리 - expo-updates 의 설정 플러그인이 네이티브 설정으로 옮긴다. */
