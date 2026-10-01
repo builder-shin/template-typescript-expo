@@ -54,3 +54,5 @@ CONTRACT_API_URL=http://127.0.0.1:4100 pnpm test:contract           # 이미 떠
 
 스택은 E2E 와 같은 compose 프로젝트(`template-typescript-expo-e2e`)이고 그 프로젝트만 띄우고 내린다. access
 token 수명은 백엔드 기본값(900초)이다 - E2E 하네스가 주는 10초(`E2E_ACCESS_EXPIRES_SECONDS`)를 쓰지 않는다.
+
+거울이 선언의 어긋남을 잡는지는 선언을 일부러 바꿔 재 보았다 - `docs/superpowers/notes/2026-10-01-d5-measurements.md` 의 C1.

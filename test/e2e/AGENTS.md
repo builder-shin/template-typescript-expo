@@ -75,6 +75,23 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
   두 누름이 한 요청 안에 들지 않는다. 둘째 누름은 첫 누름이 연 다음 화면의 같은 자리에 닿을 수 있다 - 그 자리에 누를 것이 없는
   곳에서만 쓴다(생성 폼의 제출 자리에는 상세의 "수정" 이 온다). 나간 요청은 `api.log` 로 센다.
 
+## 계약 실험실 플로
+
+- 실험실(`/contract`)은 홈의 `home-lab-link` 로 연다. testID 끝에 실험 id 가 붙는다
+  (`components/lab/experiment-card.tsx`) - 실행 버튼 `lab-run-<id>`, 결과 `lab-result-<id>`, 상태 `lab-status-<id>`, 보낸
+  헤더 `lab-header-<id>-<이름>`, 여러 단계의 머리글·본문 `lab-step-heading-<id>-<순서>`·`lab-step-body-<id>-<순서>`(0부터),
+  한 단계 결과의 본문 `lab-body-<id>`, 맺음말 `lab-note-<id>`.
+- 실행 버튼을 누른 뒤에는 스피너가 멈추기를 기다린다(`waitForAnimationToEnd`) - 도는 동안 스크롤하면 결과가 화면 위쪽에
+  끼어 아래로 찾는 `scrollUntilVisible` 이 지나칠 수 있다.
+- 결과의 본문은 길다(offset 순회는 쪽마다 수십 줄) - 단언할 요소를 `scrollUntilVisible` 로 화면에 들인 뒤에 본다. 본문처럼
+  키가 큰 요소는 `visibilityPercentage: 10` 을 준다. 글자를 준 `assertNotVisible` 은 그 요소가 화면에 있을 때만 뜻이 있다 -
+  먼저 요소를 들인다.
+- 언어 협상은 문구를 문자열로 찾지 않는다 - ko 단계의 본문에 완성형 한글이 있고 en 단계의 본문에 없는지 본다(로캘
+  플로와 같은 판정, 스펙 9.4).
+- PUT upsert 의 행은 고정 id(`lib/lab/run.ts` 의 `PROBE_LAB_EXAMPLE_ID`)라 한 스택에서 처음 누르면 201, 다음부터 200 이다 -
+  그 행을 만드는 플로는 `contract-lab-signed-in` 하나다. offset 순회는 씨앗 여섯 행에서 두 쪽이다 - 실험실 플로는 이름
+  순으로 목록·쓰기 플로보다 먼저 돈다(뒤에 행이 늘어도 20쪽 상한 안이면 끝에 닿는다).
+
 ## 돌리기
 
 ```bash
