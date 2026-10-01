@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button'
 import { Text } from '@/components/ui/text'
 
 /**
- * 헤더의 "홈으로" 버튼 - 가드가 보낸 로그인·가입 화면의 눈에 보이는 출구다(스펙 7.3). 그 화면은 루트에 혼자
- * 남아(components/app/back-to-home.ts) iOS 에는 뒤로 갈 길이 없다 - 하드웨어 뒤로 가기도, 헤더의 뒤로 가기
- * 버튼도 없다. Android 에서도 같은 길을 준다(뒤로 가기와 같은 이동이다).
+ * 헤더의 "홈으로" 버튼 - 가드가 보낸 로그인·가입 화면과, 밖에서 딥링크로 곧장 열린 계약 실험실의 눈에 보이는
+ * 출구다(스펙 7.3). 그 화면들은 루트에 혼자 남아(components/app/back-to-home.ts) iOS 에는 뒤로 갈 길이 없다 -
+ * 하드웨어 뒤로 가기도, 헤더의 뒤로 가기 버튼도 없다. Android 에서도 같은 길을 준다(뒤로 가기와 같은 이동이다).
  *
- * 뒤로 갈 화면이 있으면 그리지 않는다 - 그때는 헤더에 네이티브 뒤로 가기 버튼이 이미 있다. 내비게이터가 헤더의
- * `headerRight` 에 `canGoBack` 을 넘겨 주므로(`renderHomeButton`) 상태를 따로 읽지 않는다. 가드가 보낸 화면은 루트에
- * 혼자라 그 값이 거짓이다.
+ * 뒤로 갈 화면이 있으면 그리지 않는다 - 그때는 헤더에 네이티브 뒤로 가기 버튼이 이미 있다(홈에서 연 실험실이 그렇다).
+ * 내비게이터가 헤더의 `headerRight` 에 `canGoBack` 을 넘겨 주므로(`renderHomeButton`) 상태를 따로 읽지 않는다. 가드가
+ * 보낸 화면과 딥링크로 곧장 연 실험실은 루트에 혼자라 그 값이 거짓이다.
  *
  * testID `back-to-home-button` 은 E2E 플로(test/e2e/)가 찾는 이름이다.
  */
