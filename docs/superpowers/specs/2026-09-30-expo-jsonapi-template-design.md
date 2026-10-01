@@ -782,13 +782,18 @@ Next.js와 같다.
 - 선택 변수의 기본값은 `app.config.ts`·`.env.example`·README 표 셋에 같은 값으로
   적는다(Next.js와 같다).
 
-> 정정(2026-10-01, D6): `EAS_PROJECT_ID` 는 UUID 여야 한다 - 다른 모양이면 설정을 평가하는 순간 멈춘다(틀린 id 는
-> 업데이트 주소를 틀리게 만들어 OTA 가 소리 없이 멈춘다). 값이 없고 EAS 빌드 서버가 주는 `EAS_BUILD_PROJECT_ID` 가
-> 있으면 그 값을 쓴다 - 빌드를 시작한 eas-cli 는 로컬의 `EAS_PROJECT_ID` 로 설정을 평가하는데, 서버의 평가에 id 가
-> 빠지면 OTA 가 꺼져 두 평가의 runtime version 이 달라지고 EAS 빌드가 멈춘다(`@expo/build-tools` 24.8.0 의
+> 정정(2026-10-01, D6): `EAS_PROJECT_ID` 는 UUID 여야 한다 - 다른 모양이면 설정을 평가하는 순간 멈추고(틀린 id 는
+> 업데이트 주소를 틀리게 만들어 OTA 가 소리 없이 멈춘다), 오류는 실제로 읽은 변수의 이름을 말한다(`EAS_PROJECT_ID` 가
+> 비었고 `EAS_BUILD_PROJECT_ID` 에서 읽었다면 그 이름). 대소문자는 가리지 않고 받되 소문자로 맞춰 싣는다 - EAS 빌드
+> 서버는 설정의 `extra.eas.projectId` 를 자신이 주는 `EAS_BUILD_PROJECT_ID` 와 글자 그대로 맞대 보고 다르면 빌드를
+> 멈추므로(`@expo/build-tools` 24.8.0 의 설정 검사, `EAS_BUILD_PROJECT_ID_MISMATCH`) 대문자로 적은 id 가 그대로
+> 실리면 빌드가 시작한 뒤에야 멈춘다. 값이 없고 EAS 빌드 서버가 주는 `EAS_BUILD_PROJECT_ID` 가 있으면 그 값을 쓴다 -
+> 빌드를 시작한 eas-cli 는 로컬의 `EAS_PROJECT_ID` 로 설정을 평가하는데, 서버의 평가에 id 가 빠지면 OTA 가 꺼져 두
+> 평가의 runtime version 이 달라지고 EAS 빌드가 멈춘다(`@expo/build-tools` 24.8.0 의
 > `configureExpoUpdatesIfInstalledAsync`). 프로젝트 id 는 `extra.eas.projectId` 로 실린다 - eas-cli 와 EAS 빌드가
-> 프로젝트를 찾는 자리다. Expo CLI 는 `.env` 를 읽으므로 게이트는 설정을 평가할 때 `EAS_PROJECT_ID` 를 빈 값으로도
-> 명시한다. 판단은 `lib/config/updates.ts` 의 `easProjectId`.
+> 프로젝트를 찾는 자리다. Expo CLI 는 `.env` 를 읽으므로 개발자의 `.env` 가 평가에 섞일 수 있다 - 게이트의 8단계(설정)는
+> `.env` 가 없는 깨끗한 사본에서 평가하고(12장의 D6 정정) 셸이 내보낸 값도 섞이지 않도록 `EAS_PROJECT_ID`·
+> `EAS_BUILD_PROJECT_ID` 를 빈 값으로도 명시한다. 판단은 `lib/config/updates.ts` 의 `easProjectId`.
 
 ### 10.2 변형
 
