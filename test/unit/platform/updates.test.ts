@@ -91,15 +91,16 @@ describe('readBuildInfo - expo-updates·expo-constants 의 값을 옮긴다', ()
 
 describe('updatesApi - expo-updates 의 세 호출을 그대로 넘긴다', () => {
   it('확인·받기·다시 켜기가 expo-updates 의 함수를 부른다', async () => {
+    // 확인·받기 결과 모두 두 칸의 값을 다르게 둔다 - 같으면 칸을 맞바꿔 넘기는 배선이 드러나지 않는다.
     mocks.updates.checkForUpdateAsync.mockResolvedValue({
-      isAvailable: false,
+      isAvailable: true,
       isRollBackToEmbedded: false,
     })
     mocks.updates.fetchUpdateAsync.mockResolvedValue({ isNew: true, isRollBackToEmbedded: false })
     mocks.updates.reloadAsync.mockResolvedValue(undefined)
 
     expect(await updatesApi.checkForUpdateAsync()).toEqual({
-      isAvailable: false,
+      isAvailable: true,
       isRollBackToEmbedded: false,
     })
     expect(await updatesApi.fetchUpdateAsync()).toEqual({

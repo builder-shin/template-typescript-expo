@@ -62,10 +62,14 @@ describe('buildInfoView - 스펙 10.6', () => {
     expect(buildInfoView(OTA_OFF).canCheck).toBe(false)
   })
 
-  it('null 인 값도 "없음" 이다', () => {
+  it('null 이나 공백뿐인 값도 "없음" 이다', () => {
     expect(
       values({ ...OTA_OFF, appVersion: null, runtimeVersion: null, channel: null }),
     ).toMatchObject({ version: '없음', runtime: '없음', channel: '없음' })
+    expect(values({ ...OTA_OFF, runtimeVersion: '   ', channel: ' ' })).toMatchObject({
+      runtime: '없음',
+      channel: '없음',
+    })
   })
 
   it('OTA 를 켠 빌드는 채널과 runtime version 을 적고 확인 버튼을 둔다 - 내장 번들이면 그렇다고 적는다', () => {
@@ -80,8 +84,10 @@ describe('buildInfoView - 스펙 10.6', () => {
     expect(buildInfoView(PREVIEW_EMBEDDED).canCheck).toBe(true)
   })
 
-  it('받은 업데이트로 떴으면 업데이트 ID 만 적는다', () => {
+  it('받은 업데이트로 떴으면 업데이트 ID 만 적고, ID 가 없으면 내장 번들이어도 "없음" 이다', () => {
     expect(values({ ...PREVIEW_EMBEDDED, embeddedLaunch: false }).update).toBe(UPDATE_ID)
+    // 실제 상수로는 일어나지 않는 조합이다(내장 번들로 떴으면 ID 가 있다) - 붙일 ID 가 없으면 "(내장 번들)" 만 남기지 않는다.
+    expect(values({ ...PREVIEW_EMBEDDED, updateId: null }).update).toBe('없음')
   })
 })
 
