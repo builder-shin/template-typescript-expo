@@ -2,6 +2,7 @@ import { Stack, router, usePathname, type Href } from 'expo-router'
 import { ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { renderHomeButton } from '@/components/app/home-button'
 import { useNavigateOnce } from '@/components/app/navigate-once'
 import { ExperimentCard } from '@/components/lab/experiment-card'
 import { Text } from '@/components/ui/text'
@@ -24,6 +25,9 @@ const CONTENT_PADDING = 16
  * 로그인 화면을 쌓는 이동은 화면에 하나인 가드를 지난다(`useNavigateOnce`) - 세션이 필요한 실험 둘이 잇달아
  * 거절돼도 로그인 화면은 하나다. 이 화면이 다시 앞에 오면 풀린다.
  *
+ * 밖에서 곧장 들어온 딥링크(예: `templateexpo://contract`)는 이 화면 하나만 루트에 세워 돌아갈 화면이 없으므로, 로그인
+ * 화면과 같은 출구인 헤더의 "홈으로"(`renderHomeButton`)를 돌아갈 화면이 없을 때만 그린다.
+ *
  * 실험마다 따로 도는 쓰기가 있다(`ExperimentRunner`) - 하나를 눌러도 다른 결과가 사라지지 않는다. 훅을 반복문
  * 안에서 부르지 않도록 실험마다 컴포넌트를 둔다.
  */
@@ -42,7 +46,7 @@ export default function ContractLabScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: '계약 실험실' }} />
+      <Stack.Screen options={{ title: '계약 실험실', headerRight: renderHomeButton }} />
       <ScrollView
         testID="lab-screen"
         className="flex-1 bg-background"
