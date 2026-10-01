@@ -262,8 +262,8 @@
     },
     {
       "path": "test/unit/e2e/matrix.test.ts",
-      "what": "Playwright 에 기대던 셋을 이 저장소의 하네스로 바꿨다. playwright test --list 로 제목 경로를 맞대던 identifierResolves·looseIdentifierResolves 와 그 대조 절을 식별자가 가리키는 파일(flows/<이름>.yaml·test/contract/<파일>)의 실재 검사로, stack.ts 의 모듈 평가를 재던 절을 하네스 스크립트(test/contract/run.sh·test/e2e/run-android.sh·test/e2e/run-ios.sh·test/e2e/native-backend.sh)의 검증 줄이 부수 효과보다 먼저인지 소스에서 보고 그 줄을 떼어 모르는 값·아는 값으로 돌리는 절로, *.spec.ts 의 test.fail 세기를 test/contract/*.test.ts 의 it.fails 세기로 바꿨다. 프로브 목록의 식별자, 머리말, import 순서를 이 저장소에 맞게 고쳤다. backendKind·knownDivergenceReason·reportKnownDivergences 를 재는 절은 그대로 두었다.",
-      "why": "이 저장소의 E2E 는 Playwright 가 아니라 Maestro 플로(bash 하네스)와 vitest 계약 거울이다(스펙 6.2 의 \"하네스가 Maestro다\"). @playwright/test 도 stack.ts 도 없어 원본 그대로는 돌지 않는다. 검증 줄만 떼어 돌리는 까닭은 검증이 빠진 판이 되었을 때 시험이 도커·기기를 건드리지 않게 하려는 것이다."
+      "what": "Playwright 에 기대던 셋을 이 저장소의 하네스로 바꿨다. playwright test --list 로 제목 경로를 맞대던 identifierResolves·looseIdentifierResolves 와 그 대조 절을 식별자가 가리키는 파일(flows/<이름>.yaml·test/contract/<파일>)의 실재 검사로, stack.ts 의 모듈 평가를 재던 절을 하네스 스크립트(test/contract/run.sh·test/e2e/run-android.sh·test/e2e/run-ios.sh·test/e2e/native-backend.sh)의 검증 줄이 부수 효과보다 먼저인지 소스에서 보고 그 줄을 떼어 모르는 값·아는 값으로 돌리는 절로, *.spec.ts 의 test.fail 세기를 test/contract/*.test.ts 의 it.fails 세기로 바꿨다. 프로브 목록의 식별자, 머리말, import 순서를 이 저장소에 맞게 고쳤다. 빈 KNOWN_DIVERGENCES 를 순회하던 두 시험을 항목의 실재 식별자·비어 있지 않은 이유를 함께 판단하는 knownDivergenceIsValid 와 정상·없는 식별자·빈 이유 프로브 시험으로 바꾸고, 실제 목록은 빈 배열인지 직접 단언한다. 중복 resolveBash 를 빼고 test/unit/support/bash 의 resolveBash·BASH_TIMEOUT_MS 를 import 해 Windows Git Bash 후보 탐색·실행 확인·30초 상한을 하네스 시험들이 공유한다. backendKind·knownDivergenceReason·reportKnownDivergences 를 재는 절은 그대로 두었다.",
+      "why": "이 저장소의 E2E 는 Playwright 가 아니라 Maestro 플로(bash 하네스)와 vitest 계약 거울이다(스펙 6.2 의 \"하네스가 Maestro다\"). @playwright/test 도 stack.ts 도 없어 원본 그대로는 돌지 않는다. 검증 줄만 떼어 돌리는 까닭은 검증이 빠진 판이 되었을 때 시험이 도커·기기를 건드리지 않게 하려는 것이다. 빈 목록 때문에 단언 없이 통과하던 불변식을 실제 항목 프로브로 구동해 잘못된 식별자나 빈 이유를 놓치지 않는다. 원본 Next.js 시험과 다른 공유 도우미 import 는 복제된 Bash 탐색 판단과 서로 다른 timeout 정책을 한 곳에서 유지하기 위한 이탈이다."
     }
   ],
   "sourceBlobs": {

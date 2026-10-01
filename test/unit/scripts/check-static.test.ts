@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { BASH_TIMEOUT_MS, resolveBash } from '../support/bash'
 
 /**
  * 게이트의 정적 모드(`./scripts/check.sh --static`)를 잰다 - CI 의 checks 잡이 [1]–[11] 만 돌 때 쓴다(스펙 13장).
@@ -12,26 +13,8 @@ import { describe, expect, it } from 'vitest'
 
 const SOURCE = readFileSync(resolve('scripts/check.sh'), 'utf8')
 
-/** 인자를 읽는 블록 - `case "${1:-}" in` 부터 `esac` 까지. */
-const ARGUMENTS = /^case "\$\{1:-\}" in$[\s\S]*?^esac$/m
-
-/** test/unit/e2e/guard-log.test.ts 와 같은 방법으로 bash 를 고른다. */
-function resolveBash(): string {
-  const programFiles = process.env.ProgramW6432 ?? process.env.ProgramFiles ?? 'C:\\Program Files'
-  const candidates =
-    process.platform === 'win32'
-      ? [
-          'bash',
-          join(programFiles, 'Git', 'bin', 'bash.exe'),
-          join(programFiles, 'Git', 'usr', 'bin', 'bash.exe'),
-        ]
-      : ['bash']
-  for (const candidate of candidates) {
-    const probe = spawnSync(candidate, ['-c', 'printf ok'], { encoding: 'utf8' })
-    if (probe.status === 0 && probe.stdout === 'ok') return candidate
-  }
-  throw new Error(`쓸 수 있는 bash 를 찾지 못했다 - 후보: ${candidates.join(' · ')}`)
-}
+/** 인자 개수와 첫 값을 읽는 블록 - `case "$#:${1:-}" in` 부터 `esac` 까지. */
+const ARGUMENTS = /^case "\$#:\$\{1:-\}" in$[\s\S]*?^esac$/m
 
 /** 인자 블록만 그 인자로 돌리고 정한 모드를 낸다. */
 function parse(...args: string[]) {
@@ -42,7 +25,7 @@ function parse(...args: string[]) {
     ['-c', `${block}\nprintf '%s' "$static_only"`, 'check.sh', ...args],
     {
       encoding: 'utf8',
-      timeout: 30_000,
+      timeout: BASH_TIMEOUT_MS,
     },
   )
 }
@@ -64,6 +47,18 @@ describe('scripts/check.sh 의 인자', () => {
     const run = parse('--probe-lab-unknown')
     expect(run.status).toBe(2)
     expect(run.stderr).toContain('--static')
+  })
+
+  it.each([
+    { args: ['--static', '--probe'] },
+    { args: ['--static', '--static'] },
+    { args: [''] },
+    { args: ['', '--static'] },
+  ])('추가·중복·빈 인자 $args 는 사용법과 함께 exit 2 다', ({ args }) => {
+    const run = parse(...args)
+    expect(run.status).toBe(2)
+    expect(run.stderr).toBe('사용법: check.sh [--static]\n')
+    expect(run.stdout).toBe('')
   })
 
   it('인자 블록은 첫 단계보다 앞이다', () => {

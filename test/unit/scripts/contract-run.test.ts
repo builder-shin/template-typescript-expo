@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
+import { BASH_TIMEOUT_MS, resolveBash } from '../support/bash'
 
 /**
  * `test/contract/run.sh`(게이트 `[12/13]`)의 불변식을 실제 스크립트로 잰다.
@@ -52,43 +53,12 @@ const COMPOSE_FILE = 'docker-compose.e2e.yml'
 /** 이 저장소의 compose 호출이 반드시 시작하는 말. */
 const SCOPE = `compose -p ${PROJECT} -f ${COMPOSE_FILE}`
 
-/**
- * bash 를 한 번 부르는 일의 상한. 가짜 도구는 즉시 끝나므로 이보다 오래 걸리면 `run.sh` 안에 기다리는 반복
- * (폴링·sleep)이 가짜 도구를 지나지 않은 것이다 - 가짜 sleep 도 즉시 끝나므로 시험은 실제로 기다리지 않는다.
- */
-const SPAWN_TIMEOUT_MS = 30_000
-
 const WORK = mkdtempSync(join(tmpdir(), 'contract-run-'))
 const SHIMS = join(WORK, 'shims')
 
 afterAll(() => {
   rmSync(WORK, { recursive: true, force: true })
 })
-
-/**
- * 쓸 수 있는 bash 를 하나 고른다. 후보를 실제로 돌려 보고 판정한다 - Windows 의 PATH 에서 `bash` 는 WSL 의
- * bash.exe 로 잡힐 수 있고 그것은 /bin/bash 를 못 찾아 죽는다(test/unit/scripts/check-citations.test.ts 와
- * 같은 방법).
- */
-function resolveBash(): string {
-  const programFiles = process.env.ProgramW6432 ?? process.env.ProgramFiles ?? 'C:\\Program Files'
-  const candidates =
-    process.platform === 'win32'
-      ? [
-          'bash',
-          join(programFiles, 'Git', 'bin', 'bash.exe'),
-          join(programFiles, 'Git', 'usr', 'bin', 'bash.exe'),
-        ]
-      : ['bash']
-  for (const candidate of candidates) {
-    const probe = spawnSync(candidate, ['-c', 'printf ok'], {
-      encoding: 'utf8',
-      timeout: SPAWN_TIMEOUT_MS,
-    })
-    if (probe.status === 0 && probe.stdout === 'ok') return candidate
-  }
-  throw new Error(`쓸 수 있는 bash 를 찾지 못했다 - 후보: ${candidates.join(' · ')}`)
-}
 
 const BASH = resolveBash()
 
@@ -102,7 +72,7 @@ function bashPathOf(path: string): string {
   const result = spawnSync(BASH, ['-c', 'cd "$1" && pwd', 'bash', toPosix(path)], {
     env,
     encoding: 'utf8',
-    timeout: SPAWN_TIMEOUT_MS,
+    timeout: BASH_TIMEOUT_MS,
   })
   const resolved = result.stdout.trim()
   if (result.status !== 0 || resolved === '') throw new Error(`bash 가 경로를 풀지 못했다: ${path}`)
@@ -224,7 +194,7 @@ function assertShimsAreFirst(): void {
     {
       env: sceneEnv(),
       encoding: 'utf8',
-      timeout: SPAWN_TIMEOUT_MS,
+      timeout: BASH_TIMEOUT_MS,
     },
   )
   if (probe.stdout !== 'fake-docker\nfake-curl\nfake-pnpm\nfake-sleep\n') {
@@ -319,12 +289,12 @@ function run(scene: Scene = {}): Outcome {
     cwd: WORK,
     env,
     encoding: 'utf8',
-    timeout: SPAWN_TIMEOUT_MS,
+    timeout: BASH_TIMEOUT_MS,
   })
   if (result.error) {
     if ((result.error as NodeJS.ErrnoException).code === 'ETIMEDOUT') {
       throw new Error(
-        `run.sh 가 ${String(SPAWN_TIMEOUT_MS / 1000)}초 안에 끝나지 않았다 - 가짜 curl·sleep 을 지나지 않은 기다림이나 무한 반복이 있는지 본다`,
+        `run.sh 가 ${String(BASH_TIMEOUT_MS / 1000)}초 안에 끝나지 않았다 - 가짜 curl·sleep 을 지나지 않은 기다림이나 무한 반복이 있는지 본다`,
       )
     }
     throw result.error

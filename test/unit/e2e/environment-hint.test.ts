@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
+import { BASH_TIMEOUT_MS, resolveBash } from '../support/bash'
 
 /**
  * Android 하네스(`test/e2e/run-android.sh`)가 실패한 플로의 기록에서 앱 밖(기기·adb)의 실패로 보이는 흔적을 짚는지
@@ -28,24 +29,6 @@ function toPosix(path: string): string {
   return path.split('\\').join('/')
 }
 
-/** test/unit/scripts/check-static.test.ts 와 같은 방법으로 bash 를 고른다. */
-function resolveBash(): string {
-  const programFiles = process.env.ProgramW6432 ?? process.env.ProgramFiles ?? 'C:\\Program Files'
-  const candidates =
-    process.platform === 'win32'
-      ? [
-          'bash',
-          join(programFiles, 'Git', 'bin', 'bash.exe'),
-          join(programFiles, 'Git', 'usr', 'bin', 'bash.exe'),
-        ]
-      : ['bash']
-  for (const candidate of candidates) {
-    const probe = spawnSync(candidate, ['-c', 'printf ok'], { encoding: 'utf8', timeout: 30_000 })
-    if (probe.status === 0 && probe.stdout === 'ok') return candidate
-  }
-  throw new Error(`쓸 수 있는 bash 를 찾지 못했다 - 후보: ${candidates.join(' · ')}`)
-}
-
 let records = 0
 
 /** 기록 디렉터리 하나를 만들고 하네스와 같은 셸 옵션(`set -euo pipefail`)으로 함수만 돌린다. */
@@ -60,7 +43,7 @@ function hint(files: { readonly logcat?: string; readonly maestro?: string }) {
   return spawnSync(
     resolveBash(),
     ['-c', `set -euo pipefail\n${block}\nenvironment_hint "$1"`, 'run-android.sh', toPosix(out)],
-    { encoding: 'utf8', timeout: 30_000 },
+    { encoding: 'utf8', timeout: BASH_TIMEOUT_MS },
   )
 }
 

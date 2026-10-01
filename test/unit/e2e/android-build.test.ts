@@ -11,29 +11,13 @@ import {
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
+import { BASH_TIMEOUT_MS, resolveBash } from '../support/bash'
 
 /** 기기·Gradle 없이 둘째 실행만 가짜 gradlew 로 잰다 - D6 최종 리뷰 m8 의 기계 단언(결정 41). */
 const SOURCE = readFileSync(resolve('test/e2e/android.sh'), 'utf8')
 const WORK = mkdtempSync(join(tmpdir(), 'android-build-'))
 const JVM = '-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m'
 afterAll(() => rmSync(WORK, { recursive: true, force: true }))
-
-function resolveBash(): string {
-  const programFiles = process.env.ProgramW6432 ?? process.env.ProgramFiles ?? 'C:\\Program Files'
-  const candidates =
-    process.platform === 'win32'
-      ? [
-          'bash',
-          join(programFiles, 'Git', 'bin', 'bash.exe'),
-          join(programFiles, 'Git', 'usr', 'bin', 'bash.exe'),
-        ]
-      : ['bash']
-  for (const candidate of candidates) {
-    const probe = spawnSync(candidate, ['-c', 'printf ok'], { encoding: 'utf8', timeout: 30_000 })
-    if (probe.status === 0 && probe.stdout === 'ok') return candidate
-  }
-  throw new Error('쓸 수 있는 bash 가 없다')
-}
 
 let scenes = 0
 function assemble(output: string, exit = 0) {
@@ -65,7 +49,7 @@ function assemble(output: string, exit = 0) {
       cwd: scene,
       env,
       encoding: 'utf8',
-      timeout: 30_000,
+      timeout: BASH_TIMEOUT_MS,
     },
   )
   expect(readdirSync(temp), '임시 Gradle 로그가 남았다').toEqual([])

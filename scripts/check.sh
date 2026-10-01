@@ -36,10 +36,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# 인자는 --static 하나뿐이다. 환경 변수로 두지 않는다 - 셸에 남은 값이 로컬 게이트를 조용히 줄이지 못하게 한다.
-case "${1:-}" in
-  '') static_only=0 ;;
-  --static) static_only=1 ;;
+# 인자 없음 또는 정확히 하나의 --static 만 받는다 - 추가·중복·빈 인자도 사용법과 exit 2 로 멈춘다.
+# 환경 변수로 두지 않는다 - 셸에 남은 값이 로컬 게이트를 조용히 줄이지 못하게 한다.
+case "$#:${1:-}" in
+  0:) static_only=0 ;;
+  1:--static) static_only=1 ;;
   *)
     echo "사용법: $0 [--static]" >&2
     exit 2

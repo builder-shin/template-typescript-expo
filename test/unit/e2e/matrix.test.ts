@@ -10,6 +10,7 @@ import {
   reportKnownDivergences,
   type KnownDivergence,
 } from '@/test/e2e/matrix'
+import { BASH_TIMEOUT_MS, resolveBash } from '../support/bash'
 
 /**
  * 매트릭스의 판단 셋을 단위에서 지킨다 - `test/e2e/matrix.ts`.
@@ -27,10 +28,11 @@ import {
  *
  * ## 목록이 0건인 동안 이 파일이 재는 것
  *
- * `KNOWN_DIVERGENCES` 가 비었으므로 "각 항목이 …" 형태의 단언은 아무것도 돌지 않는다. 그래서 두 가지를 한다.
+ * `KNOWN_DIVERGENCES` 가 비었으므로 "각 항목이 …" 형태의 단언은 아무것도 돌지 않는다. 그래서 세 가지를 한다.
  *
  * 1. `knownDivergenceReason`·`reportKnownDivergences` 는 프로브 목록을 넘겨 함수 자체를 구동한다.
- * 2. 목록에 기대는 불변식은 개수 대조로 바꾼다 - 계약 거울의 `it.fails` 호출 수가 실측된 드리프트 수와 같은가.
+ * 2. 실제 목록이 빈 배열인지 직접 단언하고, 항목의 식별자·이유 불변식은 정상·없는 식별자·빈 이유 프로브로 잰다.
+ * 3. 계약 거울의 `it.fails` 호출 수가 실측된 드리프트 수와 같은지 대조한다.
  *
  * ## 원본과 다른 것
  *
@@ -101,6 +103,11 @@ function identifierResolves(identifier: string): boolean {
   return existsSync(join(CONTRACT_DIR, file))
 }
 
+/** 알려진 어긋남 한 항목은 실재하는 시험과 비어 있지 않은 이유를 가져야 한다. */
+function knownDivergenceIsValid(divergence: KnownDivergence): boolean {
+  return identifierResolves(divergence.test) && divergence.reason.length > 0
+}
+
 /**
  * 소스에서 줄 맨 앞의 `it.fails(`·`test.fails(` 호출만 센다. 주석은 ` * ` 로 시작하므로 문서에서 그 이름을
  * 언급하는 자리에 걸리지 않는다.
@@ -144,20 +151,26 @@ describe('backendKind()', () => {
 })
 
 describe('KNOWN_DIVERGENCES', () => {
+  const valid: KnownDivergence = { ...PROBE_VERIFIED, test: REAL_IDENTIFIER }
+
   it('오늘 0건이다 - 세 백엔드가 실제로 통일돼 있다', () => {
     expect(KNOWN_DIVERGENCES).toEqual([])
+    expect(KNOWN_DIVERGENCES.every(knownDivergenceIsValid)).toBe(true)
   })
 
-  it('항목이 생기면 실재하는 시험을 가리켜야 한다', () => {
-    for (const divergence of KNOWN_DIVERGENCES) {
-      expect(identifierResolves(divergence.test), divergence.test).toBe(true)
-    }
+  it('실재하는 시험과 이유를 가진 프로브 항목은 통과한다', () => {
+    expect.hasAssertions()
+    expect(knownDivergenceIsValid(valid)).toBe(true)
   })
 
-  it('항목이 생기면 이유가 있어야 한다 - 근거 없는 드리프트는 "고쳤는지" 를 판단할 수 없다', () => {
-    for (const divergence of KNOWN_DIVERGENCES) {
-      expect(divergence.reason.length, divergence.test).toBeGreaterThan(0)
-    }
+  it('없는 시험을 가리키는 프로브 항목은 실패한다', () => {
+    expect.hasAssertions()
+    expect(knownDivergenceIsValid({ ...valid, test: 'flows/probe-lab-missing.yaml' })).toBe(false)
+  })
+
+  it('이유가 빈 프로브 항목은 실패한다 - 근거 없는 드리프트는 "고쳤는지" 를 판단할 수 없다', () => {
+    expect.hasAssertions()
+    expect(knownDivergenceIsValid({ ...valid, reason: '' })).toBe(false)
   })
 })
 
@@ -269,27 +282,6 @@ describe('reportKnownDivergences()', () => {
   })
 })
 
-/**
- * 쓸 수 있는 bash 를 하나 고른다. 후보를 실제로 돌려 보고 판정한다 - Windows 의 PATH 에서 `bash` 는 WSL 의
- * bash.exe 로 잡힐 수 있고 그것은 /bin/bash 를 못 찾아 죽는다(test/unit/e2e/guard-log.test.ts 와 같은 방법).
- */
-function resolveBash(): string {
-  const programFiles = process.env.ProgramW6432 ?? process.env.ProgramFiles ?? 'C:\\Program Files'
-  const candidates =
-    process.platform === 'win32'
-      ? [
-          'bash',
-          join(programFiles, 'Git', 'bin', 'bash.exe'),
-          join(programFiles, 'Git', 'usr', 'bin', 'bash.exe'),
-        ]
-      : ['bash']
-  for (const candidate of candidates) {
-    const probe = spawnSync(candidate, ['-c', 'printf ok'], { encoding: 'utf8' })
-    if (probe.status === 0 && probe.stdout === 'ok') return candidate
-  }
-  throw new Error(`쓸 수 있는 bash 를 찾지 못했다 - 후보: ${candidates.join(' · ')}`)
-}
-
 /** 백엔드를 띄우는 하네스 스크립트 - 모두 도커·기기·백엔드를 건드리기 전에 종류를 검증해야 한다. */
 const HARNESS_SCRIPTS = ['test/contract/run.sh', 'test/e2e/run-android.sh'] as const
 
@@ -311,7 +303,7 @@ function runValidation(script: string, kind: string) {
     cwd: REPO_ROOT,
     encoding: 'utf8',
     env: { ...process.env, BACKEND_KIND: kind },
-    timeout: 30_000,
+    timeout: BASH_TIMEOUT_MS,
   })
 }
 
