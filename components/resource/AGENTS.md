@@ -40,8 +40,8 @@
   않게 한 곳씩 둔다. 첫 조회가 판정하지 않은 응답(5xx·408·429)을 받은 배너(`retryable`)에는 문구 아래에 "다시 시도" 를
   함께 둔다. 판정한 4xx 의 배너는 다시 불러도 같은 답이라 버튼이 없다(스펙 9.3 의 D4 정정). 관계 선택기는 참조 조회의
   실패를 보기 위에 그리고 보기("선택 안 함"·지금 고른 목록 밖 선택)는 그대로 둔다 - 실패한 동안에도 고른 것을 해제할 수 있어야
-  한다. 선택기의 참조 목록이 문구 없는 오류로 거절되면 `referenceState` 가 렌더 중에 던져 오류 경계로 간다 - 계약 위반이라
-  앱 문구로 가리지 않는다.
+  한다. 선택기의 참조 목록이 문구 없는 오류로 거절되면 `referenceState` 가 던진 결함을 `combineReferences` 가 값으로 담고
+  `useRelationshipReferences` 가 렌더 중에 다시 던져(`referencesOf`) 오류 경계로 간다 - 계약 위반이라 앱 문구로 가리지 않는다.
 - testID 는 E2E 플로(`test/e2e/flows/examples-*.yaml`)가 찾는 이름이다. 선언에서 만드는 이름 -
   `filter-option-<키>-<연산자>-<값|any>`·`filter-input-<키>-<연산자>`·`sort-option-<정렬 키>`·`detail-value-<항목 키>`·
   `detail-badge-<항목 키>-<위치>`·`field-label-<속성>`·`field-input-<속성>`·`field-choice-<속성>-<값>`·`field-error-<속성>`·

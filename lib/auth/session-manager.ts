@@ -75,9 +75,11 @@ export interface SessionManager {
    */
   establish: (session: Session, refreshExpiresIn: number) => Promise<void>
   /**
-   * 인증이 필요한 요청이 실을 access token. 세션이 없으면 null 이다 - 쓰기 훅은 요청하지 않고
-   * 로그인으로 보낸다(스펙 7.3 의 두 번째 겹). 만료까지 60초 이하면 회전한다. 회전한 세션을 저장소에
-   * 쓰지 못하면 새 세션은 메모리에 두고 그 오류로 거절한다 - 다음 호출은 새 access 를 받는다.
+   * 인증이 필요한 요청이 실을 access token. 세션이 없으면 null 이다 - 쓰기 흐름(lib/resources/write.ts)은
+   * 요청하지 않고 세션 거절을 던진다(스펙 7.3 의 두 번째 겹, 9.2). 만료까지 60초 이하면 회전한다. 회전이 판정을
+   * 받지 못하면(5xx·408·429·닿지 못함) 세션을 두고 지금의 access 를 돌려준다 - 이미 만료됐을 수 있어 부르는 쪽이
+   * 다룬다(쓰기의 만료 가드). 회전한 세션을 저장소에 쓰지 못하면 새 세션은 메모리에 두고 그 오류로 거절한다 - 다음
+   * 호출은 새 access 를 받는다.
    */
   getAccessToken: () => Promise<string | null>
   /**

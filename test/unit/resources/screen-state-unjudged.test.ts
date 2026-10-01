@@ -288,7 +288,7 @@ describe('detailScreen - 판정하지 않은 응답과 판정한 응답', () => 
 })
 
 describe('referenceState - 판정하지 않은 응답', () => {
-  it('첫 조회면 그 문구를 보기 대신 그린다 - 다시 시도가 붙는다', () => {
+  it('첫 조회면 그 문구를 보기 위에 그린다 - 다시 시도가 붙는다', () => {
     expect(referenceState(PROBE_CRATE, { result: undefined, error: busy('목록') })).toEqual({
       list: { options: [], truncated: false },
       failure: { kind: 'banner', messages: ['PROBE 잠시 뒤에'], retryable: true },

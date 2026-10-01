@@ -191,7 +191,7 @@ export function detailScreen(resource: ResourceDefinition, facts: DetailQueryFac
 
 /**
  * 관계 선택기가 그릴 참조 목록 하나 - 목록·상세와 같은 규칙이다(스펙 9.3). 받기 전이면 `list` 가 `null`(스켈레톤)
- * 이다. 첫 조회가 판정을 받지 못했거나 백엔드가 거절했으면 보기 대신 실패를 그린다 - 응답이 없었으면 앱 문구와
+ * 이다. 첫 조회가 판정을 받지 못했거나 백엔드가 거절했으면 보기 위에 실패를 그린다 - 응답이 없었으면 앱 문구와
  * "다시 시도"(`unreachable`), 응답이 있으면 그 문구(`banner`)다. 거절은 목록·상세와 같은 규칙으로 읽는다
  * (`failureOf`, view.ts) - 합성 오류는 닿지 못함이고, 문구가 하나도 없는 오류 문서는 계약 위반이라 던진다. 선택기에서만
  * 앱 문구로 가리면 같은 결함이 한 화면에서는 오류 경계로, 다른 화면에서는 정상 실패로 보인다. 실패한 동안 `list` 는
@@ -203,12 +203,12 @@ export function detailScreen(resource: ResourceDefinition, facts: DetailQueryFac
 export interface ReferenceState {
   /** 선택기가 그릴 보기 - 받기 전이면 `null`, 실패했으면 빈 목록이다. */
   readonly list: ReferenceList | null
-  /** 보기 대신 그릴 실패. */
+  /** 보기 위에 그릴 실패. */
   readonly failure: ReferenceFailure | null
 }
 
 /**
- * 선택기가 보기 대신 그리는 실패. `banner` 의 `retryable` 은 목록·상세(`ListScreen`·`DetailScreen`)와 같다 - 첫 조회가
+ * 선택기가 보기 위에 그리는 실패. `banner` 의 `retryable` 은 목록·상세(`ListScreen`·`DetailScreen`)와 같다 - 첫 조회가
  * 받은 판정하지 않은 응답(5xx·408·429)의 배너에만 붙고, 선택기가 "다시 시도" 를 함께 그린다. `unreachable` 은 늘
  * "다시 시도" 와 함께 그린다.
  */
@@ -247,7 +247,7 @@ export function referenceState(
 }
 
 /**
- * 거절 하나 → 보기 대신 그릴 실패. `failureOf`(view.ts)와 같은 규칙이다 - 합성 오류(응답조차 없었다)는 닿지 못함이고,
+ * 거절 하나 → 보기 위에 그릴 실패. `failureOf`(view.ts)와 같은 규칙이다 - 합성 오류(응답조차 없었다)는 닿지 못함이고,
  * 문구가 하나도 없는 오류 문서는 던진다(빈 배너는 아무 설명 없는 빈 화면이다). 규칙이 두 자리에 있으므로 시험이 같은
  * 문서를 목록·상세·참조 목록에 넣어 같은 답인지 잰다(test/unit/resources/screen-state-unjudged.test.ts).
  */
