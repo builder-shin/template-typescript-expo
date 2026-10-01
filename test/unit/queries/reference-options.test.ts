@@ -5,11 +5,14 @@ import {
   focusManager,
   onlineManager,
   replaceEqualDeep,
+  type QueryObserverOptions,
+  type QueryObserverResult,
 } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { JsonApiResult, RequestOptions } from '@/lib/jsonapi/client'
 import type { CollectionDocument, ErrorObject } from '@/lib/jsonapi/document'
+import type { JsonApiSend } from '@/lib/jsonapi/send'
 import { EXAMPLE_CATEGORY, EXAMPLE_TAG } from '@/lib/resources'
 import { defineResource } from '@/lib/resources/define'
 import { referenceState } from '@/lib/resources/screen-state'
@@ -19,6 +22,8 @@ import {
   combineReferences,
   referencePlan,
   referenceQueryOptions,
+  referencesOf,
+  type ReferencePlan,
   type ReferenceQueryResult,
 } from '@/queries/resource-options'
 
@@ -197,14 +202,15 @@ const PROBE_TICKET = defineResource({
   writable: true,
 })
 
-function collection(type: string, name: string): JsonApiResult<CollectionDocument> {
+function collection(
+  type: string,
+  name: string,
+  id = `probe-${type}-1`,
+): JsonApiResult<CollectionDocument> {
   return {
     ok: true,
     status: 200,
-    document: {
-      data: [{ type, id: `probe-${type}-1`, attributes: { name } }],
-      links: { next: null },
-    },
+    document: { data: [{ type, id, attributes: { name } }], links: { next: null } },
   }
 }
 
@@ -266,7 +272,7 @@ describe('combineReferences - 조회 결과를 관계마다 선택기가 그릴 
     const tags = settled(TAGS)
     const categories = settled(CATEGORIES)
 
-    const references = combineReferences(ticketPlan(), [tags, categories])
+    const references = referencesOf(combineReferences(ticketPlan(), [tags, categories]))
 
     expect(Object.keys(references)).toEqual(['probeFirstTags', 'probeBin', 'probeSecondTags'])
     expect(references.probeFirstTags).toMatchObject({
@@ -291,10 +297,9 @@ describe('combineReferences - 조회 결과를 관계마다 선택기가 그릴 
   })
 
   it('받기 전이면 목록이 없고 읽는 중이다', () => {
-    const references = combineReferences(ticketPlan(), [
-      settled(undefined, true),
-      settled(undefined, true),
-    ])
+    const references = referencesOf(
+      combineReferences(ticketPlan(), [settled(undefined, true), settled(undefined, true)]),
+    )
 
     expect(references.probeBin).toMatchObject({ list: null, failure: null, retrying: true })
   })
@@ -305,11 +310,179 @@ describe('combineReferences - 조회 결과를 관계마다 선택기가 그릴 
     // 같은 데이터를 다시 읽는 중이다 - 바뀐 것은 retrying 뿐이다.
     const after = combineReferences(plan, [settled(TAGS, true), settled(CATEGORIES)])
 
-    const shared = replaceEqualDeep(before, after)
+    const shared = referencesOf(replaceEqualDeep(before, after))
+    const original = referencesOf(before)
 
     expect(shared.probeFirstTags?.retrying).toBe(true)
-    expect(shared.probeFirstTags?.list).toBe(before.probeFirstTags?.list)
-    expect(shared.probeBin?.list).toBe(before.probeBin?.list)
-    expect(shared.probeSecondTags?.list).toBe(before.probeSecondTags?.list)
+    expect(shared.probeFirstTags?.list).toBe(original.probeFirstTags?.list)
+    expect(shared.probeBin?.list).toBe(original.probeBin?.list)
+    expect(shared.probeSecondTags?.list).toBe(original.probeSecondTags?.list)
   })
+
+  it('referenceState 가 던지는 거절은 던지지 않고 결함 값으로 돌려준다 - 훅이 렌더 중에 꺼내 던진다', () => {
+    const rejected: JsonApiResult<CollectionDocument> = { ok: false, status: 422, errors: [] }
+
+    const combined = combineReferences(ticketPlan(), [settled(TAGS), settled(rejected)])
+
+    expect(combined.kind).toBe('defect')
+    expect(() => referencesOf(combined)).toThrow('참조 목록 요청이 문구 없는 오류로 실패했다')
+  })
+
+  it('정상이면 referencesOf 는 던지지 않고 선택기가 그릴 것을 준다', () => {
+    const combined = combineReferences(ticketPlan(), [settled(TAGS), settled(CATEGORIES)])
+
+    expect(combined.kind).toBe('references')
+    expect(Object.keys(referencesOf(combined))).toEqual([
+      'probeFirstTags',
+      'probeBin',
+      'probeSecondTags',
+    ])
+  })
+})
+
+/*
+ * `combine` 은 렌더 밖에서도 돈다 - QueriesObserver 가 조회 응답이 도착할 때(`#notify`)와 재조회가 시작될 때 부른다. 거기서 던져진
+ * 것은 삼켜진다: 렌더는 오래된 결과를 받고(받기 전 모양에 멈춘다), 던진 채로는 같은 관찰자의 다른 조회가 요청을 보내지도
+ * 못한다. 그래서 `combineReferences` 는 던지지 않고 결함을 값으로 돌려주며, 훅이 렌더 중에 꺼내 던진다(`referencesOf`).
+ * 아래는 설치본 QueriesObserver 에 `useQueries` 가 하는 순서 그대로 렌더와 커밋을 돌려 그것을 잰다.
+ */
+
+const TAGS_KEY = queryKeys.list('exampleTags', referenceRequest(EXAMPLE_TAG).query.toString())
+const CATEGORIES_KEY = queryKeys.list(
+  'exampleCategories',
+  referenceRequest(EXAMPLE_CATEGORY).query.toString(),
+)
+
+/**
+ * 경로로 가르는 가짜 백엔드 - 태그는 부를 때마다 다른 태그를 줘서(재조회가 합성 결과에 닿았는지 본다) 분류의 응답만
+ * `categories` 로 바꿀 수 있다. 기본은 둘 다 정상이다.
+ */
+function pathBackend() {
+  const state = {
+    tagCalls: 0,
+    categories: (): Promise<JsonApiResult<CollectionDocument>> => Promise.resolve(CATEGORIES),
+  }
+  const send = <T>(path: string): Promise<JsonApiResult<T>> => {
+    if (path === EXAMPLE_TAG.path) {
+      state.tagCalls += 1
+      const tag = collection(
+        'exampleTags',
+        `PROBE 태그 ${state.tagCalls}`,
+        `probe-tag-${state.tagCalls}`,
+      )
+      return Promise.resolve(tag as JsonApiResult<T>)
+    }
+    return state.categories() as Promise<JsonApiResult<T>>
+  }
+  return { state, send }
+}
+
+/**
+ * `useQueries`(설치본 react-query 의 useQueries.js)가 QueriesObserver 에 하는 일을 렌더러 없이 그대로 한다 - 조회 옵션을 기본값과 함께
+ * 채워(`_optimisticResults`) 관찰자를 만들고, 렌더마다 `getOptimisticResult` 로 합성한 값을 읽고, 커밋에서 구독한 뒤
+ * `setQueries` 를 부른다. `combine` 은 훅이 `useCallback` 으로 고정하듯 한 함수를 렌더마다 넘긴다.
+ */
+function mountReferences(send: JsonApiSend) {
+  const plan = referencePlan(PROBE_TICKET, send)
+  // `setQueries`·`getOptimisticResult` 는 제네릭 기본값의 옵션만 받는다 - 어댑터가 내부에서 단언으로 넘기는 경계다.
+  const defaulted = plan.queries.map((query) => {
+    const options = client.defaultQueryOptions(query)
+    options._optimisticResults = 'optimistic'
+    return options as unknown as QueryObserverOptions
+  })
+  const combine = (results: readonly QueryObserverResult[]) =>
+    combineReferences(plan, results as readonly ReferenceQueryResult[])
+  const options = { combine }
+  const observer = new QueriesObserver(client, defaulted, options)
+  const render = () => {
+    const [, getCombined, track] = observer.getOptimisticResult(defaulted, combine)
+    return getCombined(track())
+  }
+  const commit = () => {
+    const unsubscribe = observer.subscribe(() => undefined)
+    observer.setQueries(defaulted, options)
+    return unsubscribe
+  }
+  return { plan, render, commit }
+}
+
+/** 참조 조회들이 모두 끝날 때까지(성공이든 오류든) 기다린다. */
+async function settleAll(plan: ReferencePlan) {
+  await vi.waitFor(() => {
+    for (const { queryKey } of plan.queries) {
+      const state = client.getQueryState(queryKey)
+      if (state === undefined || state.status === 'pending' || state.fetchStatus !== 'idle') {
+        throw new Error('아직 부르는 중')
+      }
+    }
+  })
+}
+
+describe('combine 은 던지지 않는다 - 실제 QueriesObserver 로 렌더와 커밋을 돌린다', () => {
+  it('대조군: 정상이면 렌더 사이에 같은 객체이고 한 목록의 재조회가 선택기 옵션에 닿는다', async () => {
+    const backend = pathBackend()
+    const { plan, render, commit } = mountReferences(backend.send)
+
+    expect(referencesOf(render()).probeFirstTags).toMatchObject({ list: null, failure: null })
+    const unsubscribe = commit()
+    await settleAll(plan)
+
+    const loaded = render()
+    expect(render()).toBe(loaded)
+    expect(referencesOf(loaded).probeFirstTags?.list?.options.map(({ id }) => id)).toEqual([
+      'probe-tag-1',
+    ])
+
+    await client.refetchQueries({ queryKey: TAGS_KEY, exact: true })
+
+    expect(backend.state.tagCalls).toBe(2)
+    expect(client.getQueryState(TAGS_KEY)?.fetchStatus).toBe('idle')
+    expect(referencesOf(render()).probeFirstTags?.list?.options.map(({ id }) => id)).toEqual([
+      'probe-tag-2',
+    ])
+    unsubscribe()
+  })
+
+  it.each([
+    {
+      label: '문구 없는 거절(계약 위반)',
+      reject: (): Promise<JsonApiResult<CollectionDocument>> =>
+        Promise.resolve({ ok: false, status: 422, errors: [] }),
+      message: '참조 목록 요청이 문구 없는 오류로 실패했다',
+    },
+    {
+      label: '조회 함수의 결함',
+      reject: (): Promise<JsonApiResult<CollectionDocument>> =>
+        Promise.reject(new Error('probe-defect')),
+      message: 'probe-defect',
+    },
+  ])(
+    '$label 은 결함 값이다 - 삼켜지지 않고 형제의 재조회를 막지 않으며 결함이 가시면 풀린다',
+    async ({ reject, message }) => {
+      const backend = pathBackend()
+      backend.state.categories = reject
+      const { plan, render, commit } = mountReferences(backend.send)
+      render()
+      const unsubscribe = commit()
+      await settleAll(plan)
+
+      // 결함은 값이다. 다음 렌더가 그것을 읽는다 - 받기 전 모양에 멈추지도, 비어 있지도 않다.
+      const combined = render()
+      expect(combined.kind).toBe('defect')
+      expect(() => referencesOf(combined)).toThrow(message)
+      expect(render()).toBe(combined)
+
+      // 형제: 정상인 태그를 다시 읽으면 요청이 나가고 끝난다 - 던졌다면 요청이 나가지 못하고 'fetching' 에 걸린다.
+      await client.refetchQueries({ queryKey: TAGS_KEY, exact: true })
+      expect(backend.state.tagCalls).toBe(2)
+      expect(client.getQueryState(TAGS_KEY)?.fetchStatus).toBe('idle')
+      expect(render().kind).toBe('defect')
+
+      // 끈적하지 않다: 분류가 정상으로 돌아오면 합성 결과는 다시 참조 목록이다.
+      backend.state.categories = () => Promise.resolve(CATEGORIES)
+      await client.refetchQueries({ queryKey: CATEGORIES_KEY, exact: true })
+      expect(referencesOf(render()).probeBin?.list?.options).toHaveLength(1)
+      unsubscribe()
+    },
+  )
 })

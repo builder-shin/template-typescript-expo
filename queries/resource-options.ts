@@ -137,28 +137,59 @@ export interface ReferenceQueryResult {
 }
 
 /**
+ * `combineReferences` 의 값 - 선택기가 그릴 것, 또는 결함. 결함은 던지지 않고 값으로 담는다(아래 `combineReferences`).
+ */
+export type CombinedReferences =
+  | {
+      readonly kind: 'references'
+      readonly references: Readonly<Record<string, RelationshipReference>>
+    }
+  | { readonly kind: 'defect'; readonly defect: unknown }
+
+/**
  * 조회 결과들을 관계마다 선택기가 그릴 것으로 잇는다. `useQueries` 의 `combine` 에 안정된 함수로 넣는다 - TanStack Query 가
  * 결과가 바뀔 때만 다시 돌리고 그 결과를 구조 공유한다. 그래서 렌더마다 새 객체와 새 `retry` 를 만들지 않고, 바뀌지 않은
  * 보기(`list`)는 다른 조회가 바뀌어도 같은 객체다. 결과는 plain 객체와 배열로 둔다 - 구조 공유는 그것만 이어 붙인다.
+ *
+ * **던지지 않는다.** TanStack Query 는 `combine` 을 렌더 밖에서도 부른다(조회 응답이 도착할 때와 재조회가 시작될 때의
+ * 알림) - 거기서 던져진 것은 삼켜져, 렌더는 오래된 결과를 받고(받기 전 모양에 멈춘다) 같은 관찰자의 다른 조회는 요청을
+ * 보내지도 못한다. `referenceState` 는 결함에 던진다 - 문구 없는 거절(계약 위반)과 조회 함수의 결함이다
+ * (lib/resources/screen-state.ts) - 그것을 잡아 `defect` 값으로 돌려주고, 훅이 렌더 중에 `referencesOf` 로 꺼내 던져
+ * 오류 경계로 보낸다. 목록·상세의 결함과 같은 길이다.
  */
 export function combineReferences(
   plan: ReferencePlan,
   results: readonly ReferenceQueryResult[],
+): CombinedReferences {
+  try {
+    return {
+      kind: 'references',
+      references: Object.fromEntries(
+        plan.slots.map(({ name, target, index }): [string, RelationshipReference] => {
+          const query = results[index]
+          return [
+            name,
+            {
+              ...referenceState(target, { result: query?.data, error: query?.error ?? null }),
+              retrying: query?.isFetching ?? false,
+              retry: () => {
+                void query?.refetch()
+              },
+              writable: target.writable,
+            },
+          ]
+        }),
+      ),
+    }
+  } catch (defect) {
+    return { kind: 'defect', defect }
+  }
+}
+
+/** 합성한 값에서 선택기가 그릴 것을 꺼낸다 - 결함이면 던진다. 훅이 렌더 중에 불러 결함이 오류 경계로 가게 한다. */
+export function referencesOf(
+  combined: CombinedReferences,
 ): Readonly<Record<string, RelationshipReference>> {
-  return Object.fromEntries(
-    plan.slots.map(({ name, target, index }): [string, RelationshipReference] => {
-      const query = results[index]
-      return [
-        name,
-        {
-          ...referenceState(target, { result: query?.data, error: query?.error ?? null }),
-          retrying: query?.isFetching ?? false,
-          retry: () => {
-            void query?.refetch()
-          },
-          writable: target.writable,
-        },
-      ]
-    }),
-  )
+  if (combined.kind === 'defect') throw combined.defect
+  return combined.references
 }

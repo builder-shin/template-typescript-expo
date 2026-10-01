@@ -19,6 +19,7 @@ import {
   detailQueryOptions,
   listQueryOptions,
   referencePlan,
+  referencesOf,
   type ReferenceQueryResult,
   type RelationshipReference,
 } from '@/queries/resource-options'
@@ -200,6 +201,10 @@ export type { RelationshipReference }
  * 결과는 렌더 사이에 같은 객체다 - 계획은 `useMemo`, `combine` 은 `useCallback` 으로 고정해 TanStack Query 가 결과가
  * 바뀔 때만 `combineReferences` 를 다시 돌리고 그 결과를 구조 공유한다. 선택기의 `list`(시트의 `FlatList` 데이터)와
  * `retry` 가 렌더마다 바뀌지 않는다.
+ *
+ * 결함(문구 없는 거절, 조회 함수의 결함)은 `combine` 안에서 던지지 않는다 - 렌더 밖에서도 도는 `combine` 의 던짐은 TanStack
+ * Query 가 삼킨다. `combine` 이 값으로 돌려준 결함을 여기서 렌더 중에 던진다(`referencesOf`) - 오류 경계로 가는 길은 목록·
+ * 상세와 같다.
  */
 export function useRelationshipReferences(
   resource: ResourceDefinition,
@@ -210,5 +215,5 @@ export function useRelationshipReferences(
     (results: readonly ReferenceQueryResult[]) => combineReferences(plan, results),
     [plan],
   )
-  return useQueries({ queries: plan.queries, combine, subscribed: focused })
+  return referencesOf(useQueries({ queries: plan.queries, combine, subscribed: focused }))
 }
