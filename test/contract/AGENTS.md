@@ -11,8 +11,10 @@ vitest 다. 게이트의 `[12/13]` 이 `run.sh` 하나로 돈다.
 
 - 프로브와 속성 키는 복사한 `lib/resources/mirror.ts` 가 계산한다 - 이 디렉터리는 그것을 보내고 맞대기만 한다.
   새 자원은 `lib/resources/index.ts` 의 `RESOURCES` 에 더하면 ①·②·④ 가 저절로 잰다. ② 는 씨앗이 한 행 이상
-  있어야 선다 - 새 자원은 `test/e2e/seed/` 에도 행을 하나 이상 더한다(0건이면 ② 가 "씨앗이 0건이다" 로 실패한다).
-  ③ 은 쓰기 라우트가 있는 `examples` 에만 있다.
+  있어야 선다 - 새 자원은 컴포즈의 시드 서비스가 실제로 돌리는 `test/e2e/seed/examples.sql`(FastAPI·NestJS)과
+  `examples.rails.sql`(Rails)에 행을 하나 이상 더한다(그 디렉터리에 새 `.sql` 파일을 두어도 돌지 않는다 - 두 파일을
+  같이 고치는 규칙은 `test/e2e/seed/README.md`). 0건이면 ② 가 "씨앗이 0건이다" 로 실패한다. ③ 은 쓰기 라우트가 있는
+  `examples` 에만 있다.
 - 앱의 API 클라이언트(`request()`)를 쓰지 않는다 - 재는 것은 선언과 백엔드의 관계이지 앱의 클라이언트가 아니다.
 - 모든 기대값은 선언에서 읽는다(`maxLength`·`min`·`max`·enum 값) - 상수로 박으면 선언을 바꾸는 뮤턴트가 산다.
 - 오류는 `code`·`source` 만 본다 - 문구는 세 백엔드가 갈린다.
