@@ -100,6 +100,8 @@ connect` - 앱 상태를 지우기 시작하고 5.6초 뒤). 게이트가 끝난
 제한 시간과 단언은 그대로 두었다. 증거 게이트 앞에 adb 서버를 다시 띄우고 에뮬레이터를 새로 부팅했다(`test/e2e/android.sh
 boot` - 에뮬레이터는 6시간 가까이 켜져 있었고 이 태스크에서만 플로 83번을 돈 뒤였다). 실패한 두 회차는 통과로 세지 않는다.
 
+이후 expo-updates 를 더하며 고친 빌드 레시피의 우회책은 `docs/superpowers/notes/2026-10-01-d6-measurements.md` 의 O4 에 있다.
+
 ## C3 — 계약 실험실 (기기)
 
 **가드.** 선언한 실패 표식 - `contract-lab-anonymous` 의 400(정책에 없는 필터 연산자) (1), `contract-lab-signed-in`

@@ -147,14 +147,17 @@ e2e 변형은 OTA 를 끄고(`updates` 가 `{ enabled: false }`, `runtimeVersion
 업데이트 주소·채널 머리글 없음) 평문 HTTP 를 켠다(`usesCleartextTraffic=true`) - 게이트 [8] 이 빌드 전에 잰 e2e 의 값과
 같다(O3).
 
-단언이 어긋난 APK 를 잡는지는 빌드 없이 쟀다 - 저장소의 `assert_apk_ota_off` 를 떼어 D5 의 e2e APK(expo-updates 를 받기
-전)에 돌리면 `APK 의 앱 설정이 OTA 를 끄지 않았다 (updates=undefined runtimeVersion=undefined)` 로 멈췄다. 함수가 읽는
-두 입력을 한 자리씩 바꾼 여덟 변이 - 앱 설정 JSON 의 OTA 켬·`runtimeVersion`·`updates` 없음, 그 APK 의 aapt2 출력(줄 끝이
-CRLF 다)의 평문 HTTP `false`·평문 HTTP 속성 없음·`ENABLED=true`·업데이트 주소·채널 머리글 - 도 모두 멈췄다.
+단언이 어긋난 APK 를 잡는지는 빌드 없이 쟀다 - 저장소의 `assert_apk_ota_off` 를 떼어 이 브랜치의 트리에서 만든 APK 에
+돌리면 `APK 의 앱 설정이 OTA 를 끄지 않았다 (updates=undefined runtimeVersion=undefined)` 로 멈췄다. 이 APK 의 앱 설정에는
+`updates` 가 없었지만 매니페스트에는 이미 expo-updates 메타데이터(`expo.modules.updates.ENABLED=false` 등)가 있었고,
+게이트 APK 의 매니페스트와는 Room 서비스 요소 하나만 달랐다. 정확한 빌드 시점·커밋은 당시 기록에 없다. 함수가 읽는 두 입력을
+한 자리씩 바꾼 여덟 변이 - 앱 설정 JSON 의 OTA 켬·`runtimeVersion`·`updates` 없음, 그 APK 의 aapt2 출력(줄 끝이 CRLF 다)의
+평문 HTTP `false`·평문 HTTP 속성 없음·`ENABLED=true`·업데이트 주소·채널 머리글 - 도 모두 멈췄다.
 
 **빌드 정보 카드.** 플로 `home-build-info` 가 홈의 카드에서 앱 버전 `0.1.0`, 변형 `e2e`, OTA `꺼짐`, runtime
-version·채널·업데이트 ID `없음`, 확인 버튼 대신 안내를 봤다. 끈 빌드에서 expo-updates 57.0.24 가 주는 값(runtime
-version·채널은 빈 문자열, 업데이트 ID 없음)이 카드에서 "없음" 이 된 것이다. 그 플로의 기기 로그에서 앱의 줄은
+version·채널·업데이트 ID `없음`, 확인 버튼 대신 안내를 봤다. 기기에서 잰 것은 카드의 표시다. 끈 Android 빌드의 runtime
+version·채널은 빈 문자열이고 업데이트 ID 는 없다는 것은 설치한 expo-updates 57.0.24 소스(`DisabledUpdatesController` 와
+`UpdatesModuleConstants`)에서 읽은 값이며, 기기에서 이 원시 값을 직접 재지 않았다. 그 플로의 기기 로그에서 앱의 줄은
 `Running "main"` 하나뿐이다 - 스물한 플로 모두 `W/`·`E/ReactNativeJS` 줄이 없다.
 
 ```text
@@ -222,19 +225,45 @@ version·채널은 빈 문자열, 업데이트 ID 없음)이 카드에서 "없�
    같았다. 게이트의 빌드도 같다 - 첫 Gradle `BUILD SUCCESSFUL in 29s`(1 executed, 32 up-to-date), 둘째 Gradle 의
    `> Task :app:createReleaseUpdatesResources UP-TO-DATE`, `BUILD SUCCESSFUL in 4m 35s`.
 
+**레시피 유지 조건.** 두 단계 Gradle 은 둘째 실행에서 `createReleaseUpdatesResources` 가 UP-TO-DATE 인 것에 기댄다 - 지금
+그 단계의 입력은 문자열뿐이다. expo-updates 를 올릴 때마다 게이트 로그에 `> Task :app:createReleaseUpdatesResources UP-TO-DATE`
+가 여전히 있는지 확인한다. 둘째 실행에서 다시 돌면 번들 단계가 채운 캐시 위의 Metro 로 돌아갈 수 있어 순서를 다시 검토해야
+한다. 두 번째 Metro 캐시 비우기는 번들 단계도 빈 캐시에서 시작하게 하려는 것이다(D3 실측 L7 의 불변식).
+
 **홈이 위에서부터 쌓인 뒤의 두 번 누름.** D6 의 홈은 뿌리가 `ScrollView` 이고 내용을 위에서부터 쌓는다(카드가 길어져도
 진입이 움직이지 않게). 그래서 두 플로의 둘째 누름이 닿는 자리가 D4·D5 와 달라졌다. Pixel 9(1080×2424, 420dpi)에서 Maestro
 가 누른 좌표(디버그 기록의 `Tapping at` - 개발용 실행과 게이트에서 같았다)를 uiautomator 덤프와 맞댔다.
 `contract-lab-anonymous` 의 `home-lab-link` 두 번 누름은 (540, 677) 이고, 실험실에서 그 점은 첫 카드 `lab-card-putUpsert` 의
 설명 글([87,629][995,841], 누를 수 없다)이다 - 그 카드의 실행 버튼 `lab-run-putUpsert` 는 y=1010 부터다(126dp 아래).
-`examples-create` 의 로그인 제출 두 번 누름은 (540, 993) 이고, 홈에서 그 점은 `build-info-card`([63,772][1017,1527])의 버전
-행(y=975 까지)과 변형 값(y=996 부터) 사이다 - OTA 를 끈 빌드의 카드에는 누를 수 있는 노드가 없다. 두 플로가 통과했고, 두
-플로의 주석과 `test/e2e/AGENTS.md` 의 문장을 이 자리로 고쳤다.
+`examples-create` 의 로그인 제출 두 번 누름은 (540, 993) 이고, 로그인 전에 떠 있던 홈의 덤프에서 그 점은
+`build-info-card`([63,772][1017,1527])의 버전 행(y=975 까지)과 변형 값(y=996 부터) 사이다 - OTA 를 끈 빌드의 카드에는
+누를 수 있는 노드가 없다. 로그인 뒤 홈의 덤프를 따로 재지는 않았다. 두 플로가 통과했고, 두 플로의 주석과
+`test/e2e/AGENTS.md` 의 문장을 이 자리로 고쳤다.
 
-**재지 않은 것.** OTA 를 켠 변형(preview·production)의 기기 동작 - "업데이트 확인" 을 눌러 확인 → 받기 → 다시 켜기로 받은
-업데이트가 적용되는 것은 Expo 계정과 EAS 빌드가 필요하다(스펙 15장 9단계, 사용자 승인 뒤 - D9). iOS(D7 의 CI) - iOS 의 끈
-빌드가 카드에 주는 값도 그때 잰다. `expo-dev-client` 가 없어 development 프로필의 EAS 빌드는 설치를 묻는다(스펙 10.5 의 D6
-정정). 위 두 고침은 이 저장소의 E2E 하네스 레시피에만 있다 - CI(D7)와 EAS 빌드(D9)는 prebuild 의 기본값(Metaspace
-512MiB)으로 빌드하므로, 같은 OOM 을 만나면 넓은 고침은 `withGradleProperties` 설정 플러그인이다(D7·D9 가 정한다).
-0xC0000005 는 Windows 의 예외 코드다 - Linux·macOS 에서 빌드하는 CI(D7)·EAS(D9)는 이 충돌의 영향을 받지 않는다고 보지만
-재지 않았다.
+**재지 않은 것.** OTA 를 켠 변형(preview·production)의 기기 동작은 아직 재지 않았다. D9(스펙 15장 9단계, 사용자 승인 뒤)의
+OTA 켬 경로는 다음 여섯 항목으로 잰다.
+
+1. preview 빌드의 카드 - OTA `켜짐`, 채널 `preview`, 업데이트 `<id> (내장 번들)`.
+2. 업데이트 발행 → "업데이트 확인" 누름 → 스피너만 표시 → 앱이 다시 켜짐 → 업데이트 행에 새 ID 가 보이고 `(내장 번들)` 이
+   사라짐.
+3. 다시 "업데이트 확인" 을 누름 → `새 업데이트가 없습니다.`.
+4. 비행기 모드에서 "업데이트 확인" 을 누름 → `업데이트를 확인하지 못했습니다. <native 문구>`.
+5. `ON_LOAD` 가 이미 받아 둔 업데이트는 확인·받기가 끝나 곧바로 다시 켜짐 - 설치한 expo-updates 소스에서 읽은 순서의 전제이며
+   기기에서 재지 않았다(`lib/updates/AGENTS.md` 의 "확인의 순서").
+6. 스크린 리더가 결과 문구를 읽음 - Android 의 `build-info-message` 는 `accessibilityLiveRegion="polite"` 를 가진 새로 마운트된
+   노드다. TalkBack 이 읽지 않으면 항상 마운트된 래퍼로 고친다. iOS 에는 live region 이 없어 읽게 하려면
+   `AccessibilityInfo.announceForAccessibility` 호출이 필요하다. 어느 쪽도 아직 재지 않았다.
+
+**계정 없이 잴 수 있는 경로(미실측).** `APP_VARIANT=preview`, UUID 모양의 가짜 `EAS_PROJECT_ID`, https `BACKEND_URL` 을
+prebuild 와 Gradle 에 모두 넘겨 로컬 Android APK 를 만들 수 있다. `android.sh build` 는 e2e 변형·OTA 끔을 단언하므로 그대로
+쓸 수 없다 - prebuild 뒤 두 Gradle 명령에 위 JVM 인자를 손으로 주고, Metro 캐시 비움 → `:app:createReleaseUpdatesResources`
+→ 캐시 다시 비움 → `assembleRelease` 순서도 손으로 따른다. 이 경로로 카드의 OTA `켜짐`, 채널, runtime version(fingerprint),
+업데이트 ID 뒤의 `(내장 번들)` 과 확인 버튼을 잴 수 있다. 확인을 누르면 존재하지 않는 프로젝트라 실패한다 - 이 실패로 위
+(4)의 실패 문구와 (6)의 스크린 리더 읽기를 계정 없이 잴 수 있고, (4)의 비행기 모드 조건도 함께 적용한다. 발행·적용 (2)와
+새 업데이트 없음 (3)은 계정 없이 잴 수 없어 D9 에서 잰다. 이 로컬 빌드와 측정은 아직 하지 않았다.
+
+iOS(D7 의 CI)의 OTA 끈 빌드가 카드에 주는 값도 그때 잰다. `expo-dev-client` 가 없어 development 프로필의 EAS 빌드는 설치를
+묻는다(스펙 10.5 의 D6 정정). 위 두 고침은 이 저장소의 E2E 하네스 레시피에만 있다 - CI(D7)가 `test/e2e/android.sh build` 로
+빌드하면 같은 JVM 인자와 두 단계 Gradle 을 물려받는다; 기본값(512MiB)으로 빌드하는 것은 EAS(D9)뿐이다. 같은 OOM 을 만나면
+넓은 고침은 `withGradleProperties` 설정 플러그인이고 fingerprint 를 바꾼다(D7·D9 가 정한다). 0xC0000005 는 Windows 의 예외
+코드다 - Linux·macOS 에서 빌드하는 CI(D7)·EAS(D9)는 이 충돌의 영향을 받지 않는다고 보지만 재지 않았다.

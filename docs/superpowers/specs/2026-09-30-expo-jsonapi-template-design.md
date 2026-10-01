@@ -1221,6 +1221,15 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > 네이티브 설정을 검사한다(12장의 D6 정정). "OTA 실증에 Expo 계정이 필요하다" 는 그대로다 - D6 는 계정 없이 설정과
 > 빌드 정보 카드만 쟀다.
 
+> 정정(2026-10-01, D6): D6 에서 더한 E2E 빌드 우회책 둘은 `test/e2e/android.sh` 에만 있다. 하네스의 `gradlew`
+> 명령줄에 JVM 인자 `-Xmx4096m -XX:MaxMetaspaceSize=1024m` 를 준다 - expo-updates 의 Room 컴파일러(KSP2)가
+> 병렬 lint 와 함께 돈 32코어 머신에서 prebuild 기본값인 Metaspace 512MiB 를 채워 OOM 이 났다. 또 Metro 캐시를 비우고
+> `:app:createReleaseUpdatesResources` 를 먼저 돌린 뒤, 캐시를 다시 비우고 `assembleRelease` 를 돌려 그 단계가
+> UP-TO-DATE 로 건너뛰게 한다 - Windows 에서 번들 단계가 채운 캐시 위의 Metro 가 node 종료 때 0xC0000005 로 죽었다.
+> CI(D7)가 `test/e2e/android.sh build` 로 빌드하면 같은 JVM 인자와 두 단계 Gradle 을 물려받는다. EAS 빌드(15장 9단계,
+> D9)는 prebuild 기본값(512MiB)을 쓴다 - 같은 OOM 을 만나면 넓은 고침은 `withGradleProperties` 설정 플러그인이고,
+> 이 고침은 fingerprint 를 바꾼다. 근거와 레시피 유지 조건은 D6 실측 O4.
+
 ## 17. 완료 조건
 
 1. 로컬 게이트(`./scripts/check.sh`)가 개발 머신(Windows)에서 통과한다.
