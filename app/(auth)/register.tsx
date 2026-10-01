@@ -19,7 +19,7 @@ import { REGISTER_MUTATION_KEY, useRegisterMutation } from '@/queries/auth'
  * 가입 화면(스펙 7.4) - register 다음 login 을 부르고 세션을 세운 뒤 `next` 로 간다. `next` 를
  * 이어받는다 - 로그인 화면에서 "가입하기"로 온 사용자도 가입한 뒤 원래 가려던 곳으로 간다. 로그인
  * 화면을 바꿔 끼우고 들어오므로(Link replace) 뒤로 가면 홈이다(useBackToHome). iOS 에는 뒤로 가기 키가 없으므로
- * 헤더에 눈에 보이는 "홈으로" 도 둔다(HomeButton) - 같은 이동이다.
+ * 뒤로 갈 화면이 없을 때 헤더에 눈에 보이는 "홈으로" 도 둔다(HomeButton) - 같은 이동이다.
  */
 export default function RegisterScreen() {
   const rawNext = useLocalSearchParams()[LOGIN_REDIRECT_PARAM]

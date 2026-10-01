@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { View } from 'react-native'
 
 import { ConfirmSheet } from '@/components/app/confirm-sheet'
-import { ResourceEditGate, ResourceForm } from '@/components/resource/resource-form'
+import { ResourceEditGate } from '@/components/resource/resource-edit-gate'
+import { ResourceForm } from '@/components/resource/resource-form'
 import { Button } from '@/components/ui/button'
 import { Text } from '@/components/ui/text'
 import { EXAMPLE } from '@/lib/resources'
@@ -90,6 +91,8 @@ function EditExample({ id }: { id: string }) {
         messages={remove.messages}
         onCancel={() => {
           setConfirming(false)
+          // 실패한 확인의 문구는 그 확인의 것이다 - 취소하고 다시 열면 지난 실패를 들고 열리지 않는다.
+          remove.reset()
         }}
         onConfirm={() => {
           remove.remove(() => {

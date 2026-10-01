@@ -79,3 +79,41 @@ export function FailureBanner({
     </View>
   )
 }
+
+/** 조회 화면의 `banner` 상태 - `ListScreen`·`DetailScreen` 의 배너 갈래가 이 모양이다(lib/resources/screen-state.ts). */
+interface BannerState {
+  readonly messages: readonly string[]
+  readonly refreshFailed: boolean
+  readonly retryable?: true
+}
+
+/**
+ * 백엔드가 거절한 조회가 화면 전부일 때의 자리 - 목록·상세·수정 폼의 자리가 함께 쓴다. 같은 거절이 화면마다 다르게
+ * 그려지면 그것이 결함이라 한 곳에 둔다. 위는 백엔드의 문구와 그 아래의 "다시 시도"(`FailureBanner` - `retryable` 은
+ * 여기서 읽는다), 이미 읽은 배너 위의 재조회가 판정을 받지 못했으면(`refreshFailed`) 그 아래에 작은 실패
+ * (`RequestFailed` 의 `compact`)를 더한다. `retryable` 과 `refreshFailed` 는 함께 참일 수 없다(screen-state.ts) - 재시도
+ * 버튼이 둘 뜨지 않는다.
+ */
+export function BannerScreen({
+  screen,
+  retrying,
+  onRetry,
+}: {
+  screen: BannerState
+  retrying: boolean
+  onRetry: () => void
+}) {
+  return (
+    <View className="gap-3 p-4">
+      <FailureBanner
+        messages={screen.messages}
+        retryable={screen.retryable === true}
+        retrying={retrying}
+        onRetry={onRetry}
+      />
+      {screen.refreshFailed ? (
+        <RequestFailed compact retrying={retrying} onRetry={onRetry} />
+      ) : null}
+    </View>
+  )
+}

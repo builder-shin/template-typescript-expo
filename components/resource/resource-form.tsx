@@ -1,15 +1,12 @@
 import type { MutationKey } from '@tanstack/react-query'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Keyboard, Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { FailureBanner, RequestFailed } from '@/components/app/request-failed'
-import { NotFoundView } from '@/components/app/not-found-view'
 import { FieldError } from '@/components/form/field-error'
 import { FormBanner } from '@/components/form/form-banner'
 import { SubmitButton } from '@/components/form/submit-button'
 import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Text } from '@/components/ui/text'
 import {
   formAttributes,
@@ -18,14 +15,13 @@ import {
   type ResourceDefinition,
 } from '@/lib/resources/define'
 import {
-  initialFormValues,
   withAttribute,
   withRelationshipChoice,
   type ResourceFormState,
   type ResourceFormValues,
 } from '@/lib/resources/form'
 import { cn } from '@/lib/utils'
-import type { RelationshipReference, ResourceDetailState } from '@/queries/resources'
+import type { RelationshipReference } from '@/queries/resources'
 import { useSubmitOnce } from '@/queries/submit-once'
 
 import { RelationshipPicker } from './relationship-picker'
@@ -35,13 +31,17 @@ const CONTENT_PADDING = 24
 
 /**
  * 자원 선언을 읽어 그리는 쓰기 폼 - 생성과 수정이 함께 쓴다(스펙 8.1). 두 화면의 차이는 첫 값·제출
- * 라벨·제출할 때 할 일뿐이다.
+ * 라벨·제출할 때 할 일뿐이다. 수정 폼의 첫 값을 기다리는 자리는 `resource-edit-gate.tsx` 다.
  *
  * 입력 값은 이 컴포넌트가 들고 있다(`initialValues` 는 첫 값일 뿐이다) - 값을 고치는 것은
  * `withAttribute`·`withRelationshipChoice`(lib/resources/form.ts)다. 오류의 자리는 `state` 가 이미
  * 나눠 왔다(`formStateFromErrors`, 스펙 9.1): 문서 오류는 위 배너, 속성 오류는 그 입력 아래, 관계
  * 오류는 그 선택기 아래. 실패해도 입력은 지우지 않는다. 입력을 검증하지 않는다 - 정본 검증자는
  * 백엔드다(필수 칸이 비면 422 가 그 칸 아래 뜬다).
+ *
+ * 문서 오류가 새로 오면 폼을 맨 위로 굴려 배너가 보이게 한다 - 제출 버튼을 누른 아래쪽에서는 배너가 화면 밖이라 폼이
+ * 아무 말 없이 멈춘 것으로 보인다. 속성·관계 오류는 굴리지 않는다(그 칸의 자리를 폼이 재지 않는다 - 높이가 큰 폼에서는
+ * 화면 밖일 수 있다).
  *
  * 자원 이름으로 분기하지 않는다 - 입력의 종류는 속성의 `kind`(구조)가 정한다.
  *
@@ -96,9 +96,16 @@ export function ResourceForm({
   const [values, setValues] = useState(initialValues)
   const submitOnce = useSubmitOnce(mutationKey)
   const insets = useSafeAreaInsets()
+  const scrollRef = useRef<ScrollView>(null)
+
+  // 새 문서 오류가 오면 배너가 있는 맨 위로 - 제출 전의 빈 상태는 같은 빈 배열이라 처음에는 움직이지 않는다.
+  useEffect(() => {
+    if (state.documentErrors.length > 0) scrollRef.current?.scrollTo({ y: 0, animated: true })
+  }, [state.documentErrors])
 
   return (
     <ScrollView
+      ref={scrollRef}
       testID="resource-form"
       className="flex-1 bg-background"
       contentContainerClassName="gap-5 p-6"
@@ -252,73 +259,4 @@ function AttributeControl({
       )}
     />
   )
-}
-
-/** 폼을 그리기 전의 자리 - 글자 없이 항목 모양만(스펙 8.7). 줄 수는 선언이 정한다. */
-export function FormSkeleton({ resource }: { resource: ResourceDefinition }) {
-  const rows = formAttributes(resource).length + Object.keys(resource.relationships).length
-  return (
-    <View testID="form-skeleton" className="gap-5 p-6">
-      {Array.from({ length: rows }, (_, row) => (
-        <View key={row} className="gap-1.5">
-          <Skeleton className="h-4 w-1/4" />
-          <Skeleton className="h-10 w-full" />
-        </View>
-      ))}
-    </View>
-  )
-}
-
-/**
- * 수정 폼의 자리 - 고칠 자원의 상세를 받아 폼의 첫 값을 만든다(`initialFormValues`, 상세 화면과
- * 같은 응답). 받기 전에는 스켈레톤, 없는 id 면 not-found(스펙 9.2), 닿지 못함이면 앱 문구와 "다시
- * 시도", 백엔드가 거절하면 그 문구다 - 첫 조회가 판정하지 않은 응답(5xx·408·429)을 받았으면(`retryable`) 문구
- * 아래에 "다시 시도" 도 둔다. 저장이 "그 자원이 없다" 를 받았으면(`gone`) not-found 다.
- *
- * 첫 값은 **처음 받은 상세 하나로 고정한다.** 상세는 상세 화면과 같은 캐시라 앱 복귀·무효화로 다시
- * 불릴 수 있는데, 그 결과로 폼을 다시 만들면 고치던 입력이 사라진다. 고정한 뒤의 재조회가 닿지 못해도 폼은
- * 그대로다(재조회의 실패는 폼을 그리는 동안 보이지 않는다 - 저장이 닿지 못하면 폼 배너가 알린다).
- */
-export function ResourceEditGate({
-  resource,
-  detail,
-  gone,
-  children,
-}: {
-  resource: ResourceDefinition
-  detail: ResourceDetailState
-  gone: boolean
-  children: (initialValues: ResourceFormValues) => ReactNode
-}) {
-  const [fixed, setFixed] = useState<ResourceFormValues | null>(null)
-  const { screen, result } = detail
-  const current =
-    fixed ??
-    (screen.kind === 'detail' && result !== null ? initialFormValues(resource, result) : null)
-  // 렌더 중의 조건부 상태 갱신 - React 가 권하는 "이전 렌더의 정보를 저장하기" 모양이다.
-  if (fixed === null && current !== null) setFixed(current)
-
-  if (gone) return <NotFoundView />
-  if (current !== null) return children(current)
-
-  if (screen.kind === 'notFound') return <NotFoundView />
-  if (screen.kind === 'unreachable') {
-    return <RequestFailed retrying={detail.retrying} onRetry={detail.retry} />
-  }
-  if (screen.kind === 'banner') {
-    return (
-      <View className="gap-3 p-4">
-        <FailureBanner
-          messages={screen.messages}
-          retryable={screen.retryable === true}
-          retrying={detail.retrying}
-          onRetry={detail.retry}
-        />
-        {screen.refreshFailed ? (
-          <RequestFailed compact retrying={detail.retrying} onRetry={detail.retry} />
-        ) : null}
-      </View>
-    )
-  }
-  return <FormSkeleton resource={resource} />
 }

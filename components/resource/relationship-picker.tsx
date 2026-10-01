@@ -37,11 +37,16 @@ const UNLISTED_NOTICE =
  * | `'one'`     | "선택 안 함" + 보기          | 그것을 고르고 시트를 닫는다     |
  * | `'many'`    | 보기(고른 것에 표시)         | 켜고 끈다 - 켜면 끝에 붙는다    |
  *
- * 참조 목록을 받기 전에는 스켈레톤이다(스펙 8.7). 조회가 실패하면 보기 대신 그 실패를 그린다 - 조회 화면과 같은
+ * 참조 목록을 받기 전에는 스켈레톤이다(스펙 8.7). 조회가 실패하면 보기 위에 그 실패를 그린다 - 조회 화면과 같은
  * 두 갈래다(스펙 9.3): 닿지 못함이면 앱 문구와 "다시 시도", 백엔드가 거절했으면 그 문구이고, 첫 조회가 판정하지
- * 않은 응답(5xx·408·429)을 받았으면(`retryable`) 문구 아래에 "다시 시도" 도 둔다. 문구가 하나도 없는 거절은 계약
- * 위반이라 이 컴포넌트에 닿기 전 `referenceState` 가 던진다 - 앱 문구로 가리지 않는다. 잘림·읽기 전용 안내는
- * 응답을 받은 뒤의 사실이다.
+ * 않은 응답(5xx·408·429)을 받았으면(`retryable`) 문구 아래에 "다시 시도" 도 둔다. 보기는 그대로 둔다 - 목록이 비어도
+ * "선택 안 함"(to-one)과 지금 고른 목록 밖 선택의 줄은 남는다. 실패한 동안에도 고른 것을 해제할 수 있어야 폼의 안내
+ * ("해제하지 않으면 저장 후에도 그대로 남습니다")가 권하는 일을 할 수 있다. 문구가 하나도 없는 거절은 계약 위반이라 이
+ * 컴포넌트에 닿기 전 `referenceState` 가 던진다 - 앱 문구로 가리지 않는다. 잘림·읽기 전용 안내는 응답을 받은 뒤의
+ * 사실이다.
+ *
+ * 폼의 자리(누르는 곳)는 스크린 리더에 현재 선택을 값으로 읽힌다(`accessibilityValue`) - 라벨만 달면 자식의 글자가 읽히지
+ * 않아 무엇이 골라져 있는지 알 길이 없다.
  *
  * testID(E2E 플로가 찾는다): 폼의 자리 `relationship-open-<관계>`, 고른 배지
  * `relationship-value-<관계>-<위치>`, 시트 `relationship-sheet-<관계>`, 보기의 글자
@@ -69,6 +74,8 @@ export function RelationshipPicker({
   const [open, setOpen] = useState(false)
   const list = reference?.list ?? null
   const choice = list === null ? null : relationshipChoice(relationship, list, selected)
+  // 스크린 리더가 읽을 현재 선택 - 받기 전이면 읽을 것이 없다.
+  const chosenLabels = choice === null ? null : choice.chosen.map(labelOf)
   const close = () => {
     setOpen(false)
   }
@@ -80,6 +87,11 @@ export function RelationshipPicker({
         testID={`relationship-open-${name}`}
         accessibilityRole="button"
         accessibilityLabel={relationship.label}
+        accessibilityValue={
+          chosenLabels === null
+            ? undefined
+            : { text: chosenLabels.length === 0 ? NONE_LABEL : chosenLabels.join(', ') }
+        }
         onPress={() => {
           // 입력의 키보드가 떠 있으면 시트의 보기를 가린다.
           Keyboard.dismiss()
@@ -150,27 +162,12 @@ function SheetBody({
   options: readonly RelationshipOption[] | null
   onChoose: (id: string | null) => void
 }) {
-  if (reference === undefined) return <OptionsSkeleton />
-
-  const { failure } = reference
-  if (failure?.kind === 'unreachable') {
-    return <RequestFailed compact retrying={reference.retrying} onRetry={reference.retry} />
-  }
-  if (failure?.kind === 'banner') {
-    return (
-      <FailureBanner
-        messages={failure.messages}
-        retryable={failure.retryable === true}
-        retrying={reference.retrying}
-        onRetry={reference.retry}
-      />
-    )
-  }
-  if (options === null) return <OptionsSkeleton />
+  if (reference === undefined || options === null) return <OptionsSkeleton />
 
   const noneSelected = !options.some((option) => option.selected)
   return (
     <ScrollView contentContainerClassName="gap-1 pb-2">
+      <SheetFailure reference={reference} />
       {reference.list?.truncated === true ? (
         <Text testID={`relationship-truncated-${name}`} className="text-sm text-muted-foreground">
           목록의 앞 {REFERENCE_PAGE_SIZE}개만 표시했습니다.
@@ -206,6 +203,30 @@ function SheetBody({
       ))}
     </ScrollView>
   )
+}
+
+/**
+ * 참조 조회의 실패 - 보기 위에 그린다. 실패가 아니면 아무것도 그리지 않는다. 실패 중의 `options` 는 목록이 비어 있어
+ * 지금 고른 목록 밖 선택뿐이다(`relationshipChoice`) - 그 줄과 "선택 안 함" 은 그대로 둔다(위 머리말).
+ */
+function SheetFailure({ reference }: { reference: RelationshipReference }) {
+  const { failure } = reference
+  if (failure?.kind === 'unreachable') {
+    return <RequestFailed compact retrying={reference.retrying} onRetry={reference.retry} />
+  }
+  if (failure?.kind === 'banner') {
+    return (
+      <View className="pb-2">
+        <FailureBanner
+          messages={failure.messages}
+          retryable={failure.retryable === true}
+          retrying={reference.retrying}
+          onRetry={reference.retry}
+        />
+      </View>
+    )
+  }
+  return null
 }
 
 /** 참조 목록을 받기 전의 자리 - 글자 없이 보기 모양만(스펙 8.7). */

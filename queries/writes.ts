@@ -87,6 +87,11 @@ export interface DeleteWrite {
    */
   deleted: boolean
   remove: (onDeleted: () => void) => void
+  /**
+   * 지난 삭제의 결과를 지운다 - `messages` 가 다음 `remove()` 까지 살아 있어서, 실패한 확인을 취소하고 다시 열면 이미 지난
+   * 실패를 들고 열린다. 확인을 취소할 때 부른다.
+   */
+  reset: () => void
 }
 
 /** 생성 쓰기의 옵션 - 성공하면 그 자원의 목록을 무효화한다(스펙 8.5 의 표). */
@@ -206,6 +211,9 @@ export function useDeleteResource(resource: ResourceDefinition, id: string): Del
           if (outcome.kind === 'deleted') onDeleted()
         },
       })
+    },
+    reset: () => {
+      mutation.reset()
     },
   }
 }

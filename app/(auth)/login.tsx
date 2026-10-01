@@ -19,8 +19,8 @@ import { LOGIN_MUTATION_KEY, useLoginMutation } from '@/queries/auth'
  * 로그인 화면(스펙 7.4). `next` 는 경로 가드가 붙인 원래 경로다 - 값을 검사하지 않고 그대로
  * 넘긴다. 검사는 decideAfterLogin 안의 safeRedirectTarget 한 곳에서만 한다(lib/auth/flow.ts) -
  * 딥링크로 들어온 외부 URL 은 거기서 홈으로 바뀐다. 가드가 보낸 이 화면에서 뒤로 가면 홈이다
- * (useBackToHome - 가드가 루트를 이 화면 하나로 바꿔 끼운다). iOS 에는 뒤로 가기 키가 없으므로 헤더에 눈에 보이는
- * "홈으로" 도 둔다(HomeButton) - 같은 이동이다.
+ * (useBackToHome - 가드가 루트를 이 화면 하나로 바꿔 끼운다). iOS 에는 뒤로 가기 키가 없으므로 뒤로 갈 화면이 없을 때
+ * 헤더에 눈에 보이는 "홈으로" 도 둔다(HomeButton) - 같은 이동이다.
  */
 export default function LoginScreen() {
   const rawNext = useLocalSearchParams()[LOGIN_REDIRECT_PARAM]
