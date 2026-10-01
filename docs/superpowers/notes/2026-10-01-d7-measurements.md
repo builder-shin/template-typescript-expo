@@ -225,6 +225,46 @@ README보다 새 판이었다(`Set up job` 로그). 그 잡에서 정적 게이�
 | 1 — [36892458805](https://github.com/builder-shin/template-typescript-expo/actions/runs/36892458805) | `1d15b4d` | checks·build-android·build-ios success; android fastapi·nestjs·rails failure; ios fastapi·nestjs·rails failure | iOS 셋: 없는 `setup-uv@v10` 별칭 → D7-R13으로 `@v10.2.0` 고정. Android의 첫 상세 예외는 숨김 debug 제외로 유실 → 두 플랫폼 기록에 `include-hidden-files: true`, K3 화면 캡처 셋 추가. Android 플로 실패 원인은 아직 미확정이며 다음 실행의 원본 로그로 찾는다. |
 | 2 — [36901767491](https://github.com/builder-shin/template-typescript-expo/actions/runs/36901767491) | `d8e0592` | checks·build-android·build-ios·android nestjs success; android fastapi·rails 및 ios 셋 failure | Rails: Ruby Darwin 23 플랫폼이 잠금에 없어 frozen Bundler 실패 → D7-R14 플랫폼 가드. Android 둘: splash 전송 timeout 뒤 남은 starting_reveal → D7-R15 native exit listener 해제. iOS 둘: 딥링크 시스템 확인창 → D7-R16 공통 확인창 처리. 아래에 첫 오류·증거·검증을 적는다. |
 | 3 — [36912828333](https://github.com/builder-shin/template-typescript-expo/actions/runs/36912828333) | `19db522` | checks·build-android·build-ios·android 셋 success; ios 셋 failure | Android 셋 각각 22플로 통과, splash timeout 0. iOS: Keychain entitlement 누락 → D7-R18 Simulator 서명·검증. 폼/목록 배지의 UIKit 묶음 → 부모 값·순서로 단언. NestJS 홈 유지/FastAPI 404 뒤 skeleton은 원인 미확정이며 D7-R20 승인 경계 관측만 함께 더한다. |
+| 4 — [36927109091](https://github.com/builder-shin/template-typescript-expo/actions/runs/36927109091) | `7f4cf71` | checks·빌드 둘·Android 셋 초록, iOS 셋 빨강 | iOS 세 칸 모두 JS 시작 전 Taskgated Invalid Signature로 실패했다. R18의 서명 검증·권한 존재는 통과했지만 실제 실행은 거부됐다. 같은 셀의 세 번째 수정 뒤 실패로 총4회에서 중지(D7-R20), 추가 코드 push·실행5·rerun 없음. 마지막 실패는 고치지 못했고 기록만 커밋한다. |
+
+**실행 4의 셀별 상한 중지.** iOS Rails E2E 단계가 22:01:52Z failure, 잡도 failure다. 같은 셀에 고침 배치가 세 번
+닿은 뒤 다시 빨가므로 총 여섯 실행 이전인 4회에서 중지한다(D7-R20). 실행5나 같은 코드 rerun은 하지 않는다.
+20플로 모두 launchApp에서 실패했고 JS/경계 관측은 0줄이다. 첫 실패 단계의 원본은
+`.maestro-output/d7-run-4/e2e-ios-rails.log:1456`부터 다음과 같다:
+
+```text
+2026-10-01T21:40:38.0257800Z The request was denied by service delegate (SBMainWorkspace).
+2026-10-01T21:40:38.0259630Z Underlying error (domain=FBSOpenApplicationServiceErrorDomain, code=1):
+2026-10-01T21:40:38.0260590Z The request to open "com.example.templateexpo.e2e" failed.
+```
+
+그보다 구체적인 auth-links crash는 procLaunch21:39:56.1852+0000 / capture21:39:57.4500+0000,
+`SIGKILL (Code Signature Invalid)` / `CODESIGNING` code1 / `Taskgated Invalid Signature`다. 원본은
+`.maestro-output/d7-run-4/artifacts/e2e-ios-rails/template-typescript-expo/template-typescript-expo/.maestro-output/e2e/
+auth-links/debug/.maestro/tests/2026-10-01_213603/auth-links/logs/crash-report.txt`, 명령은 같은 auth-links의
+commands.json이다. first-ios-errors.json이 20실패와 native crash를 인덱싱한다. 서명 검증과 entitlement 존재는
+통과했지만 실제 runtime 실행 허용은 실패했다. R18 ad-hoc 권한 전략의 Mac 실행 회귀이며 taskgated의 정확한 거부
+요건은 미입증이다. fake CLI/Windows 시험으로 Mac 실행을 검증했다고 쓰지 않는다.
+
+로캘 login-error-en은 clearState를 쓰지 않고 하네스가 원본 앱을 재설치한 뒤에도 같은 native crash다
+(procLaunch21:56:48.8521+0000, 원본 TemplateExpoE2E.app). 따라서 Maestro 재설치 복사만의 문제로 단정할 수 없다.
+다음 승인된 조사에서는 같은 Mac 이미지에서 Maestro 전에 원본 simctl launch와 taskgated 로그를 확인하고, 원본·
+installed·clearState 뒤 앱의 서명/entitlement/hash를 비교해야 한다. 이 태스크는 코드 변경·추가 push 없이 기록만
+커밋하며 스펙13/17의 초록 정정은 쓰지 않는다. Keychain 저장·접근성 고침과 기존 두 unknown은 실행4의 이 칸에서
+JS 전 실패로 미검증이다. 최종 결과는 6 success / 3 failure, run_attempt1, 21:12:37–22:11:56 UTC다.
+FastAPI·NestJS도 동일한 첫 crash이며 각 빨간 칸의 실패 로그·명령·native 근거는 다음과 같다. 경로 앞은 모두
+`.maestro-output/d7-run-4/`다. 세 crash 모두 `SIGKILL (Code Signature Invalid)`와 `CODESIGNING` code1을 기록했다.
+
+| iOS 칸 | 실패 단계 첫 로그 | launch 명령 시작 UTC / duration | auth-links crash-report 상대 경로 | native procLaunch UTC |
+|---|---|---|---|---|
+| fastapi | e2e-ios-fastapi.log:948, 21:40:02.6427660Z SBMainWorkspace 거부 | 21:37:41.865 / 110.531초 | artifacts/e2e-ios-fastapi/template-typescript-expo/template-typescript-expo/.maestro-output/e2e/auth-links/debug/.maestro/tests/2026-10-01_213517/auth-links/logs/crash-report.txt | 21:39:15.9462 |
+| nestjs | e2e-ios-nestjs.log:1015, 21:40:57.1807590Z SBMainWorkspace 거부 | 21:38:52.728 / 69.365초 | artifacts/e2e-ios-nestjs/template-typescript-expo/template-typescript-expo/.maestro-output/e2e/auth-links/debug/.maestro/tests/2026-10-01_213553/auth-links/logs/crash-report.txt | 21:39:42.0073 |
+| rails | e2e-ios-rails.log:1456, 21:40:38.0257800Z SBMainWorkspace 거부 | 21:39:19.894 / 60.587초 | artifacts/e2e-ios-rails/template-typescript-expo/template-typescript-expo/.maestro-output/e2e/auth-links/debug/.maestro/tests/2026-10-01_213603/auth-links/logs/crash-report.txt | 21:39:56.1852 |
+
+NestJS·Rails는 각각 20플로, FastAPI는 20플로와 request-stall 확인도 launch에서 실패했다(끝의 실패 목록22는
+checks/request-stall과 checks 집계 실패를 포함한다). JS0줄이므로 경고0을 무경고 검증으로 쓰지 않으며 로그 가드도
+실행되지 않았다. full.log·failed.log·개별 잡 로그 아홉·아티팩트 아홉을 보존했고 watch exit1이다. 다음에 검증할 원인은
+위 Mac signing/runtime 요건이며 이 태스크에서 코드 변경·권한/타임아웃/재시도 완화로 덮지 않는다.
 
 **실행 3의 최종 결과와 iOS 실패.** 생성 `2026-10-01T19:14:36Z`, 결론 failure, run_attempt=1이다.
 
@@ -388,12 +428,22 @@ starting_reveal 애니메이션 대기는 0줄이었다. 자연 재현은 원래
 `batch2-final-validation.log`·`batch2-unit-final.log`에 보존했다. `joon` 9 → 9, compose 잔여 0이며 새 소유 에뮬레이터만
 종료했다. 원래 emulator-5554는 켜져 있다. 의존성·백엔드 원격·타임아웃·앱 단언·재시도 규칙은 바꾸지 않았다.
 
-**초록.** 아직 아홉 칸이 모두 초록인 실행은 없다. iOS 기기 값·백엔드별 최종 동작·단계별 스크롤 시간은 상세 기록을
-복구한 뒤 실제 실행으로 채운다.
+**초록 없음 — Task 4 failed.** 총 실행4회, 세 수정 배치 뒤에도 iOS 셋이 빨가므로 셀별 상한으로 중지했다. 스펙13/17의
+초록 정정은 쓰지 않는다. 마지막 실행36927109091의 코드 커밋은7f4cf71796ece8fa4d2a97174fdd64a641cb1e2e다.
+2026-10-01 UTC의 아홉 칸 최종 결과와 시간은 다음과 같다. 이 뒤에는 docs/만 바꾼 기록 커밋을 보내며 그 커밋은
+paths-ignore 대상이다. K3 최종 커밋과 새 실행이 없다는 확인은 Task4 보고에 기록한다.
 
-```text
-(Task 4 Step 5 의 잡 표를 붙인다)
-```
+| 칸 | job ID | 결과 | 시작 UTC | 끝 UTC | 시간 |
+|---|---|---|---|---|---|
+| checks (게이트 [1]–[11]) | 110587042817 | success | 21:12:42 | 21:15:14 | 2:32 |
+| build-android (e2e APK) | 110587042462 | success | 21:12:41 | 21:39:41 | 27:00 |
+| e2e-android (fastapi) | 110597096630 | success | 21:39:44 | 22:11:53 | 32:09 |
+| e2e-android (nestjs) | 110597096579 | success | 21:39:45 | 22:09:23 | 29:38 |
+| e2e-android (rails) | 110597096580 | success | 21:39:44 | 22:11:55 | 32:11 |
+| build-ios (e2e .app) | 110587042851 | success | 21:12:49 | 21:30:17 | 17:28 |
+| e2e-ios (fastapi) | 110593699182 | failure | 21:30:26 | 22:11:50 | 41:24 |
+| e2e-ios (nestjs) | 110593699137 | failure | 21:30:27 | 22:10:09 | 39:42 |
+| e2e-ios (rails) | 110593699223 | failure | 21:30:26 | 22:02:21 | 31:55 |
 
 **Android 빌드에서 이어받은 것.** 실행 1의 둘째 Gradle은 `2026-10-01T16:44:12.4356025Z`에
 `> Task :app:createReleaseUpdatesResources UP-TO-DATE`를 남겼고 `BUILD SUCCESSFUL in 21m 50s`로 끝났다. APK의
@@ -406,16 +456,25 @@ OOM이나 메모리 예산 변경은 없었다. 로그는 `.maestro-output/d7-ru
 Android E2E 셋은 각각 22플로 통과했고, 숨김 auth-links device-logcat의 splash 전송/starting_reveal timeout은 모두
 0줄이다. 첫 이메일 입력은 FastAPI 22.511초, NestJS 27.161초, Rails 26.651초 완료였다. 실행 2의 입력 RPC deadline을
 만든 경로가 새 CI에서 사라진 것을 확인했다(`.maestro-output/d7-run-3/android-auth-native-evidence.json`).
+실행 4도 build-android 21:12:41–21:39:41 UTC(27분) 통과, 둘째 UP-TO-DATE는 21:26:51.6710046Z,
+둘째 Gradle22분34초, APK e2e/OTA/HTTP 단언 통과다. 메모리 예산은 그대로이며 실제 RAM/RSS는 여전히 미수집이다.
 
-**iOS 에서 처음 잰 것.** 줄마다 사실로 바꾼다 - 근거는 그 실행의 `e2e-ios-<백엔드>` 아티팩트다.
+실행 4의 build-ios는 21:12:49–21:30:17 UTC(17분 28초) 통과했다. 21:30:03.5137140Z에 strict/deep 서명·정확한
+application-identifier/keychain-access-groups 단언이 통과했고 앱 설정·OTA 끔·평문 HTTP도 통과했다. 받은 Mach-O의
+XML slot5와 DER slot7에 두 entitlement가 실제로 있다(`.maestro-output/d7-run-4/app-signature-after.json`). 실행 3의
+linker 서명은 그 두 slot이 없었다. 이어진 E2E 셋은 launch에서 실패해 실제 Keychain 저장을 검증하지 못했다.
+Xcode26.6/17F113·Mac 이미지
+20260907.0351.1은 같다. codesign의 `--entitlements :-`는 현재 통과하지만 향후 제거 예정 경고가 있어 관측 사항으로 남긴다.
 
-- 빌드 정보 카드(`home-build-info`)가 본 값:
-- 특수 문자 딥링크(`examples-browse` - D3 최종 검토가 넘긴 iOS 딥링크 정규화):
-- 로캘 플로 셋의 `-AppleLanguages`:
-- 요청 타임아웃(`checks/request-stall` - 기기 로그의 `REQUEST_TIMEOUT` 두 줄과 서버 기록의 두 방식):
-- 머리글 뒤로 버튼(`BackButton`)·시트 배경(`sheet-backdrop`)·키체인 비우기(`clearKeychain`):
-- 가드가 본 경고(`[e2e-warn]`)가 있었는가:
-- 쓰기 플로 넷(키보드와 라벨 누름, Modal 시트, 가드가 보낸 로그인 화면의 "홈으로" - `back-to-home-button`), examples-create 로그인 둘째 누름의 이동 뒤 좌표·닿은 노드·로그인 요청 1(결정 43):
+**iOS 기기 실측의 한계.** 실행4는 모두 native launch에서 실패해 아래 Step8 항목을 검증하지 못했다. 실행3의 일부
+화면 통과를 실행4나 아홉 칸 초록으로 대신하지 않는다.
+
+- 빌드 카드·특수 문자 browse 딥링크: 실행4에서 화면에 도달하지 못했다. 빌드 artifact의 e2e/OTA/HTTP 설정 단언만 통과.
+- 로캘 셋: launch arguments는 전달했지만 원본 앱도 taskgated로 종료돼 언어별 응답은 미실측이다.
+- 요청 타임아웃: iOS FastAPI request-stall도 launch 실패, REQUEST_TIMEOUT0줄이며 headers/body 응답 검증 미실행이다.
+- BackButton·sheet-backdrop·clearKeychain과 SecureStore 쓰기: reset/설치는 수행됐으나 화면·저장 검증에 도달하지 못했다.
+- JS 경고 가드: JS0줄·관측0줄로 미실행이다. 이를 앱이 무경고라는 증거로 삼지 않는다.
+- 쓰기 넷·홈 출구·로그인 둘째 누름(좌표/노드/요청1): 실행4에서 로그인에 도달하지 못해 결정43 검증은 미완이다.
 
 **세 백엔드에서 처음 잰 것.** 근거는 `e2e-android-<백엔드>`·`e2e-ios-<백엔드>` 의 `api.log` 와 플로 기록이다.
 
@@ -424,9 +483,20 @@ Android E2E 셋은 각각 22플로 통과했고, 숨김 auth-links device-logcat
   읽기 전용 속성을 보내지 않는다. 실행 2의 Android NestJS·Rails `examples-edit`·`examples-write-errors/api.log`는
   네 파일 모두 0바이트여서 서버 로그 기반 응답·회전 수는 미관측이다. 컨트롤러 결정 D7-R17에 따라 D7 Task 5의 계약
   거울에서 세 갈림과 `JWT_ACCESS_EXPIRES_SECONDS`를 세 백엔드에 직접 잰다. 관측만을 위한 별도 CI push는 하지 않는다.
-- `JWT_ACCESS_EXPIRES_SECONDS`(하네스가 주는 10초)가 세 백엔드에서 들었는가 - 쓰기마다 회전 요청이 있었는가:
+- 하네스는 access10초를 설정했다. 실행4 Android FastAPI의 생성·수정 요청 수 가드는 통과했으나 직접 JWT 만료와 세
+  백엔드의 요청별 응답/회전은 R17의 미관측 사항이다. 빈 PATCH·겹친 태그·읽기 전용 속성과 함께 D7 Task5가 직접 잰다.
 
 **느린 기기에서 잰 것.** 근거는 칸마다의 `<플로>/maestro.log` 의 시각과 잡 로그다.
 
-- 실험실 offset 순회의 스크롤 둘(`contract-lab-anonymous` - 로컬 에뮬레이터 16.2–17.2초, 제한 90초)이 칸마다 걸린 시간:
-- 환경 흔적(`E2E: 환경 흔적 - …` - `Active window root not found`·`java.net.ConnectException`)이 찍힌 칸이 있었는가:
+- 실행4 offset 둘의 시각(2026-10-01 UTC, 끝은 commands.json의 시작+duration)은 다음과 같다. 제한90초와 재시도0은 유지.
+
+| 칸 | 첫 scroll 시작–끝 / duration | 둘째 scroll 시작–끝 / duration |
+|---|---|---|
+| Android fastapi | 21:46:46.154–21:47:03.790 / 17.636초 | 21:47:03.791–21:47:23.367 / 19.576초 |
+| Android nestjs | 21:46:53.720–21:47:10.610 / 16.890초 | 21:47:10.611–21:47:27.277 / 16.666초 |
+| Android rails | 21:48:18.651–21:48:37.242 / 18.591초 | 21:48:37.243–21:49:02.624 / 25.381초 |
+| iOS fastapi·nestjs·rails | launch 실패로 미실행 | launch 실패로 미실행 |
+
+- Android 세 칸에서 `E2E: 환경 흔적` 안내0줄, JS W/E·e2e-warn0줄, 22플로/가드 모두 통과했다. FastAPI request-stall은
+  두 REQUEST_TIMEOUT 정보 줄과 stall-server.log의 headers22:10:25.314Z / body22:10:41.014Z가 일치했다.
+  근거는 `.maestro-output/d7-run-4/evidence-<플랫폼>-<백엔드>.jsonl`과 아티팩트다. iOS의 빈 JS 로그는 별도 실패 한계다.
