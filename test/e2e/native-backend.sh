@@ -189,18 +189,32 @@ start_api() {
       )
       ;;
   esac
-  local deadline=$((SECONDS + 120))
-  until curl -fsS "http://127.0.0.1:$API_PORT/health/ready" >/dev/null 2>&1; do
-    if ! kill -0 "$(cat "$API_PID")" 2>/dev/null; then
+  local deadline=$((SECONDS + 120)) remaining pid
+  pid=$(cat "$API_PID")
+  while :; do
+    if ! kill -0 "$pid" 2>/dev/null; then
       tail -n 40 "$API_LOG" >&2
       fail "API 가 뜨다가 죽었다 - 기록: $API_LOG"
     fi
-    if [ "$SECONDS" -ge "$deadline" ]; then
+    remaining=$((deadline - SECONDS))
+    if [ "$remaining" -le 0 ]; then
       tail -n 40 "$API_LOG" >&2
       fail "API 가 120초 안에 127.0.0.1:$API_PORT 에서 준비되지 않았다 - 기록: $API_LOG"
     fi
-    sleep 2
+    if curl -fsS --connect-timeout "$remaining" --max-time "$remaining" \
+      "http://127.0.0.1:$API_PORT/health/ready" >/dev/null 2>&1; then
+      break
+    fi
+    remaining=$((deadline - SECONDS))
+    if [ "$remaining" -gt 0 ]; then
+      if [ "$remaining" -lt 2 ]; then sleep "$remaining"; else sleep 2; fi
+    fi
   done
+  # 건강한 응답을 기다리는 사이에도 우리 API 가 죽을 수 있다.
+  if ! kill -0 "$pid" 2>/dev/null; then
+    tail -n 40 "$API_LOG" >&2
+    fail "API 가 뜨다가 죽었다 - 기록: $API_LOG"
+  fi
   echo "백엔드 준비: $BACKEND_KIND @ $(git -C "$SRC" rev-parse --short HEAD) - http://127.0.0.1:$API_PORT (access ${access}초)"
 }
 
@@ -235,6 +249,10 @@ case "${1:-}" in
   prepare) prepare ;;
   start)
     [ -d "$SRC/.git" ] || fail "백엔드 저장소가 없다($SRC) - fetch·prepare 를 먼저 돌린다"
+    command -v lsof >/dev/null || fail "lsof 가 없다 - API 포트 $API_PORT 점유 여부를 확인하지 못한다"
+    if lsof -nP -iTCP:"$API_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
+      fail "API 포트 $API_PORT 가 이미 사용 중이다 - 백엔드를 시작하지 않는다"
+    fi
     mkdir -p "$(dirname "$API_LOG")"
     stop_api
     start_services

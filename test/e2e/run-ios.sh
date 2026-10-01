@@ -104,17 +104,27 @@ start_device_log() {
 # 셸이 백그라운드로 띄운 명령은 SIGINT 를 무시한 채 시작한다(POSIX) - 스스로 처리기를 두지 않으면 INT 가 닿지 않아
 # wait 가 끝나지 않는다. 5초 안에 끝나지 않으면 TERM 을 보낸다.
 stop_device_log() {
-  local waited=0
+  local waited=0 rc=0
   [ -n "${log_pid:-}" ] || return 0
   sleep 2 || return 1
+  if ! kill -0 "$log_pid" 2>/dev/null; then
+    wait "$log_pid" 2>/dev/null || true
+    log_pid=''
+    echo "E2E(iOS): 로그 스트림이 종료 신호 전에 끝났다 - 플로의 로그가 불완전하다" >&2
+    return 1
+  fi
   kill -INT "$log_pid" 2>/dev/null || true
   while kill -0 "$log_pid" 2>/dev/null && [ "$waited" -lt 10 ]; do
     sleep 0.5 || return 1
     waited=$((waited + 1))
   done
   kill -TERM "$log_pid" 2>/dev/null || true
-  wait "$log_pid" 2>/dev/null || true
+  wait "$log_pid" 2>/dev/null || rc=$?
   log_pid=''
+  case "$rc" in
+    0|130|143) return 0 ;;
+    *) echo "E2E(iOS): 로그 스트림이 예상하지 않은 상태로 끝났다(exit $rc)" >&2; return 1 ;;
+  esac
 }
 
 api_log_size() {
