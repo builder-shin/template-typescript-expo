@@ -6,6 +6,8 @@ import { useNavigateOnce } from '@/components/app/navigate-once'
 import { FilterSheet } from '@/components/resource/filter-sheet'
 import { ResourceListView } from '@/components/resource/resource-list'
 import { ListToolbar, SortSheet } from '@/components/resource/sort-sheet'
+import { Button } from '@/components/ui/button'
+import { Text } from '@/components/ui/text'
 import { EXAMPLE } from '@/lib/resources'
 import { isCurrentListHref, listRouteParams } from '@/lib/resources/route-params'
 import { clearFiltersHref, filterFields, filterHref, sortOptions } from '@/lib/resources/view'
@@ -17,6 +19,9 @@ import { useResourceList } from '@/queries/resources'
  *
  * 이 파일에는 훅 호출과 JSX 만 있다(스펙 8.4) - 쿼리 조립·행 변환·오류 갈래는
  * lib/resources/view.ts, 요청과 캐시는 queries/resources.ts 가 한다.
+ *
+ * "새로 만들기" 는 누구에게나 보인다 - 생성 화면은 보호 경로라 세션이 없으면 경로 가드가 로그인으로
+ * 보내고, 로그인하면 생성 화면으로 돌아온다(스펙 7.3). 행·조건 바꾸기와 같이 이동 가드를 지난다.
  */
 
 /** 이 화면의 주소. 필터·정렬을 바꾼 주소는 이 경로에 쿼리를 붙인 것이다. */
@@ -61,7 +66,19 @@ export default function ExamplesScreen() {
         onSort={() => {
           setSheet('sort')
         }}
-      />
+      >
+        <Button
+          testID="new-example-link"
+          size="sm"
+          onPress={() => {
+            navigateOnce(() => {
+              router.push('/examples/new')
+            })
+          }}
+        >
+          <Text>새로 만들기</Text>
+        </Button>
+      </ListToolbar>
       <ResourceListView
         list={list}
         onClearFilters={clearFilters}
