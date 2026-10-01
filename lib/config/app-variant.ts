@@ -27,6 +27,12 @@ export interface VariantProfile {
    * 하네스가 플로가 선언하지 않은 4xx·5xx 를 실패로 만드는 재료다(스펙 11.3).
    */
   readonly logsHttpFailures: boolean
+  /**
+   * OTA 채널(스펙 10.2·10.6). eas.json 에서 이 변형을 빌드하는 프로필의 channel 과 같은 값이다 -
+   * test/unit/config/eas-json.test.ts 가 맞댄다. null 이면 이 변형은 OTA 를 끈다: development 는 개발 서버의
+   * 번들을, e2e 는 내장 번들을 결정적으로 돈다.
+   */
+  readonly updatesChannel: string | null
 }
 
 const PROFILES: Readonly<Record<AppVariant, VariantProfile>> = {
@@ -36,6 +42,7 @@ const PROFILES: Readonly<Record<AppVariant, VariantProfile>> = {
     nameSuffix: ' (Dev)',
     allowCleartext: true,
     logsHttpFailures: false,
+    updatesChannel: null,
   },
   preview: {
     idSuffix: '.preview',
@@ -43,6 +50,7 @@ const PROFILES: Readonly<Record<AppVariant, VariantProfile>> = {
     nameSuffix: ' (Preview)',
     allowCleartext: false,
     logsHttpFailures: false,
+    updatesChannel: 'preview',
   },
   production: {
     idSuffix: '',
@@ -50,6 +58,7 @@ const PROFILES: Readonly<Record<AppVariant, VariantProfile>> = {
     nameSuffix: '',
     allowCleartext: false,
     logsHttpFailures: false,
+    updatesChannel: 'production',
   },
   e2e: {
     idSuffix: '.e2e',
@@ -57,6 +66,7 @@ const PROFILES: Readonly<Record<AppVariant, VariantProfile>> = {
     nameSuffix: ' (E2E)',
     allowCleartext: true,
     logsHttpFailures: true,
+    updatesChannel: null,
   },
 }
 

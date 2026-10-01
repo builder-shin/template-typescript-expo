@@ -161,3 +161,5 @@ secretlint 단계는 `pnpm lint:secrets`다. 스크립트 이름을 `secretlint`
 누름(D4 실측 W1–W4)은 `docs/superpowers/notes/2026-10-01-d4-measurements.md`에 있다.
 계약 거울의 드리프트 감지와 게이트 13단계, 계약 실험실의 기기 E2E(D5 실측 C1–C3)는
 `docs/superpowers/notes/2026-10-01-d5-measurements.md`에 있다.
+EAS·OTA 설정의 변형별 검증, 설정이 다르면 fingerprint runtime version 이 갈리는 것, 빌드 정보 카드(D6 실측 O1–O4)는
+`docs/superpowers/notes/2026-10-01-d6-measurements.md`에 있다.

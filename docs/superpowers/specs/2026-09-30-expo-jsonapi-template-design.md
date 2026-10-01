@@ -776,6 +776,14 @@ Next.js와 같다.
 - 선택 변수의 기본값은 `app.config.ts`·`.env.example`·README 표 셋에 같은 값으로
   적는다(Next.js와 같다).
 
+> 정정(2026-10-01, D6): `EAS_PROJECT_ID` 는 UUID 여야 한다 - 다른 모양이면 설정을 평가하는 순간 멈춘다(틀린 id 는
+> 업데이트 주소를 틀리게 만들어 OTA 가 소리 없이 멈춘다). 값이 없고 EAS 빌드 서버가 주는 `EAS_BUILD_PROJECT_ID` 가
+> 있으면 그 값을 쓴다 - 빌드를 시작한 eas-cli 는 로컬의 `EAS_PROJECT_ID` 로 설정을 평가하는데, 서버의 평가에 id 가
+> 빠지면 OTA 가 꺼져 두 평가의 runtime version 이 달라지고 EAS 빌드가 멈춘다(`@expo/build-tools` 24.8.0 의
+> `configureExpoUpdatesIfInstalledAsync`). 프로젝트 id 는 `extra.eas.projectId` 로 실린다 - eas-cli 와 EAS 빌드가
+> 프로젝트를 찾는 자리다. Expo CLI 는 `.env` 를 읽으므로 게이트는 설정을 평가할 때 `EAS_PROJECT_ID` 를 빈 값으로도
+> 명시한다. 판단은 `lib/config/updates.ts` 의 `easProjectId`.
+
 ### 10.2 변형
 
 | 변형 | 번들 ID 접미사 | 평문 HTTP | OTA | 용도 |
@@ -821,6 +829,17 @@ Native Generation). 네이티브 설정은 `app.config.ts`와 config plugin으�
   같은 계정 고유 값은 저장소에 가짜 값으로 넣지 않는다 — 첫 `eas submit` 때
   EAS가 묻고 저장한다.
 
+> 정정(2026-10-01, D6): `eas.json` 의 빌드 프로필은 변형과 같은 넷뿐이다 - 공통 설정을 담는 `base` 프로필을 두지
+> 않는다(그 프로필을 빌드하면 `APP_VARIANT` 없이 development 로 평가된다). 네 프로필이 모두 Node `24.19.0`·pnpm
+> `11.22.0` 을 고정한다 - `app.config.ts` 가 `lib/config` 를 Node 의 type stripping 으로 불러오고(22.18 이상, D1 실측
+> M7), `engines.node`(`>=24.11.0`)를 pnpm 이 강제한다. `environment` 는 프로필 이름과 같은 EAS 환경이다
+> (`BACKEND_URL` 을 넣는 자리) - `e2e` 는 정하지 않는다(로컬·CI 는 prebuild + Gradle·xcodebuild 로 빌드한다, 10.7).
+> `e2e` 는 자격 증명 없이(`withoutCredentials`) 빌드한다. `development` 의 `developmentClient` 는 `expo-dev-client` 를
+> 요구하는데 D6 는 그 패키지를 설치하지 않았다 - 그 설정 플러그인은 기본으로 모든 변형에 같은 scheme
+> `exp+<slug>` 를 더해 10.2 의 D1 정정(변형마다 다른 scheme)을 깬다. `eas build --profile development` 는 설치를
+> 묻는다(비대화형이면 멈춘다). 프로필과 변형이 맞는지(이름·`APP_VARIANT`·채널·Node·pnpm, `BACKEND_URL` 없음)는
+> `test/unit/config/eas-json.test.ts` 가 보고, 스키마는 `@expo/eas-json` 24.8.0 의 해석기로 쟀다(D6 실측 O2).
+
 ### 10.6 OTA 업데이트
 
 - `runtimeVersion`은 `fingerprint` 정책이다. 네이티브 구성이 같은 빌드에만
@@ -834,6 +853,18 @@ Native Generation). 네이티브 설정은 `app.config.ts`와 config plugin으�
 - 홈의 **빌드 정보 카드**가 앱 버전, runtime version, 채널, 업데이트 ID를 보여
   주고, "업데이트 확인" 버튼으로 받은 업데이트를 바로 적용한다. OTA가 실제로
   도는지 눈으로 확인하는 최소 장치다.
+
+> 정정(2026-10-01, D6): (a) OTA 설정은 `app.config.ts` 의 `updates` 다 - 켜면 `url`(`https://u.expo.dev/<id>`),
+> `checkAutomatically: 'ON_LOAD'`, `fallbackToCacheTimeout: 0`, 채널 머리글 `requestHeaders['expo-channel-name']` 이고,
+> 끄면 `{ enabled: false }` 뿐이다. EAS 빌드는 `eas.json` 의 `channel` 로 같은 머리글을 네이티브 설정에 다시 쓰고, EAS
+> 밖의 빌드(prebuild + Gradle·xcodebuild)는 앱 설정의 머리글을 쓴다 - 두 값이 같은지 시험이 본다. 판단은
+> `lib/config/updates.ts`, 채널은 변형 표(`lib/config/app-variant.ts` 의 `updatesChannel`)다. (b) `runtimeVersion:
+> { policy: 'fingerprint' }` 는 OTA 를 켠 빌드에만 둔다 - 끈 빌드(development·e2e, 프로젝트가 없는 배포 변형)는 받을
+> 업데이트가 없으니 빌드 중에 지문을 계산하지 않는다. (c) fingerprint 는 공개 설정 전체(식별자·이름·scheme,
+> `updates`, `extra` 의 `backendUrl`·`appVariant`·`eas.projectId`)를 해시에 넣는다 - `BACKEND_URL`·`APP_VARIANT`·프로젝트
+> id 가 다른 환경에서 발행한 업데이트는 runtime version 이 달라 어떤 빌드에도 닿지 않고, JS 만 바뀐 발행은 같은
+> runtime version 이다(D6 실측 O1). 16장의 "설정 오류가 OTA로 배포된다" 에 든 `fingerprint` 대응이 잰 사실이 됐다 -
+> 앱 시작의 재검증(10.1)은 그 뒤의 두 번째 방어선이다.
 
 ### 10.7 계정이 필요한 실증은 따로 둔다
 

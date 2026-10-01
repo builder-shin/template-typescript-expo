@@ -6,9 +6,15 @@ import appConfig, { BASE_APP_ID, BASE_NAME, BASE_SCHEME } from '@/app.config'
 // "설정에서 읽었다" 와 "박아 넣었다" 가 구별되지 않는다(원본 저장소의 관례).
 const CONTEXT = { config: {}, projectRoot: '/probe' } as unknown as ConfigContext
 
+// 실제 EAS 프로젝트 id 가 아니다 - 모양만 UUID 인 표본이다.
+const PROBE_PROJECT_ID = '0f6b3c1e-2a4d-4e8f-9b1a-7c5d3e2f1a0b'
+
+// 주지 않은 변수는 빈 값으로 못박는다 - 개발자의 셸에 있는 EAS_PROJECT_ID 가 시험에 섞이지 않는다.
 function evaluate(env: Record<string, string>): ExpoConfig {
   vi.stubEnv('BACKEND_URL', env.BACKEND_URL ?? '')
   vi.stubEnv('APP_VARIANT', env.APP_VARIANT ?? '')
+  vi.stubEnv('EAS_PROJECT_ID', env.EAS_PROJECT_ID ?? '')
+  vi.stubEnv('EAS_BUILD_PROJECT_ID', env.EAS_BUILD_PROJECT_ID ?? '')
   return appConfig(CONTEXT)
 }
 
@@ -83,5 +89,69 @@ describe('app.config.ts - 스펙 10.1·10.2', () => {
       'expo-secure-store',
       { configureAndroidBackup: true, faceIDPermission: false },
     ])
+  })
+})
+
+describe('app.config.ts 의 OTA - 스펙 10.1·10.6', () => {
+  const HTTPS = 'https://probe-backend.example'
+
+  it.each(['development', 'preview', 'production', 'e2e'])(
+    'EAS 프로젝트가 없으면 %s 변형은 OTA 를 끄고 runtime version 도 프로젝트 id 도 싣지 않는다',
+    (variant) => {
+      const config = evaluate({ BACKEND_URL: HTTPS, APP_VARIANT: variant })
+      expect(config.updates).toEqual({ enabled: false })
+      expect(config.runtimeVersion).toBeUndefined()
+      expect(config.extra?.eas).toBeUndefined()
+    },
+  )
+
+  it.each(['preview', 'production'])(
+    '%s 변형은 EAS 프로젝트가 있으면 OTA 를 켜고 runtime version 을 fingerprint 정책으로 둔다',
+    (variant) => {
+      const config = evaluate({
+        BACKEND_URL: HTTPS,
+        APP_VARIANT: variant,
+        EAS_PROJECT_ID: PROBE_PROJECT_ID,
+      })
+      expect(config.updates).toEqual({
+        enabled: true,
+        url: `https://u.expo.dev/${PROBE_PROJECT_ID}`,
+        checkAutomatically: 'ON_LOAD',
+        fallbackToCacheTimeout: 0,
+        requestHeaders: { 'expo-channel-name': variant },
+      })
+      expect(config.runtimeVersion).toEqual({ policy: 'fingerprint' })
+      expect(config.extra?.eas).toEqual({ projectId: PROBE_PROJECT_ID })
+    },
+  )
+
+  it.each(['development', 'e2e'])(
+    '%s 변형은 EAS 프로젝트가 있어도 OTA 를 끈다 - 프로젝트 id 는 싣는다(EAS 빌드가 찾는다)',
+    (variant) => {
+      const config = evaluate({
+        BACKEND_URL: HTTPS,
+        APP_VARIANT: variant,
+        EAS_PROJECT_ID: PROBE_PROJECT_ID,
+      })
+      expect(config.updates).toEqual({ enabled: false })
+      expect(config.runtimeVersion).toBeUndefined()
+      expect(config.extra?.eas).toEqual({ projectId: PROBE_PROJECT_ID })
+    },
+  )
+
+  it('EAS 빌드 서버의 EAS_BUILD_PROJECT_ID 로도 켠다 - 로컬 eas-cli 의 평가와 같아진다', () => {
+    const config = evaluate({
+      BACKEND_URL: HTTPS,
+      APP_VARIANT: 'preview',
+      EAS_BUILD_PROJECT_ID: PROBE_PROJECT_ID,
+    })
+    expect(config.updates?.enabled).toBe(true)
+    expect(config.extra?.eas).toEqual({ projectId: PROBE_PROJECT_ID })
+  })
+
+  it('UUID 가 아닌 EAS_PROJECT_ID 는 설정 평가를 멈춘다', () => {
+    expect(() =>
+      evaluate({ BACKEND_URL: HTTPS, APP_VARIANT: 'preview', EAS_PROJECT_ID: 'my-project' }),
+    ).toThrowError('EAS_PROJECT_ID must be a UUID (got "my-project")')
   })
 })
