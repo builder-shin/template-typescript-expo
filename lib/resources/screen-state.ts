@@ -1,6 +1,7 @@
 import type { JsonApiResult } from '@/lib/jsonapi/client'
 import type { CollectionDocument, ErrorObject, SingleDocument } from '@/lib/jsonapi/document'
 import { actionForErrors } from '@/lib/jsonapi/errors'
+import { isUnjudgedStatus } from '@/lib/jsonapi/status'
 import type { ResourceDefinition } from '@/lib/resources/define'
 import {
   bannerMessages,
@@ -25,7 +26,7 @@ import {
  * 된다) 다음 재조회는 그 한 쪽만 읽는다 - D3 최종 검토가 설치본 query-core 로 재 보인 결함이다(6행 → 전체
  * 화면 실패 → 2행). 판정하지 않은 응답(5xx·408·429)은 D4 가 더했다 - D3 재검토가 같은 결함을 백엔드 오류
  * 문서에서 봤고, D4 의 쓰기 뒤 무효화가 그 길을 늘린다. 그 셋을 판정하지 않은 응답으로 보는 것은 회전과
- * 같다(lib/auth/rotation.ts 의 `interpretRotationOutcome`).
+ * 한 규칙이다(`isUnjudgedStatus`, lib/jsonapi/status.ts - 회전의 해석은 lib/auth/rotation.ts).
  *
  * 판정한 백엔드 오류 문서(그 밖의 4xx - 없는 자원, 잘못된 조건)는 결과 값이다 - 재조회의 답이어도 새 답이라
  * 읽은 데이터를 바꾼다(지워진 상세는 not-found). 협상된 문구를 배너로 그린다(`listView`·`detailView`).
@@ -61,22 +62,14 @@ export class UnreachableError extends Error {
 }
 
 /**
- * 백엔드가 답했지만 판정하지 않은 상태 - 서버 쪽 실패(5xx), 요청 시간 초과(408), 너무 많은 요청(429). 회전
- * 응답을 가르는 셋(lib/auth/rotation.ts 의 `interpretRotationOutcome`)과 같다.
- */
-function unjudged(status: number): boolean {
-  return status >= 500 || status === 408 || status === 429
-}
-
-/**
  * 조회 결과를 캐시에 넣을 값으로 - 백엔드의 판정을 받지 못했으면 던진다: 응답조차 없었거나(`actionForErrors` 의
- * `transport`), 판정하지 않은 응답(5xx·408·429)이다. 성공과 판정한 백엔드 오류 문서는 그대로 돌려준다.
- * `request` 는 진단 문구에 쓴다(`'목록'`·`'상세'`·`'참조 목록'`).
+ * `transport`), 판정하지 않은 응답(`isUnjudgedStatus`: 5xx·408·429 - 회전의 해석과 한 규칙이다)이다. 성공과 판정한
+ * 백엔드 오류 문서는 그대로 돌려준다. `request` 는 진단 문구에 쓴다(`'목록'`·`'상세'`·`'참조 목록'`).
  */
 export function throwIfUnreachable<T>(result: JsonApiResult<T>, request: string): JsonApiResult<T> {
   if (result.ok) return result
   if (actionForErrors(result.errors) === 'transport') throw new UnreachableError(request)
-  if (unjudged(result.status)) throw new UnreachableError(request, result)
+  if (isUnjudgedStatus(result.status)) throw new UnreachableError(request, result)
   return result
 }
 
@@ -211,8 +204,16 @@ export interface ReferenceState {
   /** 선택기가 그릴 보기 - 받기 전이면 `null`, 실패했으면 빈 목록이다. */
   readonly list: ReferenceList | null
   /** 보기 대신 그릴 실패. */
-  readonly failure: ListFailure | null
+  readonly failure: ReferenceFailure | null
 }
+
+/**
+ * 선택기가 보기 대신 그리는 실패. `banner` 의 `retryable` 은 목록·상세(`ListScreen`·`DetailScreen`)와 같다 - 첫 조회가
+ * 받은 판정하지 않은 응답(5xx·408·429)의 배너에만 붙고, 선택기가 "다시 시도" 를 함께 그린다. `unreachable` 은 늘
+ * "다시 시도" 와 함께 그린다.
+ */
+export type ReferenceFailure =
+  { kind: 'unreachable' } | { kind: 'banner'; messages: readonly string[]; retryable?: true }
 
 /** 조회가 준 것 - 참조 목록 응답(없으면 `undefined`)과 마지막 조회의 오류. */
 export interface ReferenceQueryFacts {
@@ -226,14 +227,23 @@ export function referenceState(
 ): ReferenceState {
   const unreachable = unreachableOf(facts.error)
   // 받은 목록이 없으면 첫 조회가 받은 판정하지 않은 응답을 그린다.
-  const result = facts.result ?? unreachable?.response
+  const firstResponse = facts.result === undefined ? unreachable?.response : undefined
+  const result = facts.result ?? firstResponse
   if (result === undefined) {
     return unreachable === null
       ? { list: null, failure: null }
       : { list: referenceList(target, null), failure: { kind: 'unreachable' } }
   }
   if (result.ok) return { list: referenceList(target, result.document), failure: null }
-  return { list: referenceList(target, null), failure: referenceFailure(result.errors) }
+  const failure = referenceFailure(result.errors)
+  return {
+    list: referenceList(target, null),
+    // 첫 조회가 판정하지 않은 응답을 받았다 - 잠시 뒤 다시 부르면 달라질 수 있는 실패다(`retryable`).
+    failure:
+      failure.kind === 'banner' && firstResponse !== undefined
+        ? { ...failure, retryable: true }
+        : failure,
+  }
 }
 
 /**

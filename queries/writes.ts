@@ -24,7 +24,8 @@ import { applyCacheEffects, cacheEffects, mutationKeys } from '@/queries/keys'
  * 태우기만 한다 - 키를 손으로 적지 않는다.
  *
  * - access token 은 `sessionManager.getAccessToken()` 에서 받는다 - 회전은 그 안에서만 일어난다
- *   (스펙 7.2). 그 거절은 `write.ts` 가 잡아 앱 문구로 그린다.
+ *   (스펙 7.2). 그 거절은 `write.ts` 가 잡아 앱 문구로 그린다. 회전이 판정을 받지 못해 돌아온 토큰이 이미
+ *   만료됐으면 `write.ts` 가 보내지 않는다(만료 가드) - 그래서 세션(`current`)과 시계도 꽂는다.
  * - 세션 거절은 `write.ts` 가 던지고 쓰기 캐시(`MutationCache`)의 `onError` 한 곳이 받는다(스펙 9.2,
  *   `platform/query-client.ts`). 이 훅들은 그 경우를 따로 다루지 않는다 - 쓰기 화면은 보호 경로라
  *   세션이 지워지면 경로 가드가 로그인으로 보낸다.
@@ -35,6 +36,8 @@ import { applyCacheEffects, cacheEffects, mutationKeys } from '@/queries/keys'
  */
 const WRITE_DEPS: WriteDeps = {
   getAccessToken: sessionManager.getAccessToken,
+  currentSession: sessionManager.current,
+  now: () => Date.now(),
   send: apiRequest,
 }
 

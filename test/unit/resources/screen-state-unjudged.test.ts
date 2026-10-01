@@ -120,6 +120,15 @@ function firstListScreen(status: number) {
   })
 }
 
+/** 관계 선택기의 참조 목록 첫 조회가 이 상태의 오류 문서를 받았을 때 선택기가 그리는 것. */
+function firstReferenceState(status: number) {
+  const { value, error } = queryOutcome(
+    failed<CollectionDocument>([backendError(status)], status),
+    '참조 목록',
+  )
+  return referenceState(PROBE_CRATE, { result: value, error })
+}
+
 /** 상세의 첫 조회가 이 상태의 오류 문서를 받았을 때 화면이 그리는 것. */
 function firstDetailScreen(status: number) {
   const { value, error } = queryOutcome(
@@ -279,12 +288,34 @@ describe('detailScreen - 판정하지 않은 응답과 판정한 응답', () => 
 })
 
 describe('referenceState - 판정하지 않은 응답', () => {
-  it('첫 조회면 그 문구를 보기 대신 그린다', () => {
+  it('첫 조회면 그 문구를 보기 대신 그린다 - 다시 시도가 붙는다', () => {
     expect(referenceState(PROBE_CRATE, { result: undefined, error: busy('목록') })).toEqual({
       list: { options: [], truncated: false },
-      failure: { kind: 'banner', messages: ['PROBE 잠시 뒤에'] },
+      failure: { kind: 'banner', messages: ['PROBE 잠시 뒤에'], retryable: true },
     })
   })
+
+  it.each([503, 429, 408])(
+    '첫 조회의 %i 는 배너에 다시 시도를 붙인다 - 잠시 뒤 다시 부르면 달라질 수 있다',
+    (status) => {
+      expect(firstReferenceState(status)).toEqual({
+        list: { options: [], truncated: false },
+        failure: { kind: 'banner', messages: [`PROBE 문구 ${status}`], retryable: true },
+      })
+    },
+  )
+
+  it.each([400, 403, 409])(
+    '첫 조회의 %i 는 판정한 답이라 다시 시도가 없는 배너다 - 다시 불러도 같은 답이다',
+    (status) => {
+      const state = firstReferenceState(status)
+      expect(state).toEqual({
+        list: { options: [], truncated: false },
+        failure: { kind: 'banner', messages: [`PROBE 문구 ${status}`] },
+      })
+      expect(state.failure).not.toHaveProperty('retryable')
+    },
+  )
 
   it('읽은 목록이 있으면 그대로 둔다', () => {
     expect(referenceState(PROBE_CRATE, { result: okPage(['c1']), error: busy('목록') })).toEqual({
@@ -292,21 +323,35 @@ describe('referenceState - 판정하지 않은 응답', () => {
       failure: null,
     })
   })
+
+  it('읽은 거절(판정한 4xx)이 있으면 재조회의 판정하지 않은 응답은 그 배너를 바꾸지 않는다 - 다시 시도도 붙지 않는다', () => {
+    const rejected = failed<CollectionDocument>([backendError(400)], 400)
+    const state = referenceState(PROBE_CRATE, { result: rejected, error: busy('참조 목록') })
+    expect(state).toEqual({
+      list: { options: [], truncated: false },
+      failure: { kind: 'banner', messages: ['PROBE 문구 400'] },
+    })
+    expect(state.failure).not.toHaveProperty('retryable')
+  })
 })
 
 describe('목록·상세·참조 목록은 첫 조회가 받은 오류 문서를 같게 읽는다 - failureOf 의 규칙', () => {
   // 응답을 실은 오류를 직접 지어 셋에 같은 문서를 넣는다. 합성 오류를 응답으로 싣는 오류는 `throwIfUnreachable` 가
   // 만들지 않지만 오류의 모양은 허용한다 - 목록·상세의 `unreachable` 갈래가 이 시험으로 닫힌다.
-  it.each<[string, ErrorObject[], string]>([
-    ['합성 오류(응답조차 없었다)는 닿지 못함이다', [SYNTHETIC], 'unreachable'],
-    ['문구가 있는 오류 문서는 그 문구의 배너다', [BUSY], 'banner'],
-  ])('%s', (_, errors, kind) => {
+  it.each<[string, ErrorObject[], string, true | undefined]>([
+    ['합성 오류(응답조차 없었다)는 닿지 못함이다', [SYNTHETIC], 'unreachable', undefined],
+    ['문구가 있는 오류 문서는 그 문구의 다시 시도가 붙은 배너다', [BUSY], 'banner', true],
+  ])('%s', (_, errors, kind, retryable) => {
     const error = new UnreachableError('조회', failedResponse(errors, 503))
-    expect(
-      listScreen(PROBE_CRATE, PLAN, { pages: undefined, error, nextPageFailed: false }).kind,
-    ).toBe(kind)
-    expect(detailScreen(PROBE_CRATE, { result: undefined, error }).kind).toBe(kind)
-    expect(referenceState(PROBE_CRATE, { result: undefined, error }).failure?.kind).toBe(kind)
+    const list = listScreen(PROBE_CRATE, PLAN, { pages: undefined, error, nextPageFailed: false })
+    const detail = detailScreen(PROBE_CRATE, { result: undefined, error })
+    const reference = referenceState(PROBE_CRATE, { result: undefined, error }).failure
+    expect([list.kind, detail.kind, reference?.kind]).toEqual([kind, kind, kind])
+    expect([
+      'retryable' in list ? list.retryable : undefined,
+      'retryable' in detail ? detail.retryable : undefined,
+      reference !== null && 'retryable' in reference ? reference.retryable : undefined,
+    ]).toEqual([retryable, retryable, retryable])
   })
 
   it('문구가 하나도 없는 오류 문서는 계약 위반이라 셋 다 던진다 - 참조 목록만 앱 문구로 가리지 않는다', () => {

@@ -221,8 +221,8 @@
     },
     {
       "path": "lib/auth/rotation.ts",
-      "what": "interpretRotationOutcome 이 5xx·408·429 도 unreachable 로 돌려준다(원본은 status 0 만) - 그 갈래 하나와 함수 주석 끝의 (template-typescript-expo) 문단을 더했다.",
-      "why": "스펙 7.2 의 D4 정정 - 그 셋은 백엔드가 refresh token 을 판정하지 않은 응답이라 \"인증 거절\" 이 아니다. 원본처럼 파기로 모으면 세션이 30일인 앱에서 회전 순간의 502 하나가 사용자를 로그아웃시킨다(docs/superpowers/notes/2026-10-01-d2-carry-forward.md 의 D4 절)."
+      "what": "interpretRotationOutcome 이 5xx·408·429 도 unreachable 로 돌려준다(원본은 status 0 만) - 그 갈래 하나를 더했다. 판정은 lib/jsonapi/status.ts 의 isUnjudgedStatus 로 한다(import 하나) - 조회의 throwIfUnreachable 과 한 규칙이다. 함수 주석은 원본의 두 문단('status !== 0 인 ok:false 는 전부 destroy 로 수렴시킨다', '오직 status === 0 만 unreachable 이다')이 새 동작과 어긋나서, 갈래 셋의 목록(판정하지 않음 → unreachable, 판정하고 거절 → destroy, 성공 → rotated)으로 다시 썼다. 원본의 근거(코드가 아니라 판정 여부로 가른다, 422 도 파기한다, 잠깐 죽은 백엔드에 모두를 로그아웃시키지 않는다)는 남기고, 5xx·408·429 의 근거와 대가, 회전이 판정을 받지 못한 채 돌아온 access 가 이미 만료돼 있을 수 있다는 것과 쓰기의 만료 가드(lib/resources/write.ts)를 더했다.",
+      "why": "스펙 7.2 의 D4 정정 - 그 셋은 백엔드가 refresh token 을 판정하지 않은 응답이라 \"인증 거절\" 이 아니다. 원본처럼 파기로 모으면 세션이 30일인 앱에서 회전 순간의 502 하나가 사용자를 로그아웃시킨다(docs/superpowers/notes/2026-10-01-d2-carry-forward.md 의 D4 절). 판정 규칙을 한 파일에 두는 것은 회전과 조회의 queryFn 이 따로 베끼면 한 곳만 고치는 사고가 나기 때문이다 - test/unit/jsonapi/status.test.ts 가 두 소비자가 모든 HTTP 상태에서 그 규칙과 같은 답을 내는지 잰다. 오래된 주석의 두 문단을 남기면 새 갈래와 모순된다."
     },
     {
       "path": "test/unit/auth/rotation.test.ts",

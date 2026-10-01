@@ -58,6 +58,9 @@ const VALUES: ResourceFormValues = {
 const TOKEN = 'probe-access-token'
 const PROBE_ID = 'probe-crate-1'
 
+/** 가짜 시계가 서 있는 시각 - 세션의 access 만료는 이 시각을 기준으로 잡는다. */
+const NOW = 1_800_000_000_000
+
 /** 백엔드가 낸 오류 하나. */
 function backendError(error: Partial<ErrorObject> & { code: string }): ErrorObject {
   return { status: '400', title: 'probe-title', detail: `probe-detail-${error.code}`, ...error }
@@ -84,7 +87,10 @@ function created(id: string | null): JsonApiResult<SingleDocument> {
   }
 }
 
-/** 보낸 요청을 적고 정해 둔 결과를 차례로 돌려주는 가짜 의존성. */
+/**
+ * 보낸 요청을 적고 정해 둔 결과를 차례로 돌려주는 가짜 의존성. 세션은 access 가 15분 남은 멀쩡한 것이다 - 만료를
+ * 시험하는 곳만 `currentSession` 을 바꾼다.
+ */
 function probeDeps(
   results: JsonApiResult<SingleDocument>[],
   token: () => Promise<string | null> = () => Promise.resolve(TOKEN),
@@ -102,6 +108,8 @@ function probeDeps(
       tokenCalls += 1
       return token()
     },
+    currentSession: () => ({ accessExpiresAt: NOW + 900_000 }),
+    now: () => NOW,
     send,
   }
   return { deps, sent, tokenCalls: () => tokenCalls }
@@ -417,5 +425,86 @@ describe('deleteResource', () => {
       messages: [UNUSABLE_RESPONSE_MESSAGE],
     })
     expect(storage.sent).toEqual([])
+  })
+})
+
+/**
+ * 만료 가드 - 세션 관리자는 회전이 판정을 받지 못하면(5xx·408·429·닿지 못함) 지금의 access 를 그대로 돌려준다.
+ * access 는 15분이고 쓰기만 그 토큰을 쓰므로, 회전이 필요한 순간에는 이미 만료돼 있는 일이 흔하다. 그 토큰을
+ * 실어 보내면 TOKEN_EXPIRED 가 오고 세션이 지워진다 - 회전의 502 하나가 쓰기 한 번 늦게 로그아웃이 된다.
+ * 그래서 받은 토큰의 세션이 이미 만료됐으면 요청하지 않고 앱 문구로 알린다(던지지 않는다 - 세션 거절이 아니다).
+ * 실제 세션 관리자와 잇는 시험은 test/unit/resources/write-session.test.ts 다.
+ */
+const TRANSIENT_STATE = {
+  documentErrors: [UNUSABLE_RESPONSE_MESSAGE],
+  fieldErrors: {},
+  relationshipErrors: {},
+  submitted: VALUES,
+}
+
+describe.each([
+  {
+    name: '생성',
+    run: (deps: WriteDeps) => createResource(PROBE_CRATE, VALUES, deps),
+    reply: created(PROBE_ID),
+    method: 'POST',
+    transient: { kind: 'failed', state: TRANSIENT_STATE },
+  },
+  {
+    name: '수정',
+    run: (deps: WriteDeps) => updateResource(PROBE_CRATE, PROBE_ID, VALUES, deps),
+    reply: { ok: true, status: 200, document: { data: null } } as JsonApiResult<SingleDocument>,
+    method: 'PATCH',
+    transient: { kind: 'failed', state: TRANSIENT_STATE },
+  },
+  {
+    name: '삭제',
+    run: (deps: WriteDeps) => deleteResource(PROBE_CRATE, PROBE_ID, deps),
+    reply: { ok: true, status: 204, document: null } as JsonApiResult<SingleDocument>,
+    method: 'DELETE',
+    transient: { kind: 'failed', messages: [UNUSABLE_RESPONSE_MESSAGE] },
+  },
+])('만료 가드 - $name', ({ run, reply, method, transient }) => {
+  it('access 가 이미 만료됐으면 요청하지 않고 앱 문구를 돌려준다 - 던지지 않는다', async () => {
+    const { deps, sent, tokenCalls } = probeDeps([])
+    const outcome = await run({ ...deps, currentSession: () => ({ accessExpiresAt: NOW - 1 }) })
+    expect(outcome).toEqual(transient)
+    expect(sent).toEqual([])
+    expect(tokenCalls()).toBe(1)
+  })
+
+  it('만료 시각과 같은 순간도 만료다', async () => {
+    const { deps, sent } = probeDeps([])
+    const outcome = await run({ ...deps, currentSession: () => ({ accessExpiresAt: NOW }) })
+    expect(outcome).toEqual(transient)
+    expect(sent).toEqual([])
+  })
+
+  it('access 가 아직 유효하면(1ms 남았어도) 그 토큰으로 보낸다', async () => {
+    const { deps, sent } = probeDeps([reply])
+    await run({ ...deps, currentSession: () => ({ accessExpiresAt: NOW + 1 }) })
+    expect(sent).toHaveLength(1)
+    expect(sent[0]?.options.method).toBe(method)
+    expect(sent[0]?.options.accessToken).toBe(TOKEN)
+  })
+})
+
+describe('만료 가드 - 세션을 알 수 없을 때', () => {
+  it('currentSession 이 null 이면 만료를 판정할 수 없다 - getAccessToken 이 준 토큰으로 보낸다', async () => {
+    const { deps, sent } = probeDeps([created(PROBE_ID)])
+    await createResource(PROBE_CRATE, VALUES, { ...deps, currentSession: () => null })
+    expect(sent).toHaveLength(1)
+    expect(sent[0]?.options.accessToken).toBe(TOKEN)
+  })
+
+  it('토큰이 없으면(세션이 없다) 만료 가드보다 앞서 세션 거절을 던진다 - 요청하지 않는다', async () => {
+    const none = probeDeps([], () => Promise.resolve(null))
+    await expect(
+      createResource(PROBE_CRATE, VALUES, {
+        ...none.deps,
+        currentSession: () => ({ accessExpiresAt: NOW - 1 }),
+      }),
+    ).rejects.toSatisfy(isSessionRejected)
+    expect(none.sent).toEqual([])
   })
 })

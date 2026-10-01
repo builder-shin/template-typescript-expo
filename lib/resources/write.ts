@@ -27,6 +27,11 @@ import {
  * - access token 은 주입받은 `getAccessToken` 에서 쓰기마다 한 번 받는다. 앱에서는 세션 관리자의
  *   것이고, 회전은 그 안에서만 일어난다(스펙 7.2). 401 에 회전·재시도를 붙이지 않는다.
  * - 쓰기 가드(스펙 7.3 의 두 번째 겹): 토큰이 없으면(세션이 없다) 요청하지 않는다.
+ * - 만료 가드(스펙 7.2): 세션 관리자는 회전이 판정을 받지 못하면(5xx·408·429·닿지 못함) 세션을 지우지 않고 지금의
+ *   access 를 그대로 돌려준다. access 는 15분이고 쓰기만 그 토큰을 쓰므로, 회전이 필요한 순간에는 이미 만료돼 있는
+ *   일이 흔하다 - 그 토큰을 실으면 백엔드가 TOKEN_EXPIRED 를 내고 세션이 지워져 회전의 502 하나가 쓰기 한 번 늦게
+ *   로그아웃이 된다. 그래서 받은 토큰의 세션이 이미 만료됐으면 요청하지 않고 앱 문구로 알린다 - 던지지 않으니 세션은
+ *   그대로이고, 입력이 그대로 남은 폼의 제출 버튼이 곧 다시 시도다.
  * - 세션이 없거나 백엔드가 세션을 거절하면(인증 오류 코드) `sessionRejected()` 를 던진다. 인증 오류는
  *   Query 캐시의 `onError` 한 곳이 받아 세션을 지운다(스펙 9.2, `platform/query-client.ts`) - 쓰기
  *   화면은 보호 경로라 경로 가드가 `next` 를 실어 로그인으로 보낸다.
@@ -52,6 +57,12 @@ export function isSessionRejected(error: unknown): boolean {
   return error instanceof Error && error.name === SESSION_REJECTED
 }
 
+/** 쓰기가 보는 세션의 한 면 - access token 의 만료 시각이다. 세션 관리자의 `StoredSession` 이 그대로 맞는다. */
+export interface WriteSession {
+  /** epoch ms. 이 시각부터 백엔드가 TOKEN_EXPIRED 를 낸다. */
+  readonly accessExpiresAt: number
+}
+
 /** 쓰기가 주입받는 것 - 앱에서는 세션 관리자와 API 클라이언트다(`queries/writes.ts`). */
 export interface WriteDeps {
   /**
@@ -59,6 +70,13 @@ export interface WriteDeps {
    * 거절한다 - 새 세션은 메모리에 있으므로 다시 제출하면 새 토큰으로 간다(lib/auth/session-manager.ts).
    */
   readonly getAccessToken: () => Promise<string | null>
+  /**
+   * 지금의 세션 - 만료 가드가 `getAccessToken` 이 돌려준 토큰의 만료를 본다. 앱에서는 세션 관리자의 `current` 다.
+   * 없으면(`null`) 만료를 판정할 수 없으니 `getAccessToken` 이 준 토큰을 믿는다.
+   */
+  readonly currentSession: () => WriteSession | null
+  /** 지금 시각(epoch ms) - 만료 판정의 기준이다. 세션 관리자와 같은 시계다. */
+  readonly now: () => number
   readonly send: JsonApiSend
 }
 
@@ -82,6 +100,10 @@ type AccessToken = { readonly ok: true; readonly token: string } | { readonly ok
  * 쓰기 하나가 실을 토큰. 세션이 없으면 던진다(쓰기 가드). 저장소가 실패해 거절되면 `ok: false` 다 -
  * 화면이 앱 문구를 그린다. 거절을 삼키지 않고 기기 로그에 남긴다(lib/auth/AGENTS.md 의 "호출자는
  * 삼키지 말고 알린다") - 오류의 이름과 문구만 적어 토큰이 로그에 실리지 않는다(스펙 7.1).
+ *
+ * 받은 토큰의 세션이 이미 만료됐어도 `ok: false` 다(만료 가드, 이 파일 머리말) - 요청하지 않는다. 던지지 않고 로그도
+ * 남기지 않는다: 오류가 아니라 백엔드가 회전을 판정하지 않는 동안의 정상 경로이고, 세션은 건드리지 않는다. 만료는
+ * 세션 관리자와 같은 시계로 잰다 - 만료 시각과 같은 순간도 만료다(JWT 의 `exp` 는 그 시각부터 받아 주지 않는다).
  */
 async function accessToken(deps: WriteDeps): Promise<AccessToken> {
   let token: string | null
@@ -93,6 +115,8 @@ async function accessToken(deps: WriteDeps): Promise<AccessToken> {
     return { ok: false }
   }
   if (token === null) throw sessionRejected()
+  const session = deps.currentSession()
+  if (session !== null && session.accessExpiresAt <= deps.now()) return { ok: false }
   return { ok: true, token }
 }
 
