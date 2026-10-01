@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { BASH_TIMEOUT_MS, resolveBash } from '../support/bash'
 
@@ -47,5 +48,91 @@ describe('test/e2e/native-backend.sh', () => {
     const result = run('fastapi', 'probe-lab-unknown')
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('사용법')
+  })
+})
+
+// Bundler는 이 clone만 고친다. 실제 하네스의 가드는 lockfile 전체를 비교해야 한다.
+const LOCK = `GEM
+  remote: https://rubygems.org/
+  specs:
+    probe (1.0.0)
+
+PLATFORMS
+  arm64-darwin-24
+  arm64-darwin-25
+
+DEPENDENCIES
+  probe
+
+CHECKSUMS
+  probe (1.0.0) sha256=abc
+
+BUNDLED WITH
+   4.0.5
+`
+const PLATFORM_LOCK = LOCK.replace('PLATFORMS\n', 'PLATFORMS\n  arm64-darwin-23\n')
+
+function adaptRailsLock(after: string) {
+  const work = mkdtempSync(join(tmpdir(), 'rails-platform-'))
+  try {
+    const src = join(work, 'native', 'rails', 'src')
+    const bin = join(work, 'bin')
+    mkdirSync(join(src, '.git'), { recursive: true })
+    mkdirSync(bin)
+    writeFileSync(join(src, 'Gemfile.lock'), LOCK)
+    writeFileSync(join(work, 'after.lock'), after)
+    writeFileSync(join(bin, 'ruby'), '#!/bin/sh\nprintf arm64-darwin-23\n')
+    writeFileSync(
+      join(bin, 'bundle'),
+      '#!/bin/sh\n[ "$*" = "lock --add-platform arm64-darwin-23" ] || exit 99\ncp "$AFTER_LOCK" Gemfile.lock\n',
+    )
+    chmodSync(join(bin, 'ruby'), 0o755)
+    chmodSync(join(bin, 'bundle'), 0o755)
+    const result = spawnSync(
+      bash,
+      [
+        '-c',
+        'export PATH="$(cd "$1" && pwd):$PATH"; exec bash "$2" lock-platform',
+        'bash',
+        toPosix(bin),
+        toPosix(SCRIPT),
+      ],
+      {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          BACKEND_KIND: 'rails',
+          GITHUB_ACTIONS: 'true',
+          RUNNER_TEMP: toPosix(work),
+          E2E_NATIVE_DIR: toPosix(join(work, 'native')),
+          AFTER_LOCK: toPosix(join(work, 'after.lock')),
+        },
+        timeout: BASH_TIMEOUT_MS,
+      },
+    )
+    return { ...result, lock: readFileSync(join(src, 'Gemfile.lock'), 'utf8') }
+  } finally {
+    rmSync(work, { recursive: true, force: true })
+  }
+}
+
+describe('Rails 임시 clone 잠금 플랫폼 가드', () => {
+  it('Ruby가 보고한 플랫폼 한 줄만 더해지면 성공한다', () => {
+    const result = adaptRailsLock(PLATFORM_LOCK)
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.lock).toBe(PLATFORM_LOCK)
+  })
+
+  it.each([
+    ['gem 버전', PLATFORM_LOCK.replace('probe (1.0.0)', 'probe (1.0.1)')],
+    ['의존성', PLATFORM_LOCK.replace('DEPENDENCIES\n  probe', 'DEPENDENCIES\n  other')],
+    ['소스', PLATFORM_LOCK.replace('https://rubygems.org/', 'https://other.invalid/')],
+    ['체크섬', PLATFORM_LOCK.replace('sha256=abc', 'sha256=def')],
+    ['다른 플랫폼', PLATFORM_LOCK.replace('  arm64-darwin-25', '  x86_64-linux')],
+  ])('%s도 바뀌면 실패하고 원본을 복구한다', (_name, after) => {
+    const result = adaptRailsLock(after)
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('PLATFORMS')
+    expect(result.lock).toBe(LOCK)
   })
 })

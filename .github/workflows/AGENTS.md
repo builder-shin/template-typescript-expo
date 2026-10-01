@@ -27,6 +27,9 @@
   `action.yml` 에서 확인하고 actionlint 를 돈다.
 - Node 는 `24.19.0`, pnpm 은 `package.json` 의 `packageManager` 다. Android 는 API 36 Google Play 이미지·`pixel_7`
   (로컬 게이트의 AVD 와 같은 이미지·폭), iOS 는 러너의 기본 Xcode 와 가장 새 iOS 런타임의 iPhone 이다.
+- Rails는 Ruby 설치 → `native-backend.sh lock-platform` → 기존 Ruby 젬 캐시 순서다. 사전 빌드 Ruby 3.4.8이
+  `arm64-darwin-23`을 보고하므로 CI 임시 clone의 `PLATFORMS` 한 줄만 확장한다(D7-R14). 다른 잠금 변경은
+  원본을 복구하고 실패한다. 백엔드 원격을 고치지 않고 frozen 설치와 캐시를 유지한다.
 - macOS 러너의 bash 는 3.2 다(Mac 을 쓰는 사람의 기본 bash 도 같다). macOS 잡이 부르는 스크립트(`test/e2e/ios.sh`·
   `run-ios.sh`·`native-backend.sh`·`install-maestro.sh`·`guard-log.sh`)와 `run:` 은 bash 3.2 에서 도는 구문만 쓴다 -
   연관 배열·`mapfile`·`${x,,}` 를 쓰지 않고, `set -u` 아래에서 빌 수 있는 배열을 `"${a[@]}"` 로 펼치지 않는다.

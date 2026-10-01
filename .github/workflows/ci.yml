@@ -368,6 +368,18 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ steps.backend.outputs.ruby }}
+          working-directory: ${{ steps.backend.outputs.src }}
+
+      # D7-R14: 사전 빌드 Ruby의 플랫폼만 CI 임시 clone에 더하고, 다른 잠금 변경은 가드가 막는다.
+      - name: Rails 잠금 플랫폼
+        if: matrix.backend == 'rails'
+        run: test/e2e/native-backend.sh lock-platform
+
+      - name: Ruby 젬 캐시
+        if: matrix.backend == 'rails'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ steps.backend.outputs.ruby }}
           bundler-cache: true
           working-directory: ${{ steps.backend.outputs.src }}
 

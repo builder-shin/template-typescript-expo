@@ -9,6 +9,7 @@ appId: com.example.templateexpo.e2e
 - runFlow: ../subflows/register.yaml
 # 로그인한 채 보호 경로를 딥링크로 연다 - 가드가 막지 않는다.
 - openLink: templateexpo-e2e://examples/new
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: new-example-screen

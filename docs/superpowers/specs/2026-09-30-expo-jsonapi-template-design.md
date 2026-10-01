@@ -213,6 +213,12 @@ docs/superpowers/specs/ · plans/ · notes/
 > (`native-backend.sh`), 백엔드 종류 검증(`matrix.ts` - Next.js 에서 원본 그대로), 요청 타임아웃 확인(`stall-server.ts`·
 > `checks/`), Maestro 설치(`install-maestro.sh`)가 산다.
 
+> 정정(2026-10-02, D7): 트리에 `plugins/`를 더한다. 생성된 네이티브 프로젝트 파일을 고치는 Expo 설정 플러그인의
+> 자리이며 판단·화면·네트워크를 두지 않는다(루트와 `plugins/AGENTS.md`). `with-android-splash-exit.ts`는 Expo splash
+> 플러그인 뒤에서 모든 변형의 Kotlin MainActivity에 API 31 이상의 exit listener 해제를 넣는다. 소스는 Node type
+> stripping으로 평가할 수 있어야 한다. 앵커와 업그레이드 뒤 확인법은 `plugins/AGENTS.md`, 원인과 대가는 16장의
+> D7 실측 정정이다.
+
 ## 5. 계층 소유권
 
 | 위치 | 소유하는 것 | 소유하지 않는 것 |
@@ -1301,6 +1307,14 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > 네이티브 백엔드 구동은 CI에서만 검증된다" 의 대응(처음 통과할 때까지 CI 를 반복해 돌린다)은 코드를 고쳐 새 실행을 만드는
 > 것이다 - 같은 코드로 다시 돌리지 않는다(D7 실측 기록 K3). (4) macOS 러너와 Mac 의 기본 bash 는 3.2 다 - macOS 에서 도는
 > 스크립트는 그 구문만 쓴다(`.github/workflows/AGENTS.md`).
+
+> 정정(2026-10-02, D7 실측 K3, 컨트롤러 D7-R15): Android 16에서 Expo splash의 앱 전송이 2초 제한을 넘으면
+> 성공 경로의 starting-window 애니메이션 취소를 거치지 않아 `starting_reveal`이 남을 수 있다. 실행 2의 FastAPI·Rails
+> 로그에서 전송 timeout state 2와 같은 MainActivity의 반복된 5초 애니메이션 대기가 확인됐고 문자 입력은 Maestro의
+> 120초 RPC 제한으로 실패했다. `with-android-splash-exit.ts`가 등록 직후·`super.onCreate` 전에 API 31 이상에서
+> `splashScreen.clearOnExitAnimationListener()`를 호출해 시스템 기본 exit를 쓴다. Expo의 splash 유지·hide 프리드로우
+> 게이트와 iOS는 보존하지만 Android의 400ms fade를 포기한다. 생성 앵커가 바뀌면 prebuild가 오류로 멈춘다. 로컬에서
+> 자연 재현되지 않은 한계를 K3에 적었으며 수정의 CI 검증은 아직 진행 중이다.
 
 ## 17. 완료 조건
 

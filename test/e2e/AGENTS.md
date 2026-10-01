@@ -19,6 +19,12 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
 - 하네스는 `MAESTRO_CLI_NO_ANALYTICS=1`로 Maestro 의 사용 통계를 끄고, 플로마다 `--debug-output`으로
   기록을 따로 받는다.
 - 화면 요소는 testID(`id:`)로 찾는다. 문구로 찾지 않는다 - 오류 문구는 백엔드가 협상한 언어다.
+  유일한 OS 예외는 `subflows/confirm-ios-open-link.yaml`의 `Open` 텍스트 버튼이다(컨트롤러 D7-R16).
+  iOS 26.5는 외부에서 연 사용자 정의 scheme에 `Open in “Template Expo (E2E)”?` 확인창을 띄우고,
+  Maestro 2.11.0의 `IOSDriver.openLink`는 그 창을 처리하지 않는다. 모든 `openLink` 뒤에 이 서브플로를 부른다.
+  iOS이고 정확한 제목이 보일 때만 누르고 제목이 사라졌는지 단언한다. 앱의 목적 화면 단언은 그대로다.
+  OS 버튼에는 앱의 testID가 없다. 앱별 `AppleLanguages` 인자는 OS 영어 확인창과 별개다.
+  `flows.test.ts`가 이 한 곳의 예외와 호출 누락을 막는다. 증거는 실측 K3의 실행 2 스크린샷·hierarchy다.
 - D1 실측(M8·M3)에서 걸린 것: `evalScript` 값은 따옴표로 감싼다. `launchApp` 뒤에는 화면 요소를
   기다린 다음 `openLink`를 보낸다(직후의 딥링크는 버려진다). `console.log`는 콘솔이 아니라 디버그
   로그(`maestro.log`)에 남는다. 로캘 플로에는 `clearState`를 쓰지 않는다 - 앱별 언어가 지워진다.
@@ -261,6 +267,9 @@ Android 와 같고, 다른 것은 이렇다.
   환경은 `docker-compose.e2e.yml` 과 같다. 저장소 주소는 `native-backend.sh repo-url` 한 곳이고
   `test/unit/e2e/native-backend.test.ts` 가 compose 의 빌드 컨텍스트와 맞댄다. 하네스는 `start`·`stop` 만 부른다 -
   `services`·`fetch`·`prepare` 는 CI 가 앞 단계로, 로컬에서는 손으로 한 번 돈다(아래).
+  CI의 Rails는 Ruby 설치 뒤 `lock-platform`을 먼저 부른다(D7-R14). 러너의 사전 빌드 Ruby 3.4.8은
+  `arm64-darwin-23`이고 백엔드 잠금은 Darwin 24/25만 담아, 임시 clone의 `PLATFORMS` 한 줄만 더한다.
+  다른 바이트가 바뀌면 원본을 복구하고 멈춘다. backend 원격은 고치지 않으며 설치는 frozen이다.
 - 가드: 플로마다 시뮬레이터 로그(`log stream` - 서브시스템 `com.facebook.react.log`)를 `<플로>/device.ndjson` 으로
   받아 `ios-log.ts` 가 `adb logcat -v brief` 모양(`<플로>/device.log`)으로 옮기고 같은 `guard-log.sh` 에 넘긴다.
   React Native 의 iOS 는 JS 의 info 와 warn 을 같은 유형으로 남긴다 - e2e 변형이 경고 앞에 `[e2e-warn]` 을

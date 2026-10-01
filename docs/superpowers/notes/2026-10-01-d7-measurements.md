@@ -223,6 +223,7 @@ README보다 새 판이었다(`Set up job` 로그). 그 잡에서 정적 게이�
 | 실행 | 커밋 | 칸별 결과 | 원인과 고친 것 |
 | --- | --- | --- | --- |
 | 1 — [36892458805](https://github.com/builder-shin/template-typescript-expo/actions/runs/36892458805) | `1d15b4d` | checks·build-android·build-ios success; android fastapi·nestjs·rails failure; ios fastapi·nestjs·rails failure | iOS 셋: 없는 `setup-uv@v10` 별칭 → D7-R13으로 `@v10.2.0` 고정. Android의 첫 상세 예외는 숨김 debug 제외로 유실 → 두 플랫폼 기록에 `include-hidden-files: true`, K3 화면 캡처 셋 추가. Android 플로 실패 원인은 아직 미확정이며 다음 실행의 원본 로그로 찾는다. |
+| 2 — [36901767491](https://github.com/builder-shin/template-typescript-expo/actions/runs/36901767491) | `d8e0592` | checks·build-android·build-ios·android nestjs success; android fastapi·rails 및 ios 셋 failure | Rails: Ruby Darwin 23 플랫폼이 잠금에 없어 frozen Bundler 실패 → D7-R14 플랫폼 가드. Android 둘: splash 전송 timeout 뒤 남은 starting_reveal → D7-R15 native exit listener 해제. iOS 둘: 딥링크 시스템 확인창 → D7-R16 공통 확인창 처리. 아래에 첫 오류·증거·검증을 적는다. |
 
 **실행 1의 실패 증거와 고침.** 생성 시각은 `2026-10-01T16:30:04Z`, 결론은 `failure`다. 칸마다 걸린 시간:
 
@@ -262,6 +263,69 @@ README보다 새 판이었다(`Set up job` 로그). 그 잡에서 정적 게이�
 실행 원본은 `.maestro-output/d7-run-1/run.json`, 잡 로그·아티팩트는 같은 디렉터리의 `*.log`·`artifacts/`,
 통합 로그는 `.maestro-output/d7-run-1-failed.log`·`d7-run-1-full.log`에 보존했다. iOS E2E 아티팩트는 checkout
 전에 실패해 생성되지 않았다. 같은 코드의 CI 재실행은 없었다.
+
+**실행 2의 Rails 준비 실패.** `2026-10-01T18:01:45.9025440Z`의 첫 오류는 `Your bundle only supports platforms
+["aarch64-linux", "arm64-darwin-24", "arm64-darwin-25", "x86_64-linux"] but your local platform is arm64-darwin-23.`다.
+`.ruby-version`의 Ruby 3.4.8은 그대로지만 setup-ruby의 prebuilt가 Darwin 23으로 만들어져 Bundler 4.0.5의 frozen
+deployment가 exit 16으로 막았다. PostgreSQL 18.6 bottle·Redis 준비는 통과했고 Rails E2E는 시작하지 않았다.
+컨트롤러 D7-R14는 CI 임시 clone에 Ruby의 현재 플랫폼 한 줄만 더하도록 승인했다. `lock-platform`은 lockfile 전체를
+비교해 그 `PLATFORMS` 추가 외 변경을 복구하고 실패하며, frozen 설치·젬 캐시는 유지한다. backend 원격은 고치지
+않는다. 실제 bash를 돌린 가드 시험은 플랫폼-only 성공과 버전·의존성·소스·체크섬·다른 플랫폼 변경 실패를 잰다.
+로그·소스 근거는 `.maestro-output/d7-run-2/`에, red/green 시험 로그는 `rails-guard-red.log`·`rails-guard-green.log`에 있다.
+이 고침은 실행 2의 다른 실패와 한 배치로 보낸다. 고친 커밋은 다음 실행 행의 머리다.
+실제 backend lockfile의 별도 fixture도 캐시된 Rails 이미지(Ruby 3.4.8/Bundler 4.0.5)로 확인했다. Darwin 23을 더한
+전체 diff는 `PLATFORMS` 한 줄뿐이다(`.maestro-output/d7-run-2/rails-lock-probe.log`·`rails-lock-probe/Gemfile.lock`).
+macOS E2E 재현은 아니며 lock 연산만 확인한 것이다. `joon` 9 → 9, `--rm` probe 컨테이너 잔여 0.
+
+**실행 2의 Android 입력 실패.** FastAPI `auth-links`의 첫 상세 예외는 `2026-10-01 18:19:06.317`의
+`DeviceServerDiedException: Device server died during 'inputText'` / `DEADLINE_EXCEEDED after 119.997732736s`다.
+Rails도 같은 입력 단계다. 숨김 `logs/device-logcat.txt`에는 앱의 `Activity transferring splash screen timeout … state 2`
+가 FastAPI `18:16:11.379`, Rails `18:17:56.406`에 있고, 이어 같은 MainActivity의 `animationType=starting_reveal`
+대기가 반복된다. 키 입력마다 동기화 두 번이 각 5초를 소비해 67자 이메일이 RPC 120초 제한을 넘겼다. 서버 프로세스가
+실제로 죽은 것은 아니며 deadline 뒤에도 키 로그가 이어진다. NestJS는 22플로를 통과했고 해당 이메일 입력은 17.015초였다.
+통과 플로에도 `QueryController` idle 경고가 있으므로 그것을 원인으로 쓰지 않는다.
+
+설치된 Expo splash 57.0.9의 `SplashScreenManager.kt`는 Android exit listener를 항상 등록한다. AOSP
+`android16-release`의 `ActivityRecord`는 전송 제한을 2000ms로 두며, attach 성공은 starting-window 애니메이션을
+취소하지만 timeout state 2는 그 취소를 거치지 않고 제거 경로를 다시 호출한다. `WindowState.removeIfPossible`은
+첫 `starting_reveal`만 취소한다. `UiAutomation.injectInputEvent`의 두 인자 호출은 애니메이션 대기를 켠다.
+소스 원본은 `.maestro-output/d7-run-2/aosp-*.java`와 Maestro 소스에 보존했다. 다른 저장소의 관련 이슈는 조사 단서로만
+썼고 이 결론의 근거는 실제 CI 로그와 설치된 Expo·AOSP·Maestro 구현이다.
+
+컨트롤러 D7-R15는 모든 변형의 native exit listener 해제를 승인했다. 새 `plugins/`는 Kotlin 앵커가 각각 한 번일 때만
+등록 뒤·super 앞에 API 31 가드를 넣고, 이미 넣었으면 같은 소스를 돌려준다. 애니메이션 설정·RPC 제한·입력 내용·플로
+단언·가드는 그대로며 Android 400ms fade를 시스템 기본 exit로 바꾸는 대가가 있다. 실제 Linux CI APK로 Windows
+Pixel 9 GPU auto와 새 Pixel 7 SwiftShader AVD에서 `auth-links`를 각 한 번 돌려 통과했다. 자연 재현되지 않았으므로
+그 두 성공을 원인 수정의 증명으로 쓰지 않는다. 각각 `joon` 9 → 9, E2E compose 잔여 0이었다.
+
+**실행 2의 iOS 딥링크 확인창.** FastAPI·NestJS의 첫 `auth-links`는 홈까지 통과한 뒤 `openLink`의 목적 화면
+`login-screen` 단언에 실패했다. 둘의 실패 PNG·hierarchy에 `Open in “Template Expo (E2E)”?`와 `Cancel`·`Open`이
+있으며, 뒤 플로도 남은 시스템 창 때문에 `home-screen`을 보지 못했다. log stream의 TERM/wait hang이나 driver startup
+timeout이 아니다. Maestro 2.11.0 `IOSDriver.openLink`는 확인창을 처리하지 않고 `autoVerify`도 쓰지 않는다.
+컨트롤러 D7-R16이 `confirm-ios-open-link.yaml`을 승인했다. 모든 기존 `openLink` 뒤에 호출하며, iOS에서 정확한 OS
+제목이 보일 때만 native `Open` 텍스트 버튼을 누르고 그 제목이 사라졌는지 단언한다. OS 버튼에는 앱 testID가 없어서
+이 한 곳만 텍스트 누름 예외이며 소스 시험이 예외·누락을 막는다. URL·앱 단언·timeout·키체인·두 번 누름은 그대로다.
+앱별 AppleLanguages 인자는 OS 영어창과 별개다. 실제 iOS 검증은 새 CI 실행으로만 할 수 있다.
+
+**실행 2 칸별 시간.** checks 2:38, build-android 25:54, android fastapi 29:54, android nestjs 25:33,
+android rails 33:18, build-ios 14:54, ios fastapi 54:06, ios nestjs 54:38, ios rails 0:51.
+숨김 수집 고침 뒤 NestJS Android 아티팩트는 상세 로그·commands.json·PNG를 포함한 179파일, iOS는 FastAPI 314파일·
+NestJS 298파일을 업로드했다. 원본은 `.maestro-output/d7-run-2/run.json`·잡 로그·`artifacts/`다. 같은 코드 재실행은 없다.
+
+**실행 2 고침 배치의 로컬 검증.** `--static` [1]–[11]이 통과했다(88파일/1830시험, 깨끗한 introspect 여덟,
+출처 54/41/33, 세 플랫폼 export, compose). push 전 Step 7 검사도 전체 exit 0이었다. 실제 scratch prebuild에서
+처음에는 앵커 가드가 실패해 Expo MainActivity mod의 역순 실행을 발견했다. 배열에서는 새 플러그인을 Expo splash보다
+먼저 등록해야 실제 앵커 생성 뒤에 실행한다. 순서를 고친 실제 prebuild는 registerOnActivity → Expo generated end →
+API31 가드와 clearOnExitAnimationListener → super.onCreate를 한 번 생성했다. Native Kotlin 소스는
+`.maestro-output/d7-run-2/generated-MainActivity.kt`에 보존했다. Node 직접 type stripping도 공개 모듈 경로의 `.js`
+확장자를 확인해 통과했다. 변환/four variants/확인창의 focused 시험은 42개다.
+
+`android.sh build`로 APK를 다시 만들어 둘째 Gradle UP-TO-DATE, e2e 변형·OTA 끔·평문 HTTP 단언을 통과했다.
+새 소유 Pixel7 SwiftShader AVD에서 `auth-links` 한 플로도 통과했고, 상세 로그의 앱 splash 전송 timeout과
+starting_reveal 애니메이션 대기는 0줄이었다. 자연 재현은 원래 없었으므로 CI가 수정의 실제 검증이다.
+`.maestro-output/d7-run-2/local-fixed-build-auth-links.log`·`local-fixed-e2e/`, `batch2-static-final.log`·
+`batch2-final-validation.log`·`batch2-unit-final.log`에 보존했다. `joon` 9 → 9, compose 잔여 0이며 새 소유 에뮬레이터만
+종료했다. 원래 emulator-5554는 켜져 있다. 의존성·백엔드 원격·타임아웃·앱 단언·재시도 규칙은 바꾸지 않았다.
 
 **초록.** 아직 아홉 칸이 모두 초록인 실행은 없다. iOS 기기 값·백엔드별 최종 동작·단계별 스크롤 시간은 상세 기록을
 복구한 뒤 실제 실행으로 채운다.

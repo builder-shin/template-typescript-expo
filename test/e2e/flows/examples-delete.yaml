@@ -19,6 +19,7 @@ appId: com.example.templateexpo.e2e
 # 로그인하지 않고 수정 화면을 딥링크로 연다 - 경로 가드가 로그인으로 보낸다. 헤더의 "홈으로" 가 홈으로 데려간다 - iOS 에는
 # 뒤로 가기 키가 없어 가드가 보낸 로그인 화면의 눈에 보이는 출구다(스펙 7.3 의 D4 정정).
 - openLink: templateexpo-e2e://examples/${output.exampleId}/edit
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: login-screen
@@ -33,6 +34,7 @@ appId: com.example.templateexpo.e2e
     id: login-screen
 # 다시 연다 - 이번에는 로그인하고, 로그인하면 그 수정 화면으로 돌아온다.
 - openLink: templateexpo-e2e://examples/${output.exampleId}/edit
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: login-screen
@@ -84,6 +86,7 @@ appId: com.example.templateexpo.e2e
       STEP: example
       TITLE: ${output.prefix} d2
 - openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=${output.prefix}
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: resource-row-title

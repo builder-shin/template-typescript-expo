@@ -15,6 +15,7 @@ appId: com.example.templateexpo.e2e
       id: home-screen
     timeout: 30000
 - openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bprobe%5D=probe-d3
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: form-banner-message

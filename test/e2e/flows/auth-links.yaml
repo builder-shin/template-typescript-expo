@@ -8,6 +8,7 @@ appId: com.example.templateexpo.e2e
 - runFlow: ../subflows/start-signed-out.yaml
 # 보호 경로를 딥링크로 연다 - 경로 가드가 next 를 싣고 로그인으로 보낸다.
 - openLink: templateexpo-e2e://examples/new
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: login-screen

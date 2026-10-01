@@ -16,6 +16,7 @@ appId: com.example.templateexpo.e2e
 # 그려지지 않는다.
 - stopApp
 - openLink: templateexpo-e2e://contract
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: back-to-home-button

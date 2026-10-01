@@ -124,4 +124,36 @@ describe('Maestro 플로의 두 플랫폼 규칙', () => {
       .map((flow) => flow.path)
     expect(offenders).toEqual([])
   })
+
+  it('모든 openLink 뒤에 iOS 시스템 확인창 처리를 잇는다', () => {
+    let links = 0
+    for (const flow of all) {
+      const lines = commands(flow.source)
+        .split('\n')
+        .filter((line) => line.trim() !== '')
+      for (const [index, line] of lines.entries()) {
+        if (!/^\s*- openLink:/.test(line)) continue
+        links += 1
+        expect(lines[index + 1]?.trim(), `${flow.path}:${index}`).toBe(
+          '- runFlow: ../subflows/confirm-ios-open-link.yaml',
+        )
+      }
+    }
+    expect(links).toBeGreaterThan(20)
+  })
+
+  it('native Open 텍스트 누름은 iOS 의 정확한 시스템 창 안에서만 허용한다', () => {
+    const path = 'subflows/confirm-ios-open-link.yaml'
+    const source = commands(all.find((flow) => flow.path === path)?.source ?? '')
+    expect(source).toMatch(/when:\s*\n\s*platform: iOS\s*\n\s*visible:/)
+    expect(source).toContain(String.raw`visible: '^Open in “Template Expo \(E2E\)”\?$'`)
+    expect(source).toMatch(/- tapOn:\s*\n\s*text: 'Open'/)
+    expect(source).toContain(String.raw`- assertNotVisible: '^Open in “Template Expo \(E2E\)”\?$'`)
+    for (const flow of all.filter((entry) => entry.path !== path)) {
+      const body = commands(flow.source)
+      // 데이터 행은 id 와 text 를 함께 쓴다. text 하나로 누르는 시스템 예외는 위 파일뿐이다.
+      expect(body, flow.path).not.toMatch(/- tapOn:\s*\n\s*text:/)
+      expect(body, flow.path).not.toMatch(/- tapOn:[ \t]*[^\s\n]/)
+    }
+  })
 })

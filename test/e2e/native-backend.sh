@@ -5,6 +5,7 @@
 #   test/e2e/native-backend.sh repo-url   백엔드 저장소의 주소를 낸다(docker-compose.e2e.yml 의 빌드 컨텍스트와 같다)
 #   test/e2e/native-backend.sh fetch      백엔드 저장소의 main 을 받는다(있으면 main 으로 맞춘다)
 #   test/e2e/native-backend.sh src-dir    받은 저장소의 경로를 낸다
+#   test/e2e/native-backend.sh lock-platform CI의 임시 Rails clone에 Ruby 플랫폼 한 줄만 더한다(D7-R14)
 #   test/e2e/native-backend.sh services   Homebrew 로 PostgreSQL 18·Redis 를 갖춘다(없으면 설치한다)
 #   test/e2e/native-backend.sh prepare    백엔드의 런타임 의존성을 갖춘다 - fastapi 는 uv, nestjs 는 pnpm(설치·빌드),
 #                                         rails 는 bundler(Ruby 는 백엔드 저장소의 .ruby-version 과 같아야 한다)
@@ -93,6 +94,52 @@ services() {
   redis-server --version
 }
 
+# setup-ruby의 Ruby 3.4.8은 macos-26에서도 arm64-darwin-23이다. 백엔드 잠금은 Darwin 24/25만
+# 담아 frozen install이 멈췄다. D7-R14: CI 임시 clone의 PLATFORMS 추가만 허용하고 나머지는 바이트로 보존한다.
+lock_platform() {
+  [ "$BACKEND_KIND" = rails ] || fail "lock-platform은 Rails 전용이다"
+  [ "${GITHUB_ACTIONS:-}" = true ] && [ -n "${RUNNER_TEMP:-}" ] || fail "CI 임시 Rails clone에서만 잠금 플랫폼을 더한다"
+  node --input-type=module - "$RUNNER_TEMP" "$SRC" <<'NODE' || fail "CI 임시 Rails clone 경로가 아니다"
+import { relative, isAbsolute } from 'node:path'
+const path = relative(process.argv[2], process.argv[3])
+if (path === '' || path === '..' || path.startsWith('../') || path.startsWith('..\\') || isAbsolute(path)) process.exit(1)
+NODE
+  [ -d "$SRC/.git" ] || fail "백엔드 저장소가 없다($SRC) - fetch를 먼저 돌린다"
+  local platform before
+  platform=$(ruby -e 'print Gem::Platform.local')
+  [ -n "$platform" ] || fail "Ruby 플랫폼이 비어 있다"
+  before=$(mktemp "$SRC/.d7-lock.XXXXXX")
+  cp "$SRC/Gemfile.lock" "$before"
+  if ! (cd "$SRC" && bundle lock --add-platform "$platform"); then
+    cp "$before" "$SRC/Gemfile.lock"
+    rm -f "$before"
+    fail "Rails 잠금 플랫폼 추가에 실패했다"
+  fi
+  if ! node --input-type=module - "$before" "$SRC/Gemfile.lock" "$platform" <<'NODE'
+import { readFileSync } from 'node:fs'
+const original = readFileSync(process.argv[2], 'utf8')
+const current = readFileSync(process.argv[3], 'utf8')
+const platform = `  ${process.argv[4]}\n`
+const section = original.match(/^PLATFORMS\n((?: {2}[^\n]*\n)*)/m)
+if (!section) process.exit(1)
+const lines = section[1].split('\n').filter(Boolean).map(line => `${line}\n`)
+if (!lines.includes(platform)) {
+  const index = lines.findIndex(line => line > platform)
+  lines.splice(index === -1 ? lines.length : index, 0, platform)
+}
+const expected = original.replace(section[0], `PLATFORMS\n${lines.join('')}`)
+if (current !== expected) process.exit(1)
+NODE
+  then
+    diff -u "$before" "$SRC/Gemfile.lock" >&2 || true
+    cp "$before" "$SRC/Gemfile.lock"
+    rm -f "$before"
+    fail "Rails 잠금은 PLATFORMS의 현재 플랫폼 한 줄만 더할 수 있다 - 다른 변경을 복구하고 멈춘다"
+  fi
+  rm -f "$before"
+  echo "Rails 잠금 플랫폼: $platform - PLATFORMS 외 변경 없음"
+}
+
 prepare() {
   [ -d "$SRC/.git" ] || fail "백엔드 저장소가 없다($SRC) - test/e2e/native-backend.sh fetch 를 먼저 돌린다"
   case "$BACKEND_KIND" in
@@ -109,7 +156,7 @@ prepare() {
       want=$(tr -d '[:space:]' <"$SRC/.ruby-version")
       have=$(ruby -e 'print RUBY_VERSION' 2>/dev/null || true)
       [ "$have" = "$want" ] || fail "Ruby $want 이 필요하다(지금 ${have:-없음}) - 백엔드 저장소의 .ruby-version"
-      (cd "$SRC" && { bundle check >/dev/null 2>&1 || bundle install; })
+      (cd "$SRC" && { BUNDLE_FROZEN=true bundle check >/dev/null 2>&1 || BUNDLE_FROZEN=true bundle install; })
       ;;
   esac
 }
@@ -245,6 +292,7 @@ case "${1:-}" in
   repo-url) repo_url ;;
   fetch) fetch ;;
   src-dir) printf '%s\n' "$SRC" ;;
+  lock-platform) lock_platform ;;
   services) services ;;
   prepare) prepare ;;
   start)
@@ -261,7 +309,7 @@ case "${1:-}" in
   stop) stop_all ;;
   api-log) printf '%s\n' "$API_LOG" ;;
   *)
-    echo "사용법: $0 repo-url|fetch|src-dir|services|prepare|start|stop|api-log" >&2
+    echo "사용법: $0 repo-url|fetch|src-dir|lock-platform|services|prepare|start|stop|api-log" >&2
     exit 1
     ;;
 esac

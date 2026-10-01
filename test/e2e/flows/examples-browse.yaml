@@ -18,6 +18,7 @@ appId: com.example.templateexpo.e2e
     timeout: 10000
 # 딥링크가 조건을 그대로 재현한다 - 제목 순서(sort=title)의 씨앗 여섯 건.
 - openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=probe-seed&sort=title
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: resource-row-title
@@ -102,6 +103,7 @@ appId: com.example.templateexpo.e2e
 # 값: `<접두사> 가+나&다=라#마` - 공백 %20, 가 %EA%B0%80, + %2B, 나 %EB%82%98, & %26, 다 %EB%8B%A4,
 # = %3D, 라 %EB%9D%BC, # %23, 마 %EB%A7%88.
 - openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=${output.prefix}%20%EA%B0%80%2B%EB%82%98%26%EB%8B%A4%3D%EB%9D%BC%23%EB%A7%88
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: resource-row-title

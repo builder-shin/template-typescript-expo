@@ -21,6 +21,7 @@ appId: com.example.templateexpo.e2e
 # 딥링크로 곧장 연 수정 화면의 저장 - 스택에 상세가 없으니 저장이 이 화면을 상세로 바꾼다(edit.tsx 의 dismissTo). 고치지 않고
 # 저장한다. 뒤로 가면 홈이다 - 수정 화면이 상세 아래에 남았으면 폼이 나온다.
 - openLink: templateexpo-e2e://examples/${output.exampleId}/edit
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: field-input-title
@@ -45,6 +46,7 @@ appId: com.example.templateexpo.e2e
       id: home-screen
     timeout: 15000
 - openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=${output.prefix}
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: resource-row-title
@@ -241,6 +243,7 @@ appId: com.example.templateexpo.e2e
       STEP: unlisted
       TITLE: ${output.prefix} u
 - openLink: templateexpo-e2e://examples/${output.exampleId}/edit
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: field-input-title

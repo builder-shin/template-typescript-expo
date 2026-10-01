@@ -1,0 +1,13 @@
+# iOS 26.5 가 외부에서 연 사용자 정의 scheme 을 확인한다(D7 실측 K3, 컨트롤러 D7-R16).
+# OS 버튼에는 앱의 testID 가 없다. 정확한 시스템 창 안에서만 텍스트로 누르는 유일한 예외다.
+# 앱의 언어 인자 AppleLanguages 는 OS 의 영어 확인창을 바꾸지 않는다.
+appId: com.example.templateexpo.e2e
+---
+- runFlow:
+    when:
+      platform: iOS
+      visible: '^Open in “Template Expo \(E2E\)”\?$'
+    commands:
+      - tapOn:
+          text: 'Open'
+      - assertNotVisible: '^Open in “Template Expo \(E2E\)”\?$'

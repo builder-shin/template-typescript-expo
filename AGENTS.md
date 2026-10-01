@@ -20,6 +20,7 @@
 | `lib/navigation/`      | 밖에서 들어온 URL·딥링크를 앱 안 주소로 바꾸는 정규화, 화면을 쌓는 이동을 한 번만 하는 가드(`once.ts`)               | 화면, fetch, 네이티브 모듈                |
 | `lib/updates/`         | 빌드 정보 카드의 판단 - 카드의 행, 업데이트 확인의 순서와 문구                                                       | 네이티브 모듈, 화면                       |
 | `platform/`            | SecureStore·로캘·AppState·NetInfo·Updates·Constants 호출, React Provider, API 클라이언트 조립                        | 판단                                      |
+| `plugins/`             | 생성된 네이티브 프로젝트 파일을 고치는 Expo 설정 플러그인                                                            | 판단, 화면, 네트워크                      |
 | `queries/`             | 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화                                                                                | JSX, 쿼리 문자열 조립                     |
 | `app/`                 | 화면, 라우팅, 가드 배치                                                                                              | fetch, `request()` 호출, 쿼리 문자열 조립 |
 | `components/ui/`       | React Native Reusables 복사본                                                                                        | 자원 이름, fetch, 세션                    |

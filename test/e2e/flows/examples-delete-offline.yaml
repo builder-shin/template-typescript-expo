@@ -23,6 +23,7 @@ onFlowComplete:
       TITLE: ${output.prefix} f1
 - runFlow: ../subflows/login.yaml
 - openLink: templateexpo-e2e://examples/${output.exampleId}/edit
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: field-input-title
@@ -71,6 +72,7 @@ onFlowComplete:
 # 조회가 닿지 못해도 네트워크 복귀의 재조회가 그린다. 뒤로 가면 이 수정 화면이다.
 - setAirplaneMode: disabled
 - openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=probe-seed
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: resource-row-title

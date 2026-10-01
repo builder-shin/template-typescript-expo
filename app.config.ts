@@ -66,6 +66,8 @@ export default function appConfig({ config }: ConfigContext): ExpoConfig {
     },
     plugins: [
       'expo-router',
+      // MainActivity mod 는 역순으로 돈다 - 먼저 등록해야 Expo 가 만든 앵커 뒤에서 수정한다.
+      './plugins/with-android-splash-exit.ts',
       [
         'expo-splash-screen',
         { backgroundColor: '#E6F4FE', image: './assets/splash-icon.png', imageWidth: 76 },

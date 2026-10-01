@@ -18,6 +18,7 @@ appId: com.example.templateexpo.e2e
       STEP: account
 # 이 실행만의 행을 보는 목록 - 아직 비어 있다.
 - openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=${output.prefix}
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: list-empty
@@ -48,6 +49,7 @@ appId: com.example.templateexpo.e2e
 # subflows/login.yaml 을 부르지 않고 같은 단계를 풀어 쓴다 - 그 서브플로는 제출을 한 번 누르고, 여기서는 두 번 누른다. 로그인이
 # 끝난 뒤에 닿은 둘째 누름은 홈의 빌드 정보 카드(버전·변형 행 사이)다 - OTA 를 끈 e2e 빌드의 카드에는 누를 것이 없다.
 - openLink: templateexpo-e2e://login
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: login-screen
@@ -70,6 +72,7 @@ appId: com.example.templateexpo.e2e
     timeout: 20000
 - takeScreenshot: d7-login-after
 - openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=${output.prefix}
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: list-empty
