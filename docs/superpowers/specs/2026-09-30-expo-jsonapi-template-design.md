@@ -881,8 +881,9 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > 8자>`)로 시작한다. 하네스는 백엔드의 access token 수명을 10초로 준다(`E2E_ACCESS_EXPIRES_SECONDS` → 세 백엔드의
 > `JWT_ACCESS_EXPIRES_SECONDS`) - 앱은 만료 60초 전부터 회전하므로 쓰기가 전부 실제 회전을 지난다(7.2 의 D4 정정).
 > 입력 뒤에는 폼의 제목 라벨을 눌러 키보드를 내린 다음 아래쪽 요소를 누른다. 빠른 두 번 누름은 Maestro `tapOn` 의
-> `repeat: 2` 로 누른다 - 로그인 제출·"새로 만들기"·저장 제출·삭제 확인. 나간 요청의 수는 플로마다 남는 백엔드 접근
-> 로그(`api.log`)로 센다. 결과는 `docs/superpowers/notes/2026-10-01-d4-measurements.md`.
+> `repeat: 2` 로 누른다 - 로그인 제출·"새로 만들기"·목록의 행·저장 제출·삭제 확인. 나간 요청의 수는 플로마다 남는 백엔드
+> 접근 로그(`api.log`)로 세고, 화면이 둘 쌓였는지는 뒤로 가기가 닿는 화면으로 잰다. 결과는
+> `docs/superpowers/notes/2026-10-01-d4-measurements.md`.
 
 ### 11.4 E2E 스택
 
