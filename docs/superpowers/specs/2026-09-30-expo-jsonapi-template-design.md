@@ -1050,6 +1050,13 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > 수명으로, E2E 는 10초(11.3 의 D4 정정)로 띄우므로 스택을 나눠 쓰지 않는다. 거울은 기기가 없어도 돌아 E2E 의 APK
 > 빌드 전에 선언의 어긋남을 알린다.
 
+> 정정(2026-10-01, D6): 8단계(설정)는 평가만 하지 않고 검사한다. 네 변형을 EAS 프로젝트가 없을 때와 있을 때(닿지 않는
+> 가짜 id)로 `expo config --type introspect` 한다 - 빌드하지 않고 설정 플러그인을 돌려 AndroidManifest.xml·
+> strings.xml·Info.plist·Expo.plist 가 될 값을 낸다. 그 값이 변형 표와 OTA 판단(`lib/config/`)이 정한 것과 같은지
+> `scripts/check-variant-config.mjs` 가 본다 - 식별자·scheme·앱 이름, 평문 HTTP, OTA(켬·끔, 주소, 채널, 확인 시점,
+> runtime version 정책), 프로젝트 id. 여덟 평가가 이 개발 머신에서 10초 안팎이고, 설정에 어긋남을 넣으면 그 자리를
+> 알리며 멈춘다(D6 실측 O3).
+
 ## 13. CI (GitHub Actions)
 
 ```text

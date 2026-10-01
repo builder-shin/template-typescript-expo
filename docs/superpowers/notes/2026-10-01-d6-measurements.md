@@ -54,3 +54,49 @@ submit production ios {"language":"en-US"}
 
 **판정.** 스키마 위반과 폐기 경고 없이 모두 해석됐다. 해석한 프로필에는 스키마의 기본값(`credentialsSource:
 remote`, 제출의 `changesNotSentForReview: false`, iOS 제출의 `language: en-US`)이 더해진다.
+
+## O3 — 게이트 [8] 이 변형별 네이티브 설정을 검사한다
+
+**명령.** `scripts/check.sh` 의 [8] 블록만 떼어 돌렸다 - 변형 넷을 EAS 프로젝트가 없을 때와 있을 때
+(`GATE_EAS_PROJECT_ID`, 모양만 UUID)로 `expo config --type introspect --json` 하고, `scripts/check-variant-config.mjs` 가
+설정 플러그인이 옮길 네이티브 값(AndroidManifest.xml·strings.xml·Info.plist·Expo.plist)을 변형 표·OTA 판단과 맞댄다.
+여덟 평가가 이 개발 머신에서 10초 안팎이다.
+
+```text
+=== [8/13] 설정 ===
+--- APP_VARIANT=development EAS_PROJECT_ID=(없음)
+변형 설정 통과: development - 17건, OTA 끔
+--- APP_VARIANT=development EAS_PROJECT_ID=00000000-0000-4000-8000-000000000000
+변형 설정 통과: development + EAS 프로젝트 00000000-0000-4000-8000-000000000000 - 17건, OTA 끔
+--- APP_VARIANT=preview EAS_PROJECT_ID=(없음)
+변형 설정 통과: preview - 17건, OTA 끔
+--- APP_VARIANT=preview EAS_PROJECT_ID=00000000-0000-4000-8000-000000000000
+변형 설정 통과: preview + EAS 프로젝트 00000000-0000-4000-8000-000000000000 - 21건, OTA 켬(채널 preview)
+--- APP_VARIANT=production EAS_PROJECT_ID=(없음)
+변형 설정 통과: production - 17건, OTA 끔
+--- APP_VARIANT=production EAS_PROJECT_ID=00000000-0000-4000-8000-000000000000
+변형 설정 통과: production + EAS 프로젝트 00000000-0000-4000-8000-000000000000 - 21건, OTA 켬(채널 production)
+--- APP_VARIANT=e2e EAS_PROJECT_ID=(없음)
+변형 설정 통과: e2e - 17건, OTA 끔
+--- APP_VARIANT=e2e EAS_PROJECT_ID=00000000-0000-4000-8000-000000000000
+변형 설정 통과: e2e + EAS 프로젝트 00000000-0000-4000-8000-000000000000 - 17건, OTA 끔
+```
+
+17건은 OTA 를 끈 설정의 자리(식별자·scheme·앱 이름·평문 HTTP·OTA 끔과 주소·채널·runtime version 없음, Android·iOS),
+21건은 켠 설정에 확인 시점(`ALWAYS` - `ON_LOAD` 의 네이티브 값)과 기다림(0)이 두 플랫폼에서 더해진 것이다.
+
+**`.env` 가 섞이지 않는다.** 저장소 루트에 `EAS_PROJECT_ID` 를 둔 `.env` 를 만들고 같은 블록을 돌려도 여덟이
+통과했다 - Expo CLI 는 `.env` 를 읽지만 블록이 두 자리를 빈 값으로 명시해 덮는다(만든 `.env` 는 지웠다). 명시가
+빠지면 검사기가 `extra.eas` 로 잡는다 - `test/unit/scripts/check-variant-config.test.ts` 의 ".env 의 EAS 프로젝트 id
+가 섞였다" 표본.
+
+**어긋남을 잡는다.** 저장소 밖의 사본에서 `app.config.ts` 의 `usesCleartextTraffic: profile.allowCleartext` 를 `true` 로
+바꾸고 돌리면 development 둘은 통과하고 preview 에서 멈췄다:
+
+```text
+변형 설정 위반 1건 (preview):
+- Android 평문 HTTP(usesCleartextTraffic): "true" - 기대한 값은 "false"
+```
+
+되돌린 뒤 여덟이 다시 통과했다. 어긋난 표본이 실패하는 것은
+`test/unit/scripts/check-variant-config.test.ts` 가 잰다.

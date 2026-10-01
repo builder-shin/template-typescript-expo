@@ -35,6 +35,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 GATE_BACKEND_URL='https://gate-check.invalid'
+# [8] 이 OTA 를 켠 설정을 잴 때 쓰는 EAS 프로젝트 id. 모양만 UUID 이고 어떤 프로젝트도 아니다 - 설정 평가는 EAS 에
+# 닿지 않는다.
+GATE_EAS_PROJECT_ID='00000000-0000-4000-8000-000000000000'
 
 echo "=== [1/13] typecheck ==="
 BACKEND_URL="$GATE_BACKEND_URL" pnpm types:routes
@@ -60,10 +63,19 @@ node scripts/check-provenance.mjs
 echo "=== [7/13] unit ==="
 pnpm test
 
+# 변형 넷을 EAS 프로젝트가 없을 때와 있을 때(GATE_EAS_PROJECT_ID)로 평가하고, 설정 플러그인이 네이티브 설정으로
+# 옮길 값(introspect)이 변형 표·OTA 판단(lib/config)과 같은지 검사기가 본다 - 식별자·scheme·앱 이름, 평문 HTTP,
+# OTA(스펙 10.2·10.6). Expo CLI 는 .env 를 읽으므로 프로젝트 id 두 자리를 빈 값으로도 명시한다 - 개발자의 .env 에
+# 있는 EAS_PROJECT_ID 가 섞이면 검사기가 잡는다. --disable-warning 은 검사기가 app.config.ts·lib/config 를 type
+# stripping 으로 불러올 때 Node 가 내는 모듈 형식 경고 하나를 끈다(scripts/check-variant-config.mjs 머리말).
 echo "=== [8/13] 설정 ==="
 for variant in development preview production e2e; do
-  echo "--- APP_VARIANT=$variant"
-  APP_VARIANT="$variant" BACKEND_URL="$GATE_BACKEND_URL" pnpm exec expo config --type public --json >/dev/null
+  for project in '' "$GATE_EAS_PROJECT_ID"; do
+    echo "--- APP_VARIANT=$variant EAS_PROJECT_ID=${project:-(없음)}"
+    APP_VARIANT="$variant" BACKEND_URL="$GATE_BACKEND_URL" EAS_PROJECT_ID="$project" EAS_BUILD_PROJECT_ID='' \
+      pnpm exec expo config --type introspect --json |
+      node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-variant-config.mjs "$variant" "$project"
+  done
 done
 
 echo "=== [9/13] 의존성 호환 ==="

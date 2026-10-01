@@ -15,3 +15,6 @@
 `EAS_BUILD_PROJECT_ID`)를 읽고, 채널이 있는 변형(`app-variant.ts`의 `updatesChannel` - preview·production)에 EAS
 프로젝트가 있을 때만 OTA 를 켠다. 채널은 `eas.json`에서 그 변형을 빌드하는 프로필의 `channel`과 같아야 한다 -
 `test/unit/config/eas-json.test.ts`가 맞댄다.
+
+게이트 [8]의 검사기(`scripts/check-variant-config.mjs`)도 `app.config.ts`와 이 디렉터리를 같은 type stripping으로
+불러와 기대값을 만든다 - 표를 바꾸면 게이트가 설정 플러그인이 옮길 네이티브 값을 새 표와 맞댄다.
