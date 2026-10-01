@@ -196,6 +196,11 @@ docs/superpowers/specs/ · plans/ · notes/
 > 전에 그 판단을 잇기만 한다 - 이 빌드의 scheme 은 `platform/config.ts` 가 `expo-constants` 에서 읽는다. 까닭은
 > 8.2 의 둘째 D3 정정, 소유 규칙은 루트 `AGENTS.md` 의 표다.
 
+> 정정(2026-10-01, D5): 트리에 `components/lab/` 이 없다 - 계약 실험실 화면(`app/(lab)/contract.tsx`)의 조각, 곧 실험 카드와
+> 결과 표시(`experiment-card.tsx`)를 두는 디렉터리다. 자원 UI(`resource/`)도 폼 조각(`form/`)도 아니어서 따로 뒀다. 트리의
+> `lib/lab/` 에는 실험 정의와 결과 표현(복사)에 더해 실험을 요청으로 돌리는 실행부(`run.ts`)가 있고, 실험 하나를 돌리는 쓰기
+> 훅은 `queries/lab.ts` 다(8.6 의 D5 정정). 소유 규칙은 루트 `AGENTS.md` 의 표다.
+
 ## 5. 계층 소유권
 
 | 위치 | 소유하는 것 | 소유하지 않는 것 |
@@ -614,8 +619,9 @@ offset과 cursor는 섞을 수 없다(백엔드가 거부한다). 한 화면은 
 > 주는 함수를 받을 뿐이다. 화면은 `app/(lab)/contract.tsx`, 실험 카드는 `components/lab/experiment-card.tsx`, 훅은
 > `queries/lab.ts` 다. (b) 세션이 필요한 실험을 로그인하지 않은 채 누르면 요청하지 않고 `/login?next=/contract` 로
 > 간다. 실험실은 공개 경로라 경로 가드가 아니라 실험실 화면이 보낸다 - 기기 세션을 지우는 것은 쓰기 캐시의
-> `onError` 다(9 의 D4 정정). 백엔드가 세션을 거절해도(9.2 의 코드) 같다. 토큰은 쓰기와 같은 길로 받는다
-> (`lib/resources/write.ts` 의 `accessToken`) - 받은 토큰의 세션이 이미 만료됐으면(7.2 의 D4 만료 가드) 요청하지 않고
+> `onError` 다(9.3 의 D4 정정 "쓰기(생성·수정·삭제)의 오류" 의 (a)). 백엔드가 세션을 거절해도(9.2 의 코드) 같다. 토큰은
+> 쓰기와 같은 길로 받는다(`lib/resources/write.ts` 의 `accessToken`) - 받은 토큰의 세션이 이미 만료됐으면(7.2 의 D4
+> 정정에서 말한 쓰기의 만료 가드) 요청하지 않고
 > 앱 문구를 그린다. 세션 거절 말고 던져진 것은 결함이라 쓰기 훅처럼 오류 경계로 간다. (c) offset 순회는 쪽당
 > 3건이고, 페이지 총합은 두 요청 모두 쪽당 1건이다 - 켠 요청에만 `meta.totalCount` 가 오는 것은 쪽 크기와 무관하고,
 > 폰 화면에 두 본문을 담는다. 관계 전용 쓰기의 태그 조회는 토큰 없이 보낸다(7.2). (d) 결과는 단계마다 머리글과
