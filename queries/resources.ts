@@ -1,16 +1,27 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQueries, useQuery } from '@tanstack/react-query'
+import { useIsFocused } from 'expo-router'
 import { useMemo, useState } from 'react'
 
+import type { JsonApiResult } from '@/lib/jsonapi/client'
+import type { SingleDocument } from '@/lib/jsonapi/document'
 import type { ResourceDefinition } from '@/lib/resources/define'
+import { relationshipTargets } from '@/lib/resources/form'
 import {
+  canLoadMore,
   detailScreen,
   listScreen,
+  referenceState,
   type DetailScreen,
   type ListScreen,
+  type ReferenceState,
 } from '@/lib/resources/screen-state'
 import { listRequest } from '@/lib/resources/view'
 import { apiRequest } from '@/platform/api'
-import { detailQueryOptions, listQueryOptions } from '@/queries/resource-options'
+import {
+  detailQueryOptions,
+  listQueryOptions,
+  referenceQueryOptions,
+} from '@/queries/resource-options'
 
 /**
  * 자원의 조회 훅 - 목록(무한 스크롤)과 상세(스펙 8.4).
@@ -78,7 +89,14 @@ export function useResourceList(
 ): ResourceListState {
   const stableParams = useContentStable(params)
   const plan = useMemo(() => listRequest(resource, stableParams), [resource, stableParams])
-  const query = useInfiniteQuery(listQueryOptions(resource, plan, apiRequest))
+  // 쌓인 화면(조건을 바꿀 때마다 쌓이는 목록, 상세·수정 밑의 목록)은 구독을 끊는다 - 앱 복귀·네트워크 복귀·무효화의
+  // 재조회가 보이는 화면만 부르고, 쌓인 화면은 다시 앞에 올 때 다시 구독하며 부른다(`staleTime` 0). TanStack Query 의
+  // React Native 안내 그대로다(D3 최종 검토 M2 - 스택 깊이만큼 읽은 쪽 전부를 다시 읽었다).
+  const focused = useIsFocused()
+  const query = useInfiniteQuery({
+    ...listQueryOptions(resource, plan, apiRequest),
+    subscribed: focused,
+  })
   const [refreshing, setRefreshing] = useState(false)
   const { data, error, isFetchNextPageError } = query
   const screen = useMemo(
@@ -96,13 +114,10 @@ export function useResourceList(
     loadingMore: query.isFetchingNextPage,
     refreshing,
     retrying: query.isFetching && !refreshing,
-    // 읽는 중에 부르면 TanStack Query 가 진행 중인 재조회를 끊고 다음 쪽을 부른다 - 그래서 읽는 중에는 부르지
-    // 않는다(TanStack Query v5 무한 조회 안내의 규칙). 다음 쪽이 닿지 못한 채로도 부르지 않는다 - 끝의 모양이 바뀔
-    // 때마다 FlatList 가 끝에 닿았다고 다시 알려 닿지 못할 요청이 되풀이된다. 그 쪽은 사용자가 "다시 시도" 로 읽는다.
+    // 부를지는 `canLoadMore`(lib/resources/screen-state.ts)가 정한다 - 다음 쪽이 없거나, 읽는 중이거나, 다음 쪽이
+    // 실패한 채면 부르지 않는다.
     loadMore: () => {
-      if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) {
-        void query.fetchNextPage()
-      }
+      if (canLoadMore(query)) void query.fetchNextPage()
     },
     refresh: () => {
       setRefreshing(true)
@@ -126,6 +141,11 @@ export interface ResourceDetailState {
    */
   screen: DetailScreen
   /**
+   * `screen` 을 만든 응답 그대로 - 수정 화면이 폼의 첫 값을 읽는다(`initialFormValues`). 화면 상태에는 enum 원값과
+   * 관계 id 가 없다(lib/resources/form.ts 머리말의 R7). 받기 전이면 `null` 이다.
+   */
+  result: JsonApiResult<SingleDocument> | null
+  /**
    * 조회가 진행 중이다(`isFetching`) - 앱 복귀·네트워크 복귀의 재조회에서도 참이다. 실패(`RequestFailed`)의
    * "다시 시도" 버튼이 스피너를 그릴 때만 읽는다 - 다른 자리에서 "다시 시도 중" 으로 읽지 않는다.
    */
@@ -135,10 +155,23 @@ export interface ResourceDetailState {
 
 /**
  * 상세 하나. 화면에 다시 들어오면 캐시를 먼저 그리고 다시 부른다(`staleTime` 0, 스펙 8.5) - 그 재조회가 닿지
- * 못해도 캐시의 상세를 둔다(`detailScreen` 의 `refreshFailed`). `screen` 은 `useMemo` 로 고정한다.
+ * 못해도 캐시의 상세를 둔다(`detailScreen` 의 `refreshFailed`). `screen` 은 `useMemo` 로 고정한다. 쌓인 화면은
+ * 구독하지 않는다(`useResourceList` 와 같다).
+ *
+ * `enabled` 가 거짓이면 부르지 않는다 - 수정 화면이 그 자원을 지운 뒤에 쓴다(queries/writes.ts 의 `deleted`).
+ * 삭제가 캐시에서 지운 상세를 지켜보던 화면이 다시 그려지면 새 조회가 없는 자원을 부른다.
  */
-export function useResourceDetail(resource: ResourceDefinition, id: string): ResourceDetailState {
-  const query = useQuery(detailQueryOptions(resource, id, apiRequest))
+export function useResourceDetail(
+  resource: ResourceDefinition,
+  id: string,
+  { enabled = true }: { enabled?: boolean } = {},
+): ResourceDetailState {
+  const focused = useIsFocused()
+  const query = useQuery({
+    ...detailQueryOptions(resource, id, apiRequest),
+    enabled,
+    subscribed: focused,
+  })
   const { data, error } = query
   const screen = useMemo(
     () => detailScreen(resource, { result: data, error }),
@@ -147,9 +180,54 @@ export function useResourceDetail(resource: ResourceDefinition, id: string): Res
 
   return {
     screen,
+    result: data ?? null,
     retrying: query.isFetching,
     retry: () => {
       void query.refetch()
     },
   }
+}
+
+/** 관계 하나의 선택기가 그릴 참조 목록 - `referenceState`(lib/resources/screen-state.ts)에 다시 부르는 길을 더했다. */
+export interface RelationshipReference extends ReferenceState {
+  /** 조회가 진행 중이다(`isFetching`) - 시트 안의 실패 화면(`RequestFailed`)이 "다시 시도" 의 스피너에만 쓴다. */
+  readonly retrying: boolean
+  readonly retry: () => void
+  /** 대상 자원에 쓰기 라우트가 있는가 - 선언의 `writable` 이다. 선택기가 안내에 쓴다. */
+  readonly writable: boolean
+}
+
+/**
+ * 폼의 관계 선택기들이 그릴 참조 목록 - 관계마다 대상 자원의 첫 쪽(`referenceQueryOptions`, 이름 순 100건)이다.
+ * 관계는 선언에서 온다(`relationshipTargets`) - 선언에 관계를 더하면 생성·수정 화면이 함께 따라온다. 참조 조회는
+ * 공개 읽기라 토큰을 싣지 않고, 서로 기다리지 않고 나란히 나간다. 쌓인 화면은 구독하지 않는다(`useResourceList` 와
+ * 같다).
+ */
+export function useRelationshipReferences(
+  resource: ResourceDefinition,
+): Readonly<Record<string, RelationshipReference>> {
+  const focused = useIsFocused()
+  const targets = useMemo(() => relationshipTargets(resource), [resource])
+  const options = useMemo(
+    () => targets.map(([, target]) => referenceQueryOptions(target, apiRequest)),
+    [targets],
+  )
+  const queries = useQueries({ queries: options, subscribed: focused })
+
+  return Object.fromEntries(
+    targets.map(([name, target], index): [string, RelationshipReference] => {
+      const query = queries[index]
+      return [
+        name,
+        {
+          ...referenceState(target, { result: query?.data, error: query?.error ?? null }),
+          retrying: query?.isFetching ?? false,
+          retry: () => {
+            void query?.refetch()
+          },
+          writable: target.writable,
+        },
+      ]
+    }),
+  )
 }

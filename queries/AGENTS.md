@@ -8,13 +8,15 @@ TanStack Query 의 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화를 소�
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `auth.ts`             | 가입·로그인·로그아웃 쓰기 훅과 로그아웃 진행 여부(`useIsLoggingOut`). `lib/auth/flow.ts`의 결정을 실행만 한다 - 세션을 세우는 데까지, 화면 이동은 화면이 한다. 로그인·가입의 옵션(`loginMutationOptions`·`registerMutationOptions`)과 키를 내보낸다 - 시험이 MutationObserver 로 돌린다 |
 | `keys.ts`             | 캐시 키(`['resources', type, 'list' \| 'detail', …]`)와 쓰기 뒤 무효화 표(`cacheEffects`), 표를 캐시에 옮기는 `applyCacheEffects`(스펙 8.5). 시험이 표와 실제 `QueryClient` 로 잰다                                                                                                     |
-| `resources.ts`        | 자원의 조회 훅 - 목록(`useResourceList`, 무한 스크롤)과 상세(`useResourceDetail`). 판단은 `lib/resources/view.ts`·`screen-state.ts` 가 한다                                                                                                                                             |
-| `resource-options.ts` | 조회의 Query 옵션(키·요청·다음 쪽) - `queryFn` 이 닿지 못함을 던진다. React·기기 모듈을 모른다 - 시험이 가짜 요청과 실제 `QueryClient` 로 전이를 잰다                                                                                                                                   |
+| `resources.ts`        | 자원의 조회 훅 - 목록(`useResourceList`, 무한 스크롤)과 상세(`useResourceDetail`), 관계 선택기의 참조 목록(`useRelationshipReferences`). 판단은 `lib/resources/view.ts`·`screen-state.ts`·`form.ts` 가 한다. 쌓인 화면은 구독하지 않는다(`subscribed`)                                  |
+| `resource-options.ts` | 조회의 Query 옵션(키·요청·다음 쪽 - 목록·상세·관계 선택기의 참조 목록) - `queryFn` 이 닿지 못함을 던진다. React·기기 모듈을 모른다 - 시험이 가짜 요청과 실제 `QueryClient` 로 전이를 잰다                                                                                               |
 | `submit-once.ts`      | 제출 한 번 가드(`submitOnce`·`useSubmitOnce`) - 폼이 부를 쓰기의 키가 진행 중이면 그 제출을 버린다                                                                                                                                                                                      |
+| `writes.ts`           | 자원의 쓰기 훅 - 생성·수정·삭제(`useCreateResource`·`useUpdateResource`·`useDeleteResource`). 흐름은 `lib/resources/write.ts`, 캐시는 `keys.ts` 의 표                                                                                                                                   |
 
 - 인증이 필요한 요청은 `sessionManager.getAccessToken()`(`platform/session.ts`)으로 토큰을 얻는다.
-  `null`이면 요청하지 않고 로그인으로 보낸다(스펙 7.3의 쓰기 가드). 401 에 회전·재시도를 붙이지
-  않는다(스펙 7.2).
+  `null`이면 요청하지 않는다(스펙 7.3의 쓰기 가드) - 쓰기 흐름(`lib/resources/write.ts`)이 세션 거절을 던지고
+  `platform/query-client.ts`의 쓰기 캐시 `onError`가 기기 세션을 지우면, 경로 가드가 `next`를 실어 로그인으로
+  보낸다(스펙 9.2). 401 에 회전·재시도를 붙이지 않는다(스펙 7.2).
 - 세션 관리자의 `establish`·`getAccessToken`·`signOut`·`logout`은 저장소가 실패하면 메모리 상태를
   먼저 정리한 뒤에 거절한다(`lib/auth/AGENTS.md`). 이 함수를 부르는 훅이 그 거절을 잡아 토큰 없이
   (오류의 이름과 문구만) 로그로 남긴다 - 삼키지 않고, 떠 있는 Promise 로 두지도 않는다. 화면 이동은
@@ -33,8 +35,10 @@ TanStack Query 의 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화를 소�
 - 폼의 제출은 `useSubmitOnce(쓰기의 키)`로 감싼다 - 제출 버튼과 키보드의 이동 키가 한 틱 안에 함께 눌려도 요청은
   하나다. 렌더 때의 `isPending`으로 막지 않는다 - 둘째 누름도 같은 렌더를 본다(`submit-once.ts` 머리말). 그래서 폼을
   부르는 쓰기 훅에는 `mutationKey`가 있다.
-- 쓰기 뒤의 캐시는 `keys.ts` 의 표를 지난다 - 생성·수정·삭제 훅(D4)도
+- 쓰기 뒤의 캐시는 `keys.ts` 의 표를 지난다 - 생성·수정·삭제 훅(`writes.ts`)은
   `applyCacheEffects(queryClient, cacheEffects({ kind: 'create', type }))` 처럼 표를 부른다. 키를 손으로 적지 않는다.
+- 삭제는 그 자원의 상세를 캐시에서 지운다. 지운 상세를 지켜보던 화면이 다시 그려지면 TanStack Query 가 새 조회를
+  만들어 없는 자원을 부른다(404) - 그래서 지운 화면은 상세 조회를 끈다(`useResourceDetail(…, { enabled: !deleted })`).
 - `apiRequest` 는 던지지 않는다 - 백엔드 오류도 닿지 못함도 결과 값이다. 설정 오류는 예외다: `request()` 가 일부러
   던진다(`lib/jsonapi/client.ts` 머리말 - 배포에 고정된 결함을 "연결할 수 없다" 배너로 삼키지 않으려는 것). 조회 훅은
   그 예외를 다루지 않는다 - 설정 검증을 통과한 갈래(`STARTUP.ok`)에서만 도는 훅이라 여기까지 오지 않는다
@@ -49,7 +53,12 @@ TanStack Query 의 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화를 소�
   문서(그 밖의 4xx)는 결과 값으로 캐시에 든다 - 배너다(첫 조회의 판정하지 않은 응답도 그 문구의 배너다). 화면 상태는 Query 의 데이터·오류에서
   `listScreen`·`detailScreen`(`lib/resources/screen-state.ts`)이 정한다 - 닿지 못함이 아닌 오류는 결함이라 렌더 중에
   다시 던져 오류 경계로 보낸다. `test/unit/queries/resource-options.test.ts` 가 실제 `QueryClient` 와 `focusManager`·
-  `onlineManager` 로 전이를 잰다(훅 자체는 시험하지 않는다 - 스펙 11.1).
+  `onlineManager` 로 전이를 잰다(훅 자체는 시험하지 않는다 - 스펙 11.1). 관계 선택기의 참조 목록(`referenceQueryOptions`)도
+  닿지 못함을 던진다 - 읽은 보기가 남고, 선택기가 그릴 것은 `referenceState` 가 정한다(`test/unit/queries/reference-options.test.ts`).
+- 화면의 조회 훅(`useResourceList`·`useResourceDetail`·`useRelationshipReferences`)은 `subscribed: useIsFocused()` 를 준다 -
+  쌓인 화면(조건을 바꿀 때마다 쌓이는 목록, 상세·수정 밑의 목록)은 앱 복귀·네트워크 복귀·무효화의 재조회를 부르지 않고,
+  다시 앞에 오면 다시 구독하며 부른다(`staleTime` 0). TanStack Query 의 React Native 안내다 - 구독이 살아 있으면 스택
+  깊이만큼 읽은 쪽 전부를 다시 읽는다(D3 최종 검토 M2). 새 조회 훅도 같은 옵션을 준다.
 - 요청에 TanStack Query 의 `signal` 을 넘기지 않는다 - 끊은 요청은 e2e 변형에서 상태 0 실패(`[e2e-http] 0`)로
   기록돼 E2E 가드에 걸리고, 조회는 작아서 화면을 떠난 뒤 끝까지 받아도 잃는 것이 없다. 넘기게 되면 세 곳을 함께
   고친다: `apiRequest`(`platform/api.ts`)가 호출자가 끊은 요청을 실패 표식으로 남기지 않게, `lib/jsonapi/client.ts` 의

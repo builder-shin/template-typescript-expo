@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   applyCacheEffects,
   cacheEffects,
+  mutationKeys,
   queryKeys,
   type CacheEffect,
   type CacheWrite,
@@ -26,6 +27,32 @@ describe('queryKeys', () => {
 
   it('목록과 상세는 자원 type 이 같아도 겹치지 않는다', () => {
     expect(queryKeys.detail(TYPE, 'list')).not.toEqual(queryKeys.lists(TYPE))
+  })
+})
+
+describe('mutationKeys — 진행 중인 쓰기를 찾는 키', () => {
+  const client = new QueryClient()
+
+  afterEach(() => {
+    client.clear()
+  })
+
+  it('진행 중인 수정은 그 id 의 키로만 찾힌다 - 앞 조각이 같은 다른 id·생성·삭제로는 찾히지 않는다', async () => {
+    let finish: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve
+    })
+    const running = new MutationObserver(client, {
+      mutationKey: mutationKeys.update(TYPE, 'probe-1'),
+      mutationFn: () => gate,
+    }).mutate()
+
+    expect(client.isMutating({ mutationKey: mutationKeys.update(TYPE, 'probe-1') })).toBe(1)
+    expect(client.isMutating({ mutationKey: mutationKeys.update(TYPE, 'probe-10') })).toBe(0)
+    expect(client.isMutating({ mutationKey: mutationKeys.delete(TYPE, 'probe-1') })).toBe(0)
+    expect(client.isMutating({ mutationKey: mutationKeys.create(TYPE) })).toBe(0)
+    finish()
+    await running
   })
 })
 

@@ -4,7 +4,12 @@ import type { CollectionDocument, SingleDocument } from '@/lib/jsonapi/document'
 import type { JsonApiSend } from '@/lib/jsonapi/send'
 import type { ResourceDefinition } from '@/lib/resources/define'
 import { throwIfUnreachable } from '@/lib/resources/screen-state'
-import { detailRequest, nextPageQuery, type ListRequest } from '@/lib/resources/view'
+import {
+  detailRequest,
+  nextPageQuery,
+  referenceRequest,
+  type ListRequest,
+} from '@/lib/resources/view'
 import { queryKeys } from '@/queries/keys'
 
 /**
@@ -46,5 +51,19 @@ export function detailQueryOptions(resource: ResourceDefinition, id: string, sen
     queryKey: queryKeys.detail(resource.type, id),
     queryFn: async () =>
       throwIfUnreachable(await send<SingleDocument>(plan.path, plan.options), '상세'),
+  })
+}
+
+/**
+ * 관계 선택기의 참조 목록 하나 - 대상 자원의 첫 쪽(`referenceRequest`, 이름 순 100건). 키는 대상 자원의 목록 키다
+ * (`queryKeys.list`) - 참조 목록도 그 자원의 목록이다. 닿지 못함은 목록·상세처럼 던진다 - 재조회가 닿지 못해도 읽은
+ * 보기가 남는다(`referenceState`).
+ */
+export function referenceQueryOptions(target: ResourceDefinition, send: JsonApiSend) {
+  const plan = referenceRequest(target)
+  return queryOptions({
+    queryKey: queryKeys.list(target.type, plan.query.toString()),
+    queryFn: async () =>
+      throwIfUnreachable(await send<CollectionDocument>(plan.path, plan.options), '참조 목록'),
   })
 }
