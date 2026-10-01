@@ -12,7 +12,8 @@ import { JSONAPI_MEDIA_TYPE } from '@/lib/jsonapi/client'
  * 파싱한 본문)을 받는다. 거울이 재는 것은 선언과 백엔드의 관계이지 앱의 클라이언트가 아니다.
  *
  * 주소는 `CONTRACT_API_URL` 이다 - `test/contract/run.sh` 가 스택을 띄우고 호스트에서 API 에 닿는 주소를 준다.
- * 기본값을 두지 않는다: 값이 없으면 스택 없이 돌린 것이라 곧바로 그 사실을 알리고 멈춘다.
+ * 기본값을 두지 않는다: 값이 없으면 스택 없이 돌린 것이라, 요청을 보내는 시험마다 그 사실을 알리며 실패한다(한 번
+ * 멈추는 것이 아니다 - 요청마다 이 함수가 던진다. ③ 은 준비 단계의 가입이 실패해 건너뛴다).
  */
 function baseUrl(): string {
   const url = process.env.CONTRACT_API_URL

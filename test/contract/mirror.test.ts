@@ -144,9 +144,13 @@ function exampleBody(overrides: AttributeOverrides): unknown {
   }
 }
 
-/** `maxLength` 를 정확히 하나 넘기는 제목. */
+/**
+ * `maxLength` 를 정확히 하나 넘기는 제목. `padEnd` 는 줄이지 않는다 - 선언의 `maxLength` 가 접두사보다 짧아도 길이가
+ * `maxLength + 1` 이도록 자른다(안 자르면 접두사 그대로 더 길어져 "하나 넘김"이 아니게 된다).
+ */
 function overlongTitle(): string {
-  return `${PROBE_PREFIX}-`.padEnd(TITLE_MAX_LENGTH + 1, 'a')
+  const length = TITLE_MAX_LENGTH + 1
+  return `${PROBE_PREFIX}-`.padEnd(length, 'a').slice(0, length)
 }
 
 describe('③ 속성 제약 - examples 에만, 로그인한 뒤', () => {
