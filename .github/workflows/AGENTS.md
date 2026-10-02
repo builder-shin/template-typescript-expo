@@ -6,7 +6,7 @@
 | 잡                | 러너         | 하는 일                                                                                                               |
 | ----------------- | ------------ | --------------------------------------------------------------------------------------------------------------------- |
 | `checks`          | ubuntu-24.04 | `./scripts/check.sh --static`(게이트 [1]–[11]), 워크플로 lint(actionlint)                                             |
-| `build-android`   | ubuntu-24.04 | `test/e2e/android.sh build` - e2e APK 를 한 번 만들어 아티팩트로 올린다                                               |
+| `build-android`   | ubuntu-24.04 | `test/e2e/android.sh build` - CI 전용 `E2E_ANDROID_ABIS=x86_64`로 APK를 만들고 lib ABI 집합을 확인한다                |
 | `e2e-android` × 3 | ubuntu-24.04 | 백엔드마다(`BACKEND_KIND`) 계약 거울(`test/contract/run.sh`) → KVM 에뮬레이터에서 `test/e2e/run-android.sh`(받은 APK) |
 | `build-ios`       | macos-26     | `test/e2e/ios.sh build` - 시뮬레이터용 Release .app 을 한 번 만들어 아티팩트로 올린다                                 |
 | `e2e-ios` × 3     | macos-26     | 백엔드마다 `test/e2e/native-backend.sh`(Docker 없음)로 백엔드를 준비하고 `test/e2e/run-ios.sh`(받은 .app)             |

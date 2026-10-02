@@ -100,6 +100,7 @@ jobs:
       - name: e2e APK
         env:
           BACKEND_URL: http://10.0.2.2:4100
+          E2E_ANDROID_ABIS: x86_64
         run: test/e2e/android.sh build
 
       - name: APK 올리기
@@ -212,6 +213,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         env:
           E2E_APK: ${{ runner.temp }}/apk/app-release.apk
+          E2E_ANDROID_ABIS: x86_64
           E2E_CHECKS: ${{ matrix.backend == 'fastapi' && '1' || '' }}
         with:
           api-level: 36

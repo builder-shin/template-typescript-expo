@@ -44,7 +44,13 @@ function assemble(output: string, exit = 0) {
   delete env.BASH_ENV
   const result = spawnSync(
     resolveBash(),
-    ['-c', `set -euo pipefail\n${block}\nassemble_release "$1"`, 'android-build', JVM],
+    [
+      '-c',
+      `set -euo pipefail\n${block}\nassemble_release "$1" "$2"`,
+      'android-build',
+      JVM,
+      '-PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86,x86_64',
+    ],
     {
       cwd: scene,
       env,
@@ -54,7 +60,7 @@ function assemble(output: string, exit = 0) {
   )
   expect(readdirSync(temp), '임시 Gradle 로그가 남았다').toEqual([])
   expect(readFileSync(join(android, 'args.txt'), 'utf8').trim()).toBe(
-    `assembleRelease --no-daemon --console=plain ${JVM}`,
+    `assembleRelease --no-daemon --console=plain ${JVM} -PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86,x86_64`,
   )
   return result
 }
@@ -83,7 +89,7 @@ describe('D6 두 단계 Android 빌드', () => {
       "local gradle_jvm='-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m'",
     )
     expect(SOURCE).toMatch(
-      /gradlew :app:createReleaseUpdatesResources --no-daemon "\$gradle_jvm"\)\s+clear_metro_cache\s+assemble_release "\$gradle_jvm"\s+assert_apk_variant\s+assert_apk_ota_off/,
+      /gradlew :app:createReleaseUpdatesResources --no-daemon "\$gradle_jvm" "-PreactNativeArchitectures=\$abis"\)\s+clear_metro_cache\s+assemble_release "\$gradle_jvm" "-PreactNativeArchitectures=\$abis"\s+assert_apk_variant\s+assert_apk_ota_off/,
     )
   })
 })
