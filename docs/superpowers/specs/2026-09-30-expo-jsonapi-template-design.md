@@ -1280,6 +1280,16 @@ e2e-ios × 3       macOS    백엔드를 네이티브로 실행 → Maestro
 > 실행 A의 마지막 Android는 생성 뒤 43.20분, 마지막 iOS는 59.82분으로 전체 벽시계를 묶은 것은 iOS 경로였다.
 > 다음 측정 후보는 Xcode compilation caching 또는 explicit modules를 쓰는 C_COMPILER_LAUNCHER다. 실측과 판정은 D8 기록 G4에 있다.
 
+> 정정(2026-10-02, 검증된 main push의 CI 생략): main `7c21c7a`의 실행
+> [36992762448](https://github.com/builder-shin/template-typescript-expo/actions/runs/36992762448)은 branch 실행
+> [36986123148](https://github.com/builder-shin/template-typescript-expo/actions/runs/36986123148)에서 이미 통과한 코드의 아홉 칸을 다시 돌렸다.
+> `verified` 잡을 먼저 두고 전체 이력에서 merge의 둘째 부모(merge가 아니면 HEAD)부터 첫 부모를 최대 열 개 검사한다.
+> `git diff --quiet <commit> HEAD -- . ':(exclude)docs'`가 성립하는 동안 `ci.yml`의 해당 commit에 성공한 push 실행을 찾는다.
+> 세 백엔드의 main이 움직일 수 있어 실행 생성 시각이 24시간 이내여야 한다. docs-only tip `e75c75a`의 부모 `f05c9d3`도 찾는다.
+> 만족하면 `skip=true`와 검증 실행 URL·commit notice를 내고 checks·두 build를 생략하며, build에 의존한 E2E도 생략해 성공으로 끝난다.
+> Git/API 오류·빠진 부모·코드 차이·오래된 실행·없는 실행은 전체 검증으로 돌아간다. 다른 branch push와 PR의 기존 아홉 칸은 유지한다.
+> 판단의 정본은 `scripts/ci-verified-main.sh`이고 git·러너의 gh만 쓴다. Actions 읽기 권한은 이 잡에만 더한다.
+
 ## 14. 문서
 
 ```text

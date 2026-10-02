@@ -1,10 +1,11 @@
 # .github/workflows/ 작업 지침
 
 `ci.yml` 하나가 스펙 13장의 CI 다. 모든 브랜치의 push 와 pull request 에서 돌고, `docs/` 만 바꾼 커밋은 돌지 않는다.
-같은 브랜치의 앞 실행은 새 실행이 취소한다. 권한은 `contents: read` 이고 비밀 값을 쓰지 않는다.
+같은 브랜치의 앞 실행은 새 실행이 취소한다. 기본 권한은 `contents: read` 이고 비밀 값을 쓰지 않는다.
 
 | 잡                | 러너         | 하는 일                                                                                                               |
 | ----------------- | ------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `verified`        | ubuntu-24.04 | `./scripts/ci-verified-main.sh` - main 코드와 최근 성공한 branch push 실행을 맞댄다                                   |
 | `checks`          | ubuntu-24.04 | `./scripts/check.sh --static`(게이트 [1]–[11]), 워크플로 lint(actionlint)                                             |
 | `build-android`   | ubuntu-24.04 | `test/e2e/android.sh build` - CI 전용 `E2E_ANDROID_ABIS=x86_64`로 APK를 만들고 lib ABI 집합을 확인한다                |
 | `e2e-android` × 3 | ubuntu-24.04 | 백엔드마다(`BACKEND_KIND`) 계약 거울(`test/contract/run.sh`) → KVM 에뮬레이터에서 `test/e2e/run-android.sh`(받은 APK) |
@@ -13,8 +14,14 @@
 
 ## 작업 규칙
 
-- iOS는 백엔드마다 전체 21플로를 한 잡에서 실행한다. checks 1·빌드 2·Android 3·iOS 3으로 물리 아홉 잡이며
-  논리 아홉 칸과 같다. 아티팩트는 `e2e-ios-<backend>`로 백엔드마다 올린다.
+- `verified`는 모든 이벤트에서 먼저 돌고 이 잡에만 `actions: read`·`contents: read`를 준다. 전체 Git 이력을 받아
+  main push의 merge 둘째 부모(그 밖에는 HEAD)부터 첫 부모를 최대 열 개 검사한다. HEAD와 `docs/` 밖의 차이가 없는
+  commit에 `ci.yml`의 24시간 이내 성공한 push 실행이 있으면 `skip=true`와 실행 URL·commit notice를 낸다.
+  `checks`·`build-android`·`build-ios`는 이 출력을 기다려 생략하고, 빌드를 기다리는 E2E도 생략해 실행은 성공으로 끝난다.
+  차이·오래된 실행·없는 실행·API/Git 오류·빠진 부모는 `skip=false`로 전체 매트릭스를 돌린다. 다른 브랜치 push와 PR도 전체를 돈다.
+
+- iOS는 백엔드마다 전체 21플로를 한 잡에서 실행한다. checks 1·빌드 2·Android 3·iOS 3의 검증 잡 아홉 개가
+  논리 아홉 칸과 같고, 선행 `verified`까지 전체 실행은 물리 열 잡이다. 아티팩트는 `e2e-ios-<backend>`로 백엔드마다 올린다.
 
 - build-ios와 세 e2e-ios 잡은 모두 `DEVELOPER_DIR=/Applications/Xcode_26.6.app/Contents/Developer`로 판을 명시한다(D7-R22b).
   기본 Xcode가 27로 바뀌면 SDK 57의 기존 AppDelegate lifecycle은 iOS 27에서 시작 전에 종료된다. 앱은 이제

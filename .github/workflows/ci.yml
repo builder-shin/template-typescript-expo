@@ -1,6 +1,6 @@
 name: CI
 
-# 스펙 13장의 잡 다섯 - checks(게이트 [1]–[11]), 앱을 플랫폼마다 한 번 만드는 build-android·build-ios, 그 앱을 세
+# 스펙 13장의 판단 잡 verified와 검증 잡 다섯 - checks(게이트 [1]–[11]), 앱을 플랫폼마다 한 번 만드는 build-android·build-ios, 그 앱을 세
 # 백엔드가 나눠 쓰는 e2e-android × 3·e2e-ios × 3. 로컬 게이트(./scripts/check.sh)는 FastAPI·Android 하나만 돈다 -
 # 세 백엔드와 iOS 는 여기서만 돈다(스펙 12장).
 #
@@ -37,8 +37,31 @@ env:
   HOMEBREW_NO_INSTALL_CLEANUP: '1'
 
 jobs:
+  verified:
+    name: main 코드의 최근 검증 확인
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      skip: ${{ steps.verified.outputs.skip }}
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: 검증된 main 코드 확인
+        id: verified
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/ci-verified-main.sh
+
   checks:
     name: checks (게이트 [1]–[11])
+    needs: verified
+    if: needs.verified.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -68,6 +91,8 @@ jobs:
 
   build-android:
     name: build-android (e2e APK)
+    needs: verified
+    if: needs.verified.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -241,6 +266,8 @@ jobs:
 
   build-ios:
     name: build-ios (e2e .app)
+    needs: verified
+    if: needs.verified.outputs.skip != 'true'
     runs-on: macos-26
     timeout-minutes: 75
     env:

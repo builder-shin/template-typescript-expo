@@ -194,9 +194,12 @@ APK 를 다시 만들 때 하네스는 Metro 캐시를 비우고 Gradle 을 데�
 ## CI
 
 `.github/workflows/ci.yml` 하나이고, 모든 브랜치의 push 와 pull request 에서 돕니다(`docs/` 만 바꾼 커밋은 돌지 않습니다).
+main push는 먼저 `verified` 잡에서 같은 코드의 24시간 이내 성공한 push 실행을 확인하고, 있으면 전체 매트릭스를 생략합니다(`docs/`만 다른 첫 부모도 최대 열 개 확인합니다).
+검증을 확인하지 못하거나 API/Git 오류가 나면 전체를 돌며, 다른 브랜치 push와 pull request는 항상 기존 아홉 칸을 검증합니다.
 
 | 잡                | 러너   | 하는 일                                                                                           |
 | ----------------- | ------ | ------------------------------------------------------------------------------------------------- |
+| `verified`        | ubuntu | main 코드의 최근 push 검증을 확인해 매트릭스 생략 여부를 정합니다                                 |
 | `checks`          | ubuntu | `./scripts/check.sh --static`(게이트 [1]–[11])과 워크플로 lint(actionlint)                        |
 | `build-android`   | ubuntu | e2e APK 를 한 번 만들어 아티팩트로 올립니다                                                       |
 | `e2e-android` × 3 | ubuntu | 백엔드마다 계약 거울 → KVM 에뮬레이터에서 Maestro(받은 APK)                                       |
@@ -206,7 +209,7 @@ APK 를 다시 만들 때 하네스는 Metro 캐시를 비우고 Gradle 을 데�
 - 매트릭스는 `fail-fast: false` 이고 재시도는 0 입니다 - 실패한 잡을 코드 변경 없이 다시 돌리지 않습니다. 흔들리는 플로는 원인을 고칩니다.
 - 아티팩트: 갈래마다 `e2e-android-<백엔드>` · `e2e-ios-<백엔드>` 에 플로별 Maestro 기록 · 스크린샷 · 기기 로그 · `api.log`(14일), 앱 둘(7일), iOS 빌드 기록이 남습니다. 빨간 칸은 그 플로의 기기 로그(`device.log` - 가드가 본 것)와 스크린샷부터 봅니다.
 - macOS 실행은 계정의 동시 잡 한도를 공유하므로 러너 배정을 기다릴 수 있습니다.
-- CI APK는 x86_64만 만들고 로컬 기본 APK는 네 ABI입니다. checks 1·빌드 2·Android 3·iOS 3으로 물리 아홉 잡이 논리 아홉 칸을 검증합니다. iOS 두 shard는 macOS 사용 시간이 약 24% 늘고 전체 시간 이득이 확정되지 않아 철회했습니다(비공개 저장소의 macOS 시간은 10배로 계산됩니다). 빌드·E2E 시간과 실제 macOS 대기, 철회 근거는 `docs/superpowers/notes/2026-10-01-d8-measurements.md`의 G4에 있습니다. 검증되지 않은 iOS 컴파일 캐시도 철회했습니다. Expo 미리 빌드한 모듈과 action SHA 고정은 적용하지 않았습니다.
+- CI APK는 x86_64만 만들고 로컬 기본 APK는 네 ABI입니다. checks 1·빌드 2·Android 3·iOS 3의 검증 잡 아홉 개가 논리 아홉 칸을 검증하며, 선행 `verified`까지 전체 실행은 물리 열 잡입니다. iOS 두 shard는 macOS 사용 시간이 약 24% 늘고 전체 시간 이득이 확정되지 않아 철회했습니다(비공개 저장소의 macOS 시간은 10배로 계산됩니다). 빌드·E2E 시간과 실제 macOS 대기, 철회 근거는 `docs/superpowers/notes/2026-10-01-d8-measurements.md`의 G4에 있습니다. 검증되지 않은 iOS 컴파일 캐시도 철회했습니다. Expo 미리 빌드한 모듈과 action SHA 고정은 적용하지 않았습니다.
 
 잡이 하는 일의 정본은 저장소의 스크립트이고 워크플로는 러너 · 캐시 · 아티팩트만 정합니다(`.github/workflows/AGENTS.md`). Mac 이 있으면 iOS 갈래를 로컬에서 같은 스크립트로 돕니다.
 
