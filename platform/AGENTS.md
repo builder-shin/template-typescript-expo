@@ -52,7 +52,5 @@ Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 
 
 `e2e-diagnostics.ts`는 설정 검증을 통과한 `AppRoot`에서만 부른다. 진단·이벤트·HTTP 로그는 현재
 변형 표의 e2e 전용 `logsHttpFailures`를 공유한다. 다른 변형에 그 값을 켜면 진단 범위도 함께 바뀌므로
-`test/unit/platform/e2e-diagnostics.test.ts`의 변형 불변식과 비-e2e 구독/cleanup 시험을 함께 검토한다.
-`test/unit/platform/e2e-diagnostics.test.ts`는
-다른 세 변형에서 로그·AppState·QueryCache 구독이 없음을 잰다. 실제 QueryCache 알림과 구독 회수, 민감한 본문을
+`test/unit/platform/e2e-diagnostics.test.ts`가 다른 세 변형에서 로그·AppState·QueryCache 구독이 없음을 재므로 그 변형 불변식과 비-e2e 구독/cleanup 시험을 함께 검토한다. 실제 QueryCache 알림과 구독 회수, 민감한 본문을
 기록하지 않는 것, `test/e2e/ios-log.ts`가 정보 줄을 artifact의 `I/ReactNativeJS`로 보존하는 것도 잰다.

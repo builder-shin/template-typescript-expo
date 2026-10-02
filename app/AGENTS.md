@@ -5,7 +5,7 @@
 
 ## 라우트 파일만 둔다
 
-Expo Router 는 이 디렉터리 아래의 `.tsx`·`.ts` 파일을 모두 라우트로 읽는다(설치본 expo-router 의 `require.context`
+Expo Router 는 이 디렉터리 아래의 `.ts`·`.tsx`·`.js`·`.jsx` 파일을 모두 라우트로 읽는다(설치본 expo-router 의 `require.context`
 가 확장자로 거른다 - 이 문서는 라우트가 아니다). 판단 함수·타입·상수는 `lib/` 의 해당 계층에, 화면 조각은
 `components/` 에 둔다. 라우트가 아닌 파일은 라우터의 특별 파일 둘뿐이다 - 레이아웃(`_layout.tsx`)과, 들어온 링크를
 라우터 앞에서 바꾸는 `+native-intent.tsx`. 뒤의 것은 잇기만 하고 판단은 `lib/navigation/deep-link.ts` 에 있다.
@@ -52,7 +52,7 @@ Android 의 뒤로 가기를 홈으로 돌린다(`components/app/back-to-home.ts
 없는 성공 응답)과 코드의 결함이다. 화면은 Expo Router 의 기본 그대로이고(영어 - "Something went wrong"·"Retry"),
 "Retry" 는 조회 캐시를 비운 뒤 경계를 푼다(`queries/error-boundary.ts`) - 캐시에 든 결함을 요청 없이 다시 던지지 않고
 다시 부른다. 이 경계는 루트 레이아웃을 통째로 바꿔 그려, 떠 있는 동안 내비게이터가 없어 이동을 부를 수 없고, 풀린 뒤의
-앱은 루트 Stack의 일반 초기 화면(홈)에서 새로 시작하며 cold 초기 URL은 다시 적용될 수 있다 - 그래서 출구를 따로 두지 않았다(스펙 9.3 의 D8 정정). 라우트 파일에
+앱은 루트 Stack의 일반 초기 화면(홈)에서 새로 시작하며 cold 초기 URL은 다시 적용될 수 있다 - 그래서 출구를 따로 두지 않았다(스펙 9.3 의 D8 정정). 이 초기화 동작은 설치된 react-navigation core를 Node에서 확인했으며 기기에서는 확인하지 않았다. 라우트 파일에
 `ErrorBoundary` 를 더해 화면 단위 경계를 두면 그 경계의 다시 시도와 출구도 조회 캐시를 비워야 한다.
 
 ## 검증

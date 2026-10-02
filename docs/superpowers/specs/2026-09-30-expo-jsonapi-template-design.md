@@ -1277,9 +1277,9 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 5. 계약 거울에 자원 추가, E2E 플로 추가
 ```
 
-> 정정(2026-10-01, D8): 문서군은 위 목록에 더해 `components/`(그리고 `app/`·`form/`·`ui/`·`lab/`)·`lib/`·`lib/updates/`·
+> 정정(2026-10-01, D8): 문서군은 위 목록에 더해 `components/`(그리고 `app/`·`form/`·`ui/`·`lab/`)·`lib/`·
 > `scripts/`·`test/`·`test/unit/`·`docs/` 의 `AGENTS.md` 를 둔다(`lib/config/`·`lib/navigation/`·`lib/lab/`·
-> `test/contract/`·`test/e2e/`·`.github/` 의 것은 앞 단계가 뒀다). 루트 `AGENTS.md` 가 새 자원 추가 절차와 디렉터리
+> `lib/updates/`·`plugins/`·`test/contract/`·`test/e2e/`·`.github/` 의 것은 앞 단계가 뒀다). 루트 `AGENTS.md` 가 새 자원 추가 절차와 디렉터리
 > 문서 탐색을 갖는다. 17장 조건 5 는 게이트 [7] 의 `test/unit/docs/doc-set.test.ts` 가 매번 잰다 - README 와
 > `AGENTS.md` 가 인용한 경로가 있고, 각 `AGENTS.md` 가 자기 디렉터리의 바로 아래 항목을 모두 부르고, 이 장의 문서가
 > 있고, 환경 변수가 10.1 의 세 곳에서 같다. 저장소 밖의 경로를 이름 그대로 부르는 자리는 그 시험의 `EXTERNAL` 에

@@ -102,7 +102,7 @@ templateexpo-dev://examples?filter%5Bstatus%5D=active&sort=-createdAt
 
 로딩은 스켈레톤과 스피너로만 그리고 글자를 쓰지 않습니다. 오류 문구는 백엔드가 `Accept-Language`(기기의 언어 설정)로 협상한 것을 그대로 그립니다 - 앱 자신의 문구는 둘뿐입니다. 쓸 수 있는 응답을 받지 못했을 때(네트워크 실패 · 타임아웃 · 계약을 어긴 응답)의 한 문장과, 가입은 됐는데 이어지는 로그인이 실패했을 때의 안내입니다. 조회 화면은 앞의 문장과 함께 "다시 시도" 를 그립니다. 조회가 계약을 어긴 응답(문구 없는 오류 문서 · 본문 없는 성공 응답)을 받거나 코드에 결함이 있으면 화면 대신 루트의 오류 경계가 그려집니다(아래 "알려진 한계"). 다크 모드는 시스템 설정을 따릅니다.
 
-> **계약 실험실은 개발 · 검증용 표면입니다.** 공개인 채로 두면 익명 클릭 한 번이 백엔드 요청을 최대 스무 개(offset 순회의 상한) 내고, 가입이 열려 있어 계정을 만들면 PUT upsert · 관계 전용 쓰기로 쓰기까지 닿습니다. 프로덕션에 올릴 때는 라우트(`app/(lab)/contract.tsx`)와 홈(`app/(app)/index.tsx`)의 실험실 진입, 그 E2E 플로(`test/e2e/flows/` 의 `contract-lab-*`)를 지우십시오 - 실험실만 쓰는 `components/lab/` · `queries/lab.ts` · `lib/lab/` 도 함께 지울 수 있습니다. 실험실은 앱 셸 밖의 라우트라 보호 경로 목록에 더해도 가드가 닿지 않습니다.
+> **계약 실험실은 개발 · 검증용 표면입니다.** 공개인 채로 두면 익명 클릭 한 번이 백엔드 요청을 최대 스무 개(offset 순회의 상한) 내고, 가입이 열려 있어 계정을 만들면 PUT upsert · 관계 전용 쓰기로 쓰기까지 닿습니다. 프로덕션에 올릴 때는 라우트(`app/(lab)/contract.tsx`)와 홈(`app/(app)/index.tsx`)의 실험실 진입, 그 E2E 플로(`test/e2e/flows/` 의 `contract-lab-*`)를 지우십시오 - 실험실만 쓰는 `components/lab/` · `queries/lab.ts` · `lib/lab/` 도 함께 지울 수 있습니다. 실험실 코드까지 삭제하면 `test/unit/lab/`의 시험, `docs/provenance/copied-core.json`의 해당 경로 기록, 루트와 `lib/`·`components/`·`queries/`·`test/unit/`의 `AGENTS.md`에 있는 관련 항목·인용도 함께 정리합니다. 실험실은 앱 셸 밖의 라우트라 보호 경로 목록에 더해도 가드가 닿지 않습니다.
 
 ## 백엔드 전환
 
@@ -172,7 +172,7 @@ pnpm install --frozen-lockfile
 
 **로컬 게이트는 FastAPI 하나, Android 하나만 돕니다.** 세 백엔드와 iOS 는 CI 가 돕니다. 전제 조건은 Docker([11]–[13]), 네트워크([9]), Android SDK(`ANDROID_HOME`) · Maestro 2.11 · 켜진 에뮬레이터나 부팅할 AVD 이름(`E2E_AVD`)([13])이고, 빠진 것이 있으면 무엇이 빠졌는지 알리고 멈춥니다. [10] 이 Metro 캐시를 지우므로 이 저장소의 `expo start` 를 먼저 끕니다. Maestro 2.11.0 은 `test/e2e/install-maestro.sh` 가 체크섬을 확인하고 `~/.maestro` 에 풉니다(Java 17 이 필요합니다).
 
-Windows에서는 아래 E2E의 단독/새 부팅 규칙도 지킵니다. Git Bash에서 `./scripts/check.sh`로 돌립니다 - `pnpm check` 는 pnpm 이 cmd.exe 로 돌려 `./` 를 찾지 못합니다. 저장소 경로가 47자를 넘으면 [13] 이 짧은 경로(`E2E_STAGE_DIR`, 기본 `C:/t/e`)의 사본에서 APK 를 만듭니다. 스크립트의 실행 권한이 살아 있어야 통과합니다 - `core.filemode=false` 인 머신에서는 권한이 빠져도 `git status` 에 드러나지 않으니 `git ls-tree HEAD scripts/ test/` 에서 `.sh` 가 `100755` 인지 봅니다.
+Windows에서는 아래 E2E의 단독/새 부팅 규칙도 지킵니다. Git Bash에서 `./scripts/check.sh`로 돌립니다 - `pnpm check` 는 pnpm 이 cmd.exe 로 돌려 `./` 를 찾지 못합니다. 저장소 경로가 47자를 넘으면 [13] 이 짧은 경로(`E2E_STAGE_DIR`, 기본 `C:/t/e`)의 사본에서 APK 를 만듭니다. 스크립트의 실행 권한이 살아 있어야 통과합니다 - `core.filemode=false` 인 머신에서는 권한이 빠져도 `git status` 에 드러나지 않으니 `git ls-tree HEAD scripts/ test/e2e/ test/contract/` 에서 실행 진입점 `.sh`가 `100755`인지 봅니다(source 전용 `test/e2e/ios-simulator.sh`는 `100644`).
 
 ## E2E
 
@@ -183,7 +183,7 @@ E2E_AVD=Pixel_9_API_36 ./test/e2e/run-android.sh      # 전부 - 스택을 띄�
 E2E_FLOW="examples-browse" ./test/e2e/run-android.sh  # 일부 - 개발용
 ```
 
-APK 를 다시 만들 때 하네스는 Metro 캐시를 비우고 Gradle 을 데몬 없이(`--no-daemon`) 돌립니다 - Windows 에서 남은 Gradle 데몬이 짧은 경로 사본의 파일을 쥐어 다음 실행을 막았습니다(`docs/superpowers/notes/2026-10-01-d4-measurements.md` 의 W1). Windows 게이트는 소유한 AVD를 새로 부팅하고 다른 시험·타입 검사·번들·Gradle이 끝난 뒤 혼자 돕니다(D5 C2). 다른 작업을 임의 종료하지 않습니다. 콜드 보호 링크는 `cold-links`가 next를 보존하는지 잽니다. 멈춘 서버 확인은 `E2E_CHECKS=1`로 headers/body 두 REQUEST_TIMEOUT을 검증합니다. 결과(Maestro 기록 · 스크린샷 · 기기 로그 · 백엔드 접근 로그)는 `.maestro-output/e2e/<플로>/` 에 남습니다. 플로를 쓰는 규칙과 하네스의 환경 변수는 `test/e2e/AGENTS.md` 에, 씨앗 데이터의 규칙은 `test/e2e/seed/README.md` 에 있습니다.
+APK 를 다시 만들 때 하네스는 Metro 캐시를 비우고 Gradle 을 데몬 없이(`--no-daemon`) 돌립니다 - Windows 에서 남은 Gradle 데몬이 짧은 경로 사본의 파일을 쥐어 다음 실행을 막았습니다(`docs/superpowers/notes/2026-10-01-d4-measurements.md` 의 W1). Windows 게이트는 소유한 AVD를 새로 부팅하고 다른 시험·타입 검사·번들·Gradle이 끝난 뒤 혼자 돕니다(`docs/superpowers/notes/2026-10-01-d5-measurements.md`의 C2). 다른 작업을 임의 종료하지 않습니다. 콜드 보호 링크는 `cold-links`가 next를 보존하는지 잽니다. 멈춘 서버 확인은 `E2E_CHECKS=1`로 headers/body 두 REQUEST_TIMEOUT을 검증합니다. 결과(Maestro 기록 · 스크린샷 · 기기 로그 · 백엔드 접근 로그)는 `.maestro-output/e2e/<플로>/` 에 남습니다. 플로를 쓰는 규칙과 하네스의 환경 변수는 `test/e2e/AGENTS.md` 에, 씨앗 데이터의 규칙은 `test/e2e/seed/README.md` 에 있습니다.
 
 ## CI
 
@@ -200,7 +200,7 @@ APK 를 다시 만들 때 하네스는 Metro 캐시를 비우고 Gradle 을 데�
 - 매트릭스는 `fail-fast: false` 이고 재시도는 0 입니다 - 실패한 잡을 코드 변경 없이 다시 돌리지 않습니다. 흔들리는 플로는 원인을 고칩니다.
 - 아티팩트: 갈래마다 `e2e-android-<백엔드>` · `e2e-ios-<백엔드>-shard-<번호>` 에 플로별 Maestro 기록 · 스크린샷 · 기기 로그 · `api.log`(14일), 앱 둘(7일), iOS 빌드 기록이 남습니다. 빨간 칸은 그 플로의 기기 로그(`device.log` - 가드가 본 것)와 스크린샷부터 봅니다.
 - macOS 실행은 계정의 동시 잡 한도를 공유합니다. 이 워크플로는 다섯 이하로 제한하며 여섯 번째 shard의 대기도 측정합니다.
-- CI APK는 x86_64만 만들고 로컬 기본 APK는 네 ABI입니다. iOS는 backend마다 두 shard이며 macOS 동시 잡은 최대 다섯입니다. 플로 목록의 합집합·무중복이 검사됩니다. 빌드·E2E 시간과 실제 macOS 대기는 `docs/superpowers/notes/2026-10-01-d8-measurements.md`의 G4에 있습니다. 검증되지 않은 iOS 컴파일 캐시는 철회했습니다. Expo 미리 빌드한 모듈과 action SHA 고정은 이번 최적화에 포함하지 않습니다.
+- CI APK는 x86_64만 만들고 로컬 기본 APK는 네 ABI입니다. iOS는 backend마다 두 shard이며 macOS 동시 잡은 최대 다섯입니다. 플로 목록의 합집합·무중복이 검사됩니다. 빌드·E2E 시간과 실제 macOS 대기는 `docs/superpowers/notes/2026-10-01-d8-measurements.md`의 G4에 있습니다. 검증되지 않은 iOS 컴파일 캐시는 철회했습니다. Expo 미리 빌드한 모듈과 action SHA 고정은 적용하지 않았습니다.
 
 잡이 하는 일의 정본은 저장소의 스크립트이고 워크플로는 러너 · 캐시 · 아티팩트만 정합니다(`.github/workflows/AGENTS.md`). Mac 이 있으면 iOS 갈래를 로컬에서 같은 스크립트로 돕니다.
 
@@ -231,8 +231,8 @@ BACKEND_URL=http://localhost:4100 ./test/e2e/run-ios.sh
 - **반응형 변형을 쓰지 않습니다.** Uniwind 1.12.0 이 한 `@media` 블록의 둘째 규칙부터 조건을 잃어, `sm:` 같은 너비 변형과 `ios:` · `android:` 같은 플랫폼 변형을 쓰지 않습니다 - 폰과 태블릿이 같은 크기를 씁니다(`docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L2).
 - **Xcode와 scene:** CI는 build-ios와 여섯 e2e-ios 잡에 Xcode 26.6를 명시합니다. Xcode 27/iOS 27 빌드는 SDK 57의 scene lifecycle opt-in이 필요하며 현재 모든 변형에 `ios.enableSceneSupport: true`가 켜져 있습니다. SDK 58 이상으로 올릴 때 제거 여부를 검토합니다.
 - **Windows 의 Android 네이티브 빌드**는 저장소 경로 47자 이하에서만 됩니다(위 "시작하기").
-- **iOS 전체 매트릭스는 CI의 macOS 러너에서 검증합니다.** 개발 머신은 Windows이지만 D7 K3에는 Mac의 부분 재현도 있습니다. K3의 iOS 27 일부 플로 NOT RUN은 해당 로컬 회차의 상태로 남으며 이후 통합 CI 성공과 구분합니다. 비행기 모드가 필요한 플로 둘(`examples-offline-refetch` · `examples-delete-offline` - 네트워크 복귀의 재조회, 삭제 실패의 문구)은 iOS 에서 건너뜁니다 - 시뮬레이터에 비행기 모드가 없습니다. iOS 의 E2E 가드는 루트 레이아웃보다 먼저 평가된 모듈의 경고를 가르지 못합니다(같은 번들을 도는 Android 가 수준으로 잡습니다).
-- **렌더 중 예외의 화면은 Expo Router 의 기본(영어)입니다.** 계약을 어긴 응답과 코드의 결함은 루트의 오류 경계(`app/_layout.tsx` 의 `ErrorBoundary`)로 갑니다. "Retry" 는 조회 캐시를 비운 뒤 루트 앱을 다시 그립니다(일반 시작은 홈이며 초기 cold 링크가 있으면 그 목적지가 다시 적용될 수 있습니다)(`queries/error-boundary.ts`) - 경계에는 다른 출구가 없고, 백엔드가 같은 응답을 주는 동안은 그 화면에 들어갈 때마다 경계가 다시 보입니다.
+- **iOS의 네트워크 복귀 재조회·삭제 실패 문구 UI는 기기에서 확인하지 않았습니다.** 비행기 모드가 필요한 플로 둘(`examples-offline-refetch` · `examples-delete-offline`)은 iOS 시뮬레이터에 비행기 모드가 없어 건너뜁니다. 같은 JavaScript 동작은 Android의 두 플로가 검증합니다. 나머지 iOS 전체 매트릭스는 CI의 macOS 러너에서 검증합니다. 개발 머신은 Windows이지만 `docs/superpowers/notes/2026-10-01-d7-measurements.md`의 K3에는 Mac의 부분 재현도 있습니다. 그 로컬 회차에서 실행하지 않은 iOS 27 일부 플로와 이후 통합 CI 성공을 구분합니다. iOS의 E2E 가드는 루트 레이아웃보다 먼저 평가된 모듈의 경고를 가르지 못합니다(같은 번들을 도는 Android가 수준으로 잡습니다).
+- **렌더 중 예외의 화면은 Expo Router 의 기본(영어)입니다.** 계약을 어긴 응답과 코드의 결함은 루트의 오류 경계(`app/_layout.tsx` 의 `ErrorBoundary`)로 갑니다. "Retry" 는 조회 캐시를 비운 뒤 루트 앱을 다시 그립니다(일반 시작은 홈이며 초기 cold 링크가 있으면 그 목적지가 다시 적용될 수 있습니다)(`queries/error-boundary.ts`) - 이 초기화 동작은 설치된 react-navigation core를 Node에서 확인했으며 기기에서는 확인하지 않았습니다. 경계에는 다른 출구가 없고, 백엔드가 같은 응답을 주는 동안은 그 화면에 들어갈 때마다 경계가 다시 보입니다.
 - **관계 선택기**는 이름 순 첫 100건만 보이고 검색이 없습니다 - 잘리면 그 사실을 알립니다.
 - **목록 조건의 값 안에 든 `%XX`** 는 Expo Router 가 값을 한 번 더 디코딩해 바뀝니다.
 - 두 E2E 하네스(`test/e2e/run-android.sh` · `test/e2e/run-ios.sh`)가 약 60줄을 겹쳐 갖습니다 - 어긋나기 시작하면 한 파일로 모읍니다.

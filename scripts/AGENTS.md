@@ -12,7 +12,8 @@
 | `check-variant-config.mjs` | `expo config --type introspect` 의 결과를 변형 표와 맞댄다(게이트 [8])              | `100644`(node 가 부른다) |
 
 - 검사를 바꾸면 그 검사를 재는 시험도 함께 본다 - `test/unit/scripts/` 의 같은 이름 시험이고, `--static` 은
-  `check-static.test.ts` 다. 한 번도 빨개지지 않은 검사는 있으나 마나라서 시험마다 어긋난 입력이 실패하는 것을 본다.
+  `check-static.test.ts` 다. `e2e-flow-shards.mjs`는 `test/unit/e2e/flow-shards.test.ts`가 재며, CI의 ABI·shard 실행 조건은
+  `test/unit/scripts/ci-speed.test.ts`가 잰다. 한 번도 빨개지지 않은 검사는 있으나 마나라서 시험마다 어긋난 입력이 실패하는 것을 본다.
 - 이 디렉터리와 `docs/`·루트 `AGENTS.md` 는 인용 검사의 대상이 아니다 - 규칙을 적으려면 금지된 패턴의 이름을
   적어야 한다(`check.sh` 머리말).
 - `.sh` 는 `100755` 로 커밋한다 - Windows(`core.filemode=false`)에서는 `git update-index --chmod=+x <파일>` 뒤

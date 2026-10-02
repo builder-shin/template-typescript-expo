@@ -17,7 +17,7 @@ import { DEFAULT_APP_VARIANT } from '@/lib/config/app-variant'
  *    문서에 한 줄이 생겨야 게이트가 통과한다. 코드 울타리 안의 경로도 부른 것으로 친다. 루트 AGENTS.md 는
  *    디렉터리만 본다 - 루트의 파일은 README 와 각 파일의 머리말이 설명한다.
  * 3. 스펙 14장이 이름을 댄 문서가 있다.
- * 4. 환경 변수는 app.config.ts(lib/config)·.env.example·README 의 표 세 곳이 같은 값을 적는다(스펙 10.1).
+ * 4. 환경 변수 이름은 .env.example·README 표를 맞대고, APP_VARIANT 기본값은 코드와도 맞댄다(스펙 10.1).
  *
  * 파일 목록은 git 이 커밋할 파일이다(추적하는 파일 + 무시되지 않은 새 파일) - .gitignore 가 버리는 것은 문서의
  * 대상이 아니다. 지웠지만 아직 커밋하지 않은 파일은 뺀다.
@@ -296,9 +296,10 @@ describe('문서군이 실제 파일과 일치한다 - 스펙 17장 조건 5', (
     expect([...findings.values()].flatMap((found) => found.unusedExternal)).toEqual([])
   })
 
-  it('환경 변수 - README 표·.env.example·app.config.ts 가 같은 변수와 기본값을 적는다(스펙 10.1)', () => {
+  it('환경 변수 - README 표·.env.example 의 이름과 기본값, 코드의 APP_VARIANT 기본값이 같다(스펙 10.1)', () => {
     const readme = readmeEnvTable(readFileSync('README.md', 'utf8'))
     const example = envExample(readFileSync('.env.example', 'utf8'))
+    // 코드의 환경 변수 접근 이름은 수집하지 않는다 - updates.ts는 env[name]으로 EAS 서버의 대체 변수도 읽는다.
     expect([...readme.keys()].sort()).toEqual([...example.keys()].sort())
     // 필수 변수에는 기본값이 없다 - .env.example 의 값은 예시다
     expect(readme.get('BACKEND_URL')).toBe('없음')

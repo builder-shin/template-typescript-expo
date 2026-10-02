@@ -102,7 +102,7 @@
 
 ## `app/`에는 라우트 파일만 둔다
 
-Expo Router는 `app/` 아래의 `.tsx`·`.ts` 파일을 확장자로 골라 라우트로 읽는다 - `AGENTS.md`는 라우트가 아니다. 판단 함수·타입·상수는
+Expo Router는 `app/` 아래의 `.ts`·`.tsx`·`.js`·`.jsx` 파일을 확장자로 골라 라우트로 읽는다 - `AGENTS.md`는 라우트가 아니다. 판단 함수·타입·상수는
 `lib/`의 해당 계층에 둔다. `+native-intent.tsx`는 라우트가 아닌 라우터의 특별 파일이지만 `app/`에 있어야
 라우터가 찾는다 - 배선만 하고 판단은 `lib/navigation/`에 둔다.
 
