@@ -1,0 +1,5 @@
+# CI run 36973426164, nestjs/cold-links; contiguous excerpt, log lines unchanged except trailing whitespace.
+06:44:36.988 [ERROR] device.IOSDevice.runDeviceCall: Device unreachable while processing deviceInfo command
+ios.IOSDeviceErrors$Unreachable: Device became unreachable while processing deviceInfo
+	at ios.xctest.XCTestIOSDevice.execute(XCTestIOSDevice.kt:249)
+	at ios.xctest.XCTestIOSDevice.deviceInfo(XCTestIOSDevice.kt:30)

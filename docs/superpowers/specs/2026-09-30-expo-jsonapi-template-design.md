@@ -623,6 +623,11 @@ offset과 cursor는 섞을 수 없다(백엔드가 거부한다). 한 화면은 
 > 그 안에 돌아온 화면은 읽은 쪽을 그대로 그리고, 지나면 첫 쪽부터 다시 읽는다. 대가는 구독자 없는 조회가 읽은 쪽 전부와 함께
 > 그 시간만큼 메모리에 남는 것이다(`queries/AGENTS.md`).
 
+> 정정(2026-10-02, D8): 네트워크 복귀의 판정 - NetInfo 의 `isConnected` 가 `false` 일 때만 오프라인이고 `null`(아직
+> 모른다)은 연결로 본다 - 은 `lib/jsonapi/online.ts` 의 `isOnline` 이다. `platform/query-client.ts` 는 그 값을
+> `onlineManager` 에 옮기기만 한다(5장 - `platform/` 에 판단을 두지 않는다). 세 값을 단위 시험이 잰다
+> (`test/unit/jsonapi/online.test.ts`).
+
 ### 8.6 계약 실험실
 
 `(lab)/contract` — 실무 화면이 쓰지 않는 표면을 모으고, 각 실험이 원본 JSON
@@ -752,6 +757,18 @@ Next.js와 같다.
 > 불러도 같은 답이라 받아들인다. 경계에 출구(홈으로 나가는 길)를 두면 그 길과 "다시 시도" 가 조회 캐시를 비워야 한다 - 비우지
 > 않으면 그 30분 동안 같은 화면에 다시 들어갈 때마다 캐시의 결함을 다시 던진다.
 
+> 정정(2026-10-02, D8): 위 D4 정정 (b) 의 두 자리. (1) 루트 레이아웃의 `ErrorBoundary` 는 Expo Router 의 기본 화면을
+> 그대로 그리되 "Retry" 가 경계를 풀기 전에 조회 캐시를 비운다(`queries/error-boundary.ts` 의 `retryWithClearedQueries` -
+> 로그아웃과 같은 범위라 쓰기 캐시는 둔다). 다시 그린 화면은 캐시의 결함을 요청 없이 다시 던지지 않고 다시 부른다 -
+> 판정한 결함은 같은 답이라 다시 경계로 오지만, 백엔드가 고쳐지면 앱을 다시 켜지 않아도 풀린다. (2) 출구를 따로 두지
+> 않는다. 이 경계는 루트 레이아웃(그 안의 루트 내비게이터)을 통째로 바꿔 그려, 떠 있는 동안 이동을 부를 수 없고(내비게이터가
+> 없다는 오류만 남는다) 내비게이터는 상태를 잃는다 - "Retry" 뒤의 앱은 루트 Stack 의 첫 화면(`(app)` 의 앵커, 홈)에서
+> 다시 시작한다. 이 둘은 설치본 expo-router 57.0.24 에 묶인 react-navigation core 를 node 로 불러 쟀다(기기에서는 재지
+> 않았다 - 세 백엔드는 그 결함을 보내지 않는다). 남은 한계는 판정한 결함이 고쳐지지 않는 동안 그 화면에 들어갈 때마다 경계를
+> 다시 본다는 것이다(README 의 알려진 한계). 화면 단위 경계(라우트 파일의 `ErrorBoundary`)나 출구를 더하는 단계는 그
+> 경계의 다시 시도와 출구도 조회 캐시를 비워야 한다. 위 초기 화면 판정은 일반 시작에 한정한다 - cold 초기 URL은 다시
+> 적용될 수 있고 실제 결함 주입으로 기기에서 재지 않았다.
+
 ### 9.4 Accept-Language
 
 - 기기의 언어 설정 목록(`expo-localization`의 `getLocales()`)으로 헤더 값을
@@ -863,6 +880,14 @@ Native Generation). 네이티브 설정은 `app.config.ts`와 config plugin으�
 > 묻는다(비대화형이면 멈춘다). 프로필과 변형이 맞는지(이름·`APP_VARIANT`·채널·Node·pnpm, `BACKEND_URL` 없음)는
 > `test/unit/config/eas-json.test.ts` 가 보고, 스키마는 `@expo/eas-json` 24.8.0 의 해석기로 쟀다(D6 실측 O2).
 
+> 정정(2026-10-02, D8): `expo-dev-client`(~57.0.19)를 설치했다 - `development` 프로필의 `developmentClient` 가 그것을
+> 요구하고(위 D6 정정), 개발은 development build 로 한다(1.2). 그 설정 플러그인이 기본으로 모든 변형에 더하는 scheme
+> `exp+template-typescript-expo` 는 `development` 에만 싣는다(`lib/config/app-variant.ts` 의 `devClientScheme`,
+> `app.config.ts` 의 `addGeneratedScheme`) - 10.2 의 D1 정정(변형마다 다른 scheme)을 지킨다. 게이트 [8] 이 네 변형의
+> introspect 에서 그 scheme 이 development 의 Android·iOS 에만 있는지 잰다. release 빌드의 개발 런처는 빈 구현이라
+> e2e·배포 변형의 동작은 바뀌지 않는다. iOS 의 Info.plist 에는 모든 변형에 로컬 네트워크 키(`NSBonjourServices`·`NSLocalNetworkUsageDescription`)가
+> 더해지고, Debug 가 아닌 빌드에서 그 플러그인의 빌드 단계가 지운다.
+
 ### 10.6 OTA 업데이트
 
 - `runtimeVersion`은 `fingerprint` 정책이다. 네이티브 구성이 같은 빌드에만
@@ -903,6 +928,23 @@ Native Generation). 네이티브 설정은 `app.config.ts`와 config plugin으�
 xcodebuild로 직접 빌드한다. 실제 EAS 빌드와 OTA 발행은 사용자의 Expo 계정과
 빌드 크레딧을 쓰므로, 구현 완료 후 사용자 승인을 받아 별도 단계(15장 9단계)로
 한 번 실증한다 — `preview` 빌드 설치 → 업데이트 발행 → 앱이 그 업데이트를 받는다.
+
+> 정정(2026-10-02, D8): 10.1·10.5·10.6 의 EAS 환경 규칙과 명령을 eas-cli 24.8.0 의 소스와 도움말로 확인했다.
+> (a) EAS 는 설정 평가에 `EXPO_NO_DOTENV=1` 을 줘 `.env` 를 읽지 않는다. 프로젝트를 찾는 첫 평가는 EAS 환경
+> 변수를 받기 전이므로 셸에 `APP_VARIANT`·`BACKEND_URL`·`EAS_PROJECT_ID` 를 둔다(첫 `init` 에서만 ID 를 비운다).
+> preview·production 의 셸 주소도 https 여야 한다. 동적 설정의 `init` 은 프로젝트를 만들거나 찾은 뒤 ID 를
+> 쓰지 못해 경고·ID 를 출력하고 exit 1 로 끝난다 - 이 템플릿은 출력된 UUID 를 셸의 `EAS_PROJECT_ID` 로 받는다.
+> (b) `env:create` 는 폐기 예정이고 `env:set` 이 대체한다. 전자는 비대화형에서 `--visibility` 가 필수다. README 는
+> 후자에도 `--visibility plaintext` 를 명시한다 - `BACKEND_URL` 은 공개 값이고 `secret` 은 로컬에서 읽을 수 없다.
+> (c) `update --environment <환경>` 은 첫 평가 뒤 읽을 수 있는 EAS 환경 변수(`plaintext`·`sensitive`)로 같은 이름의
+> 셸 값을 덮어 설정 재평가·번들·runtime version·fingerprint 에 쓴다. EAS 환경에 없는 이름은 셸 값을 쓴다. 빌드와
+> 같아야 하는 것은 이 최종 세 값이지 셸 값만이 아니다(D6 실측 O1 의 D8 정정). 발행은 빌드 프로필 `env` 를 읽지
+> 않는다. 비대화형 발행은 `--auto` 가 없으면 채널(또는 브랜치)과 `--message` 가 필요하며, SDK 57 은 `--environment`
+> 를 지정한다. 24.8.0 은 그 플래그가 있으면 번들 캐시를 자동으로 지운다(`--clear-cache` 로도 명시할 수 있다).
+> (d) 프로젝트 ID 로 연결된 빌드·발행에서 조직 계정·로봇 토큰에 대한 추가 `owner` 검사는 SDK 53 미만뿐이다.
+> 직접 넣은 `owner` 는 프로젝트 소유자와 같아야 한다. 제출 프로필은 빌드를 만들지 않으며, iOS 비대화형 제출은
+> `ascAppId` 가 필요하다. 사용자는 실계정 실행 대신 README 정정을 선택했다 - 15장 9단계의 preview 빌드 설치 →
+> 업데이트 발행 → 앱 수신 실증은 미수행으로 남고 README 의 알려진 한계에 적는다.
 
 ## 11. 테스트 전략
 
@@ -1056,6 +1098,14 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > 다시 설치하고 키체인을 비운다(Android 의 `pm clear` 자리) - 언어는 플로의 `launchApp` 이 싣는
 > `-AppleLanguages (<태그>)` 다(위 첫 D7 정정). iOS 에서 실제로 되는지는 CI 의 첫 실행이 잰다(D7 실측 기록 K3).
 
+> 정정(2026-10-02, D8): 재시도 0에 iOS 드라이버 종료 한 가지 예외를 둔다. 실패한 Maestro 실행의 runner 로그에
+> status-bar 조회 시작 뒤 조회 종료·Tear Down 전 `testHttpServer`의 `Failed to resolve query: Failed to resolve remote element`
+> 및 `kAXErrorInvalidUIElement`가 있고 CLI도 `Device became unreachable`을 보고한 경우만 해당 플로를 새 드라이버로
+> 처음부터 한 번 다시 실행한다([Maestro #3538](https://github.com/mobile-dev-inc/Maestro/issues/3538)). 첫 기록을 별도 보존하고,
+> 같은 설정·timeout·단언으로 새 이메일·제목 접두사를 생성한다. 초기화·로그·API offset을 새로 시작해 최종 시도만 검증한다.
+> 복구 시 두 시도의 fixture 식별자와 경로를 기록하고 CI warning·최종 복구 횟수를 남긴다. 두 번째 실패, 앱·테스트·가드 실패,
+> 시작 timeout과 이 서명 없는 unreachable은 재실행하지 않는다. Android의 재시도 0은 유지하며 상류 수정판 검증 뒤 제거한다.
+
 ### 11.4 E2E 스택
 
 - `docker-compose.e2e.yml`은 Next.js 파일에서 `web` 서비스를 뺀 것이다. 백엔드마다
@@ -1208,6 +1258,28 @@ e2e-ios × 3       macOS    백엔드를 네이티브로 실행 → Maestro
 > 첫 실행부터 그 실행까지 무엇이 왜 실패했고 무엇을 고쳤는지, 칸별 결과와 시간은
 > `docs/superpowers/notes/2026-10-01-d7-measurements.md`의 K3에 있다.
 
+> 정정(2026-10-02, D8 CI 최적화): iOS의 백엔드별 논리 셀은 두 shard의 합집합으로 판정한다. 논리 아홉 칸은 유지하며
+> 물리 잡은 checks 1·빌드 2·Android 3·iOS 6의 총 12개다. iOS는 16·5 플로로 나누며 합집합 21개와 무중복을 검사한다.
+> CI APK만 x86_64로 만들고 로컬 기본은 네 ABI다.
+> 세 백엔드 × 두 플랫폼, Android 23개·iOS 21개, 백엔드별 계약 거울 94개, 플랫폼별 fastapi request-stall,
+> 재시도 0과 기존 HTTP·로그·화면 단언 및 timeout은 그대로다. 실제 빌드·E2E 시간과 macOS 대기는 D8 실측 기록 G4에 적는다.
+
+> 정정(2026-10-02, D8 캐시 후보 철회): [36963954302](https://github.com/builder-shin/template-typescript-expo/actions/runs/36963954302)의
+> iOS Clang 컴파일 511개가 모두 `-fmodules`를 사용해 ccache의 정확성 기본값으로 캐시할 수 없었다.
+> 모듈 내부 상태 변화를 놓칠 수 있는 sloppiness는 허용하지 않는다. 새 러너의 DerivedData 재사용도 검증되지 않아
+> iOS native-fingerprint 컴파일 캐시는 전체를 되돌렸다. 추후 Xcode compilation caching 또는 C_COMPILER_LAUNCHER를
+> 실제 실행으로 측정한 뒤 재검토한다. ABI 선택·iOS shard와 전체 검증 범위는 유지한다.
+
+> 정정(2026-10-02, D8 shard 철회): 두 shard 후보 커밋 `1cce6bd`를 되돌려 iOS는 세 백엔드가 각각 전체 21플로를
+> 실행한다. 물리 아홉 잡(checks 1·빌드 2·Android 3·iOS 3)이 논리 아홉 칸과 같으며 fastapi의 iOS request-stall도 유지한다.
+> 다섯 macOS 슬롯에 여섯 shard 잡을 배정하면 실행 A의 긴 잡 약 34.50분·짧은 잡 21.18/21.68분 기준 꼬리는
+> 최선 42.86분(기준 45.50분보다 2.64분 짧음), 최악 55.68분(10.18분 김)이다. include 순서는 배정 순서를 보장하지
+> 않고 작은 이득은 D7의 39–44분 변동폭 안이다. macOS 사용 시간은 실행당 142.92분에서 177.52분으로 약 24% 늘며
+> 비공개 저장소에서는 10배로 계산한다. 비용·대기를 포함한 이득이 입증되지 않아 계획의 규칙대로 이 후보만 철회한다.
+> CI x86_64 APK·로컬 네 ABI, 세 백엔드 × 두 플랫폼·계약 94개·기존 플로·단언·timeout·재시도 0은 유지한다.
+> 실행 A의 마지막 Android는 생성 뒤 43.20분, 마지막 iOS는 59.82분으로 전체 벽시계를 묶은 것은 iOS 경로였다.
+> 다음 측정 후보는 Xcode compilation caching 또는 explicit modules를 쓰는 C_COMPILER_LAUNCHER다. 실측과 판정은 D8 기록 G4에 있다.
+
 ## 14. 문서
 
 ```text
@@ -1239,6 +1311,14 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 4. app/(app)/<자원>/          화면
 5. 계약 거울에 자원 추가, E2E 플로 추가
 ```
+
+> 정정(2026-10-02, D8): 문서군은 위 목록에 더해 `components/`(그리고 `app/`·`form/`·`ui/`·`lab/`)·`lib/`·
+> `scripts/`·`test/`·`test/unit/`·`docs/` 의 `AGENTS.md` 를 둔다(`lib/config/`·`lib/navigation/`·`lib/lab/`·
+> `lib/updates/`·`plugins/`·`test/contract/`·`test/e2e/`·`.github/` 의 것은 앞 단계가 뒀다). 루트 `AGENTS.md` 가 새 자원 추가 절차와 디렉터리
+> 문서 탐색을 갖는다. 17장 조건 5 는 게이트 [7] 의 `test/unit/docs/doc-set.test.ts` 가 매번 잰다 - README 와
+> `AGENTS.md` 가 인용한 경로가 있고, 각 `AGENTS.md` 가 자기 디렉터리의 바로 아래 항목을 모두 부르고, 이 장의 문서가
+> 있고, README 표와 `.env.example`의 변수 이름·기본값, 코드의 `APP_VARIANT` 기본값을 맞댄다. 저장소 밖의 경로를 이름 그대로 부르는 자리는 그 시험의 `EXTERNAL` 에
+> 까닭과 함께 적는다.
 
 ## 15. 구현 단계
 
@@ -1276,6 +1356,10 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > `json()` 을 요청 signal 과 경주시킨다(이유는 실측 기록 M6 의 소스 확인). 본문을 읽는 도중 시간이
 > 다 되면 `REQUEST_TIMEOUT`, 호출자가 끊으면 `NON_JSONAPI_RESPONSE`(status 는 응답의 것)이고 단위 시험이
 > 지킨다.
+
+> 정정(2026-10-02, D8): 단계 8 의 "GitHub 저장소 생성" 은 D3 전에 끝났다 - `builder-shin/template-typescript-expo` 는
+> 공개 저장소다(사용자 확인). 끝난 단계는 컨트롤러가 `main` 에 병합 커밋으로 병합해 push 하고, CI 는 모든 브랜치의
+> push 에서 돈다(13장의 D7 정정). 태그·릴리스는 만들지 않았다 - 이 표가 산출로 정하지 않았다.
 
 ## 16. 리스크
 
@@ -1358,6 +1442,12 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > SDK 58 이상으로 올릴 때 해당 opt-in은 불필요해지므로 제거를 검토한다([Expo 안내](https://github.com/expo/fyi/blob/main/ios-scene-lifecycle.md)).
 > CI의 두 iOS 잡은 재현성을 위해 Xcode 26.6의 `DEVELOPER_DIR`를 명시한다. 로컬 Mac 재현은 27.0이며 판별 증거는 K3다.
 
+> 정정(2026-10-02, D8): Maestro 2.11.0의 iOS XCTest 드라이버가 SpringBoard status-bar 조회 중 InputUI의 원격 AX 요소를
+> 잃으면 HTTP 서버 자체가 종료된다([Maestro #3538](https://github.com/mobile-dev-inc/Maestro/issues/3538)). Mac iOS 26.5에서
+> 하드웨어 키보드 연결·자동 최소화 설정으로 소프트웨어 키보드와 InputUI 창을 제거하지 못했다. 11.3의 정확한 실패 서명에만
+> 플로당 1회 복구를 허용한다. 첫 증거·복구 경고·횟수를 남기고 두 번째 실행의 모든 기존 단언을 통과해야 한다. 이것은 앱이나
+> 테스트 실패의 재시도가 아니며 일반 unreachable도 포함하지 않는다. 상류 수정판에서 재현되지 않는 것을 검증하면 예외를 제거한다.
+
 ## 17. 완료 조건
 
 1. 로컬 게이트(`./scripts/check.sh`)가 개발 머신(Windows)에서 통과한다.
@@ -1370,3 +1460,13 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > `build-android`·`build-ios`를 더한 아홉이다. [36950704982](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982)
 > (커밋 `53e3134`)에서 모두 초록이었다(D7 실측 기록 K3). 조건3(같은 앱 코드가 어댑터 없이 세 백엔드 모두에서 통과)도
 > 그 실행이 보였다. 조건1·5는 D8이 닫는다.
+
+> 정정(2026-10-02, D8): 다섯 조건이 모두 닫혔다. 조건1 - Windows 개발 머신의 게이트 전체 13단계가 이 브랜치의 마지막
+> 비문서 커밋 `f05c9d3` 에서 통과했다(D8 실측 기록 G1 - 2026-10-02T08:46Z–09:11Z, 단위 101파일 / 1974시험, 계약 거울 94,
+> Android 23플로와 request-stall). 조건2·3 - 같은 커밋의 [36986123148](https://github.com/builder-shin/template-typescript-expo/actions/runs/36986123148)
+> 에서 논리 아홉 칸이 모두 초록이었다(물리 잡도 아홉 - D8 이 시험한 iOS 두 shard 는 측정 뒤 13장 정정대로 철회했다).
+> 세 백엔드가 같은 앱 코드로 통과했다. 그 실행에서 iOS 하네스의 드라이버 복구는 한 번(nestjs 잡의 `logout-from-protected`)이었다.
+> 백엔드마다 받은 커밋, 앞선 실행 B·C 의 빨간 칸(Maestro iOS
+> 드라이버 결함 maestro#3538)과 그 복구는 G2 와 16장 정정에 있다. 조건4 - 복사 출처 기록과 게이트 [6] 의 검사는 그대로다
+> (경로 54 · 이탈 42 · 원본 그대로 33). 조건5 - 게이트 [7] 의 `test/unit/docs/doc-set.test.ts`(12시험)가 README 와
+> `AGENTS.md` 스물일곱을 실제 파일과 맞댄다(G3).

@@ -12,6 +12,9 @@
 #                                   빌드 앞에 Metro 의 디스크 캐시를 비우고, 만든 APK 의
 #                                   assets/app.config 가 e2e 변형인지 확인한다
 #                                   앱 설정과 AndroidManifest.xml 이 OTA 를 끄고 평문 HTTP 를 켰는지도 확인한다
+#                                   E2E_ANDROID_ABIS 미지정은 네 ABI, x86_64 는 CI 에뮬레이터용 단일 ABI 다
+#   test/e2e/android.sh assert-apk-abis <APK>
+#                                   E2E_ANDROID_ABIS=x86_64 일 때 lib ABI 집합이 정확히 x86_64 인지 검사한다
 #   test/e2e/android.sh install     만든 APK 를 설치한다
 #   test/e2e/android.sh wait-text <텍스트>
 #                                   그 텍스트가 화면에 나타날 때까지(최대 60초) 기다리고
@@ -127,11 +130,15 @@ assert_apk_variant() {
 # 네 변형 모두 재고, 여기서는 실제로 설치할 APK 를 잰다.
 assert_apk_ota_off() {
   local aapt2 config manifest
+  # SDK 경로의 고정된 파일명만 버전순으로 고른다.
+  # shellcheck disable=SC2012
   aapt2=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 "$ANDROID_HOME"/build-tools/*/aapt2.exe 2>/dev/null | sort -V | tail -n 1 || true)
   if [ -z "$aapt2" ]; then
     echo "aapt2 가 없다 - APK 의 AndroidManifest.xml 을 읽으려면 Android SDK 의 build-tools 가 필요하다" >&2
     exit 1
   fi
+  # ${…}는 Node 템플릿 문자열이다.
+  # shellcheck disable=SC2016
   if ! config=$(unzip -p "$APK" assets/app.config | node -e '
   const config = JSON.parse(require("fs").readFileSync(0, "utf8"))
   process.stdout.write(`updates=${JSON.stringify(config.updates)} runtimeVersion=${JSON.stringify(config.runtimeVersion)}`)'); then
@@ -142,6 +149,8 @@ assert_apk_ota_off() {
     echo "APK 의 앱 설정이 OTA 를 끄지 않았다 ($config)" >&2
     exit 1
   fi
+  # ${…}는 Node 템플릿 문자열이다.
+  # shellcheck disable=SC2016
   if ! manifest=$("$aapt2" dump xmltree --file AndroidManifest.xml "$APK" | node -e '
   const lines = require("fs").readFileSync(0, "utf8").split(/\r?\n/)
   const meta = new Map()
@@ -192,9 +201,9 @@ clear_metro_cache() {
 
 # D6 의 두 단계 빌드: 둘째 실행에서는 매니페스트 단계가 다시 돌면 안 된다(결정 41).
 assemble_release() {
-  local gradle_jvm="$1" log rc=0
+  local gradle_jvm="$1" architectures="$2" log rc=0
   log=$(mktemp)
-  (cd android && ./gradlew assembleRelease --no-daemon --console=plain "$gradle_jvm") | tee "$log" || rc=$?
+  (cd android && ./gradlew assembleRelease --no-daemon --console=plain "$gradle_jvm" "$architectures") | tee "$log" || rc=$?
   if [ "$rc" -eq 0 ] && ! grep -Fxq '> Task :app:createReleaseUpdatesResources UP-TO-DATE' "$log"; then
     echo "APK 빌드: 둘째 Gradle 의 createReleaseUpdatesResources 가 UP-TO-DATE 가 아니다 - 입력·출력과 Metro 캐시 순서를 확인한다" >&2
     rc=1
@@ -205,6 +214,11 @@ assemble_release() {
 
 build() {
   : "${BACKEND_URL:?BACKEND_URL 이 필요하다 - 에뮬레이터에서 호스트는 http://10.0.2.2:<포트>}"
+  local abis="${E2E_ANDROID_ABIS:-armeabi-v7a,arm64-v8a,x86,x86_64}"
+  case "${E2E_ANDROID_ABIS:-}" in
+    ''|x86_64) ;;
+    *) echo "E2E_ANDROID_ABIS 는 미지정 또는 x86_64 만 허용한다" >&2; exit 1 ;;
+  esac
   check_path || exit 1
   # prebuild 와 Gradle 이 같은 변형을 받도록 export 한다(접두 대입은 그 명령 하나에만 적용된다).
   export APP_VARIANT=e2e
@@ -225,12 +239,21 @@ build() {
   # 0번이었다(D1 실측 M1 관찰 8·D3 실측 L7 과 같은 모양 - docs/superpowers/notes/2026-10-01-d6-measurements.md 의 O4).
   # 캐시를 다시 비운 뒤의 둘째 Gradle 에서 그 단계는 입력(문자열뿐)과 출력이 같아 UP-TO-DATE 로 건너뛰고, 번들 단계는
   # 스스로 캐시를 지운다(--reset-cache).
-  (cd android && ./gradlew :app:createReleaseUpdatesResources --no-daemon "$gradle_jvm")
+  (cd android && ./gradlew :app:createReleaseUpdatesResources --no-daemon "$gradle_jvm" "-PreactNativeArchitectures=$abis")
   clear_metro_cache
-  assemble_release "$gradle_jvm"
+  assemble_release "$gradle_jvm" "-PreactNativeArchitectures=$abis"
   assert_apk_variant
   assert_apk_ota_off
+  assert_apk_abis "$APK"
   ls -l "$APK"
+}
+
+assert_apk_abis() {
+  [ "${E2E_ANDROID_ABIS:-}" = x86_64 ] || return 0
+  local abis
+  abis=$(unzip -Z1 "$1" | awk -F / '$1 == "lib" && NF > 2 { print $2 }' | sort -u)
+  [ "$abis" = x86_64 ] || { echo "APK 의 lib ABI 집합이 x86_64 가 아니다: $abis" >&2; exit 1; }
+  echo "APK 의 lib ABI: $abis"
 }
 
 install() {
@@ -264,12 +287,13 @@ case "${1:-}" in
   check-path) check_path ;;
   build) build ;;
   install) install ;;
+  assert-apk-abis) assert_apk_abis "${2:?APK 경로가 필요하다}" ;;
   wait-text)
     shift
     wait_text "$@"
     ;;
   *)
-    echo "사용법: $0 boot|check-path|build|install|wait-text <텍스트>" >&2
+    echo "사용법: $0 boot|check-path|build|install|assert-apk-abis <APK>|wait-text <텍스트> (E2E_ANDROID_ABIS: 미지정 또는 x86_64)" >&2
     exit 1
     ;;
 esac

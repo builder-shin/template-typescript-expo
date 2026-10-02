@@ -24,7 +24,7 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
   Maestro 2.11.0의 `IOSDriver.openLink`는 그 창을 처리하지 않는다. 모든 `openLink` 뒤에 이 서브플로를 부른다.
   iOS이고 정확한 제목이 보일 때만 누르고 제목이 사라졌는지 단언한다. 앱의 목적 화면 단언은 그대로다.
   OS 버튼에는 앱의 testID가 없다. 앱별 `AppleLanguages` 인자는 OS 영어 확인창과 별개다.
-  `flows.test.ts`는 예외 파일의 명령 구조 전체를 고정한다: iOS와 정확한 제목을 조건으로 하는 runFlow 하나,
+  `test/unit/e2e/flows.test.ts`는 예외 파일의 명령 구조 전체를 고정한다: iOS와 정확한 제목을 조건으로 하는 runFlow 하나,
   그 안의 Open 누름 하나와 같은 제목의 부재 단언 하나뿐이다. 저장소 전체에서 직접 id가 없는 누름도 정확히
   이 하나여야 한다. 무조건/중복 누름·넓어진 제목·블록 밖 단언과 호출 누락을 거절한다.
   증거는 실측 K3의 실행 2 스크린샷·hierarchy다. D7-R32 하네스는 아래 사전 승인을 준비하므로 보통 이 조건은
@@ -250,6 +250,7 @@ prebuild 가 만드는 `android/gradle.properties` 의 기본값(Metaspace 512Mi
 | `E2E_FLOW`                                   | 돌릴 플로 이름(공백으로 구분, 확장자 없이). 비우면 전부 - 게이트는 비우고 부른다                                                                                   |
 | `BACKEND_KIND`                               | 띄울 백엔드(fastapi·nestjs·rails, 기본 fastapi) - `test/e2e/matrix.ts` 가 검증한다                                                                                 |
 | `E2E_APK`                                    | 미리 만든 e2e APK. 주면 빌드하지 않고 설치한다(CI 의 build-android 잡)                                                                                             |
+| `E2E_ANDROID_ABIS`                           | 미지정이면 네 ABI(armeabi-v7a·arm64-v8a·x86·x86_64), `x86_64`는 CI 전용. 그 밖의 값은 prebuild 전에 exit 1로 멈춘다                                                |
 | `E2E_CHECKS`                                 | `1` 이면 플로 뒤에 멈춘 서버로 `checks/` 를 돈다(위 "멈춘 서버 확인")                                                                                              |
 | `MAESTRO`                                    | Maestro 실행 파일(기본 PATH 의 `maestro`, 없으면 `~/.maestro/bin/maestro`). 2.11.x 가 아니면 멈춘다                                                                |
 | `MAESTRO_CLI_NO_ANALYTICS`                   | 하네스가 `1` 로 export 한다 - Maestro 의 사용 통계를 끈다                                                                                                          |
@@ -267,7 +268,27 @@ prebuild 가 만드는 `android/gradle.properties` 의 기본값(Metaspace 512Mi
 번에 눌리는지"를 조용히 재지 않는다. 그렇게 끝난 뒤에는 `adb shell settings get secure default_input_method` 로
 확인하고 `adb shell ime set com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME` 로 되돌린다.
 
+## Windows 게이트의 시작 상태
+
+소유 AVD를 새로 부팅하고 이 저장소의 Metro와 다른 무거운 작업이 끝난 뒤 게이트를 혼자 돌린다(D5 실측 C2).
+다른 기기/에이전트 작업을 임의 종료하지 않는다. adb 서버 재시작은 다른 기기가 없고 컨트롤러가 시간을 비운
+경우에만 수동으로 한다. 하네스가 자동으로 adb 서버를 재시작하지 않는다. UI 계층 질의 정지/연결 끊김은
+실패 회차의 로그·uptime·동시 작업과 함께 기록하고 retry/timeout을 늘리지 않는다.
+
+## Android ABI 선택
+
+CI APK는 `E2E_ANDROID_ABIS=x86_64`로 빌드한다. 미지정 기본은 네 ABI(`armeabi-v7a,arm64-v8a,x86,x86_64`)이며,
+명시할 수 있는 값은 `x86_64`뿐이다. 두 Gradle 호출과 APK 재사용 지문에 같은 선택을 넣는다. CI는 APK의 lib ABI
+집합과 에뮬레이터의 `ro.product.cpu.abi`가 모두 x86_64인지 설치 전에 확인한다.
+
+## iOS simulator 도우미
+
+`ios-simulator.sh`는 run-ios.sh가 source하는 도우미다(100644). `ios-simulator.ts`의 허용 목록으로 전용 simulator의
+서비스를 축소하고 설정 준비 뒤 한 번만 재부팅한다. 사용자 기기는 선택 정보를 읽는 데만 쓰고 설정하지 않는다.
+
 ## iOS
+
+CI는 백엔드마다 전체 iOS 21플로를 한 잡에서 실행한다. request-stall은 fastapi 갈래에서 한 번 실행한다.
 
 `run-ios.sh` 는 macOS 에서만 돈다(Xcode·Homebrew·Java 17 - CI 의 e2e-ios 잡, Mac 을 쓰는 사람의 로컬). 플로·머리말·가드·요청 수 단언은
 Android 와 같고, 다른 것은 이렇다.
@@ -336,6 +357,18 @@ Android 와 같고, 다른 것은 이렇다.
   React Native 의 iOS 는 JS 의 info 와 warn 을 같은 유형으로 남긴다 - e2e 변형이 경고 앞에 `[e2e-warn]` 을
   붙이고(`platform/e2e-log.ts`) 변환이 그 줄을 `W/` 로 옮긴다. 붙기 전과 끊은 뒤의 줄은 받지 못한다 - 하네스가
   붙은 뒤 2초, 끊기 전 2초를 둔다.
+- 드라이버 종료 예외(D8): [Maestro #3538](https://github.com/mobile-dev-inc/Maestro/issues/3538)의 status-bar
+  query 중 사라진 원격 AX 요소가 XCTest HTTP 서버를 종료할 수 있다. 실패한 Maestro 실행에 한해
+  `ios-driver-crash.ts`가 debug의 runner 로그에서 status-bar 조회 시작 뒤 조회 종료·Tear Down 전에 발생한
+  `testHttpServer`의 `Failed to resolve query: Failed to resolve remote element`·`kAXErrorInvalidUIElement`를
+  찾고 CLI의 `Device became unreachable` 오류까지 확인한다. 이 조합만 해당 플로를 새 드라이버로 처음부터
+  한 번 다시 실행한다. 앱·단언·가드 실패, 시작 timeout, 단순 연결 거절은 복구하지 않으며 두 번째 실패도 그대로 실패다.
+  첫 시도의 전체 기록은 `<플로>-driver-crash/`에 보존한다. 같은 변형·백엔드·로캘·플로·timeout·단언을 사용하고,
+  이메일과 제목 접두사는 기존 생성기로 새로 만든다. 로캘 초기화·clearState·키체인 초기화도 원래 경로를 다시 지난다.
+  시뮬레이터 로그와 API offset은 다시 시작하며 최종 시도의 가드·요청 수·request-stall 단언만 평가한다.
+  복구 줄에 두 시도의 EMAIL·OTHER_EMAIL과 첫 기록 경로를 남기고 GITHUB_ACTIONS에서는 `::warning::`도 낸다.
+  마지막 요약 앞에 복구 횟수를 적는다. 실제 CI 로그 픽스처와 가짜 Maestro 시험이 탐지·1회 제한·증거 보존·가드 격리를
+  지킨다. Android는 그대로이며 상류 수정판을 검증하면 이 예외를 제거한다.
 - 로캘 플로 앞에서 하네스가 앱을 다시 설치하고 키체인을 비운다(Android 의 `pm clear` 자리). 언어는 플로의
   `launchApp` 이 싣는 `-AppleLanguages` 다(위 "두 플랫폼").
 - `# e2e-platforms:` 에 `ios` 가 없는 플로는 건너뛰고 끝에 그 이름을 적는다.

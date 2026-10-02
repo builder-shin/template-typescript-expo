@@ -100,6 +100,7 @@ jobs:
       - name: e2e APK
         env:
           BACKEND_URL: http://10.0.2.2:4100
+          E2E_ANDROID_ABIS: x86_64
         run: test/e2e/android.sh build
 
       - name: APK 올리기
@@ -114,7 +115,7 @@ jobs:
     name: e2e-android (${{ matrix.backend }})
     needs: build-android
     runs-on: ubuntu-24.04
-    # 계약 거울(백엔드 이미지 빌드)·AVD·플로 스물둘 - 소프트웨어 렌더링 에뮬레이터는 로컬보다 느리다.
+    # 계약 거울(백엔드 이미지 빌드)·AVD·플로 스물셋 - 소프트웨어 렌더링 에뮬레이터는 로컬보다 느리다.
     timeout-minutes: 90
     strategy:
       # 하나가 죽어도 나머지를 끝까지 돌린다 - "어느 백엔드가 어디서 갈리는가" 가 이 잡의 산출물이다.
@@ -212,6 +213,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         env:
           E2E_APK: ${{ runner.temp }}/apk/app-release.apk
+          E2E_ANDROID_ABIS: x86_64
           E2E_CHECKS: ${{ matrix.backend == 'fastapi' && '1' || '' }}
         with:
           api-level: 36

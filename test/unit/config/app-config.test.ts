@@ -1,6 +1,12 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import appConfig, { BASE_APP_ID, BASE_NAME, BASE_SCHEME } from '@/app.config'
+import appConfig, {
+  BASE_APP_ID,
+  BASE_NAME,
+  BASE_SCHEME,
+  DEV_CLIENT_SCHEME,
+  SLUG,
+} from '@/app.config'
 
 // 실전 주소(10.0.2.2:4100 · .env.example)를 쓰지 않는다 - 픽스처가 실전값과 같으면
 // "설정에서 읽었다" 와 "박아 넣었다" 가 구별되지 않는다(원본 저장소의 관례).
@@ -113,6 +119,29 @@ describe('app.config.ts - 스펙 10.1·10.2', () => {
       'expo-secure-store',
       { configureAndroidBackup: true, faceIDPermission: false },
     ])
+  })
+})
+
+describe('app.config.ts 의 개발 클라이언트 - 스펙 1.2·10.5', () => {
+  function devClientPlugin(config: ExpoConfig): unknown {
+    return config.plugins?.find(
+      (plugin) => Array.isArray(plugin) && plugin[0] === 'expo-dev-client',
+    )
+  }
+
+  it('development 만 개발 클라이언트의 scheme 을 싣는다', () => {
+    expect(devClientPlugin(evaluate({ BACKEND_URL: 'http://probe-backend:4321' }))).toEqual([
+      'expo-dev-client',
+      { addGeneratedScheme: true },
+    ])
+    expect(
+      devClientPlugin(evaluate({ BACKEND_URL: 'http://probe-backend:4321', APP_VARIANT: 'e2e' })),
+    ).toEqual(['expo-dev-client', { addGeneratedScheme: false }])
+  })
+
+  it('개발 클라이언트의 scheme 은 slug 에서 나온다 - 설정 플러그인의 규칙 그대로', () => {
+    expect(SLUG).toBe('template-typescript-expo')
+    expect(DEV_CLIENT_SCHEME).toBe('exp+template-typescript-expo')
   })
 })
 

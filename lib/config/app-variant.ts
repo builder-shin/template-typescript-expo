@@ -33,6 +33,12 @@ export interface VariantProfile {
    * 번들을, e2e 는 내장 번들을 결정적으로 돈다.
    */
   readonly updatesChannel: string | null
+  /**
+   * 개발 클라이언트(expo-dev-client)가 slug 로 만드는 scheme(`exp+<slug>`)을 싣는가. development 만 싣는다 - 그
+   * scheme 은 변형과 무관하게 이름이 같아서, 여러 변형에 실리면 한 기기에 함께 설치한 변형 가운데 어디로 갈지 정해지지
+   * 않는다(스펙 10.2 의 D1 정정). 개발 서버의 번들을 개발 클라이언트로 여는 링크라 다른 변형에는 쓸 곳이 없다.
+   */
+  readonly devClientScheme: boolean
 }
 
 const PROFILES: Readonly<Record<AppVariant, VariantProfile>> = {
@@ -43,6 +49,7 @@ const PROFILES: Readonly<Record<AppVariant, VariantProfile>> = {
     allowCleartext: true,
     logsHttpFailures: false,
     updatesChannel: null,
+    devClientScheme: true,
   },
   preview: {
     idSuffix: '.preview',
@@ -51,6 +58,7 @@ const PROFILES: Readonly<Record<AppVariant, VariantProfile>> = {
     allowCleartext: false,
     logsHttpFailures: false,
     updatesChannel: 'preview',
+    devClientScheme: false,
   },
   production: {
     idSuffix: '',
@@ -59,6 +67,7 @@ const PROFILES: Readonly<Record<AppVariant, VariantProfile>> = {
     allowCleartext: false,
     logsHttpFailures: false,
     updatesChannel: 'production',
+    devClientScheme: false,
   },
   e2e: {
     idSuffix: '.e2e',
@@ -67,6 +76,7 @@ const PROFILES: Readonly<Record<AppVariant, VariantProfile>> = {
     allowCleartext: true,
     logsHttpFailures: true,
     updatesChannel: null,
+    devClientScheme: false,
   },
 }
 

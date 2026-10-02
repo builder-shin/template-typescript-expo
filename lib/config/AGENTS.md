@@ -18,3 +18,7 @@
 
 게이트 [8]의 검사기(`scripts/check-variant-config.mjs`)도 `app.config.ts`와 이 디렉터리를 같은 type stripping으로
 불러와 기대값을 만든다 - 표를 바꾸면 게이트가 설정 플러그인이 옮길 네이티브 값을 새 표와 맞댄다.
+
+`app-variant.ts` 의 `devClientScheme` 은 개발 클라이언트(`expo-dev-client`)가 slug 로 만드는 scheme(`exp+<slug>`)을
+실을 변형이다 - development 만. `app.config.ts` 가 그 설정 플러그인의 `addGeneratedScheme` 으로 옮기고(그 플러그인의
+기본은 모든 변형에 싣는 것이다), 검사기가 introspect 에서 그 scheme 이 development 의 Android·iOS 끝에만 있는지 본다.

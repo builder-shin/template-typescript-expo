@@ -121,6 +121,8 @@ describe('eas.json - 스펙 10.5', () => {
 
   it('e2e 는 Android APK 와 iOS 시뮬레이터 빌드다', () => {
     expect(profile('e2e')).toMatchObject({
+      distribution: 'internal',
+      withoutCredentials: true,
       android: { buildType: 'apk' },
       ios: { simulator: true },
     })

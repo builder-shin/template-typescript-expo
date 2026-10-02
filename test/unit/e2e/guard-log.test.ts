@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
+import { resolveBash } from '../support/bash'
 import { httpFailureLine } from '@/lib/jsonapi/failure-log'
 
 /**
@@ -24,28 +25,7 @@ afterAll(() => {
   rmSync(FIXTURES, { recursive: true, force: true })
 })
 
-/**
- * 쓸 수 있는 bash 를 하나 고른다. 후보를 실제로 돌려 보고 판정한다 - Windows 의 PATH 에서
- * `bash` 는 WSL 의 bash.exe 로 잡힐 수 있고 그것은 /bin/bash 를 못 찾아 죽는다
- * (test/unit/scripts/check-citations.test.ts 와 같은 방법).
- */
-function resolveBash(): string {
-  const programFiles = process.env.ProgramW6432 ?? process.env.ProgramFiles ?? 'C:\\Program Files'
-  const candidates =
-    process.platform === 'win32'
-      ? [
-          'bash',
-          join(programFiles, 'Git', 'bin', 'bash.exe'),
-          join(programFiles, 'Git', 'usr', 'bin', 'bash.exe'),
-        ]
-      : ['bash']
-  for (const candidate of candidates) {
-    const probe = spawnSync(candidate, ['-c', 'printf ok'], { encoding: 'utf8' })
-    if (probe.status === 0 && probe.stdout === 'ok') return candidate
-  }
-  throw new Error(`쓸 수 있는 bash 를 찾지 못했다 - 후보: ${candidates.join(' · ')}`)
-}
-
+/** Bash 후보의 실제 실행 확인과 30초 제한은 test/unit/support/bash.ts 가 소유한다. */
 const BASH = resolveBash()
 
 let written = 0

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 
-import type { AppVariant } from '@/lib/config/app-variant'
+import { APP_VARIANTS, variantProfile, type AppVariant } from '@/lib/config/app-variant'
 import { observeE2eRuntime } from '@/platform/e2e-diagnostics'
 import { queryClient } from '@/platform/query-client'
 import { briefFromIosLog } from '../../e2e/ios-log'
@@ -104,4 +104,10 @@ describe('e2e 경계 상태 관측', () => {
     expect(info).not.toHaveBeenCalled()
     cleanup()
   })
+})
+
+it('logsHttpFailures 는 진단·이벤트·로그가 공유하는 e2e 전용 의도다', () => {
+  expect(APP_VARIANTS.filter((variant) => variantProfile(variant).logsHttpFailures)).toEqual([
+    'e2e',
+  ])
 })

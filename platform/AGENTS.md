@@ -3,19 +3,19 @@
 Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 판단을 두지 않는다 - 분기가
 자라면 `lib/`로 옮기고 여기서는 부르기만 한다.
 
-| 파일                        | 역할                                                                                                                                                                                                                                             |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `config.ts`                 | 설정 자리를 `app.config.ts`의 `extra`로 돌리고 시작할 때 검증한다. 빌드 변형과 딥링크 scheme 을 읽는다. 판단은 `lib/config/startup.ts`·`lib/navigation/deep-link.ts`                                                                             |
-| `e2e-log.ts`                | e2e 변형에서 JS 경고가 네이티브 로그로 갈 때 표식을 붙인다(`nativeLoggingHook` 을 감싼다 - iOS 의 E2E 가드가 경고를 가른다, 스펙 11.3). 표식은 `lib/jsonapi/failure-log.ts`                                                                      |
-| `e2e-diagnostics.ts`        | e2e 변형에서만 라우트·AppState·상세 QueryCache의 status/fetchStatus와 관찰자 수를 `[e2e-state]` 정보 줄로 남긴다(D7 실측 K3, D7-R20). 요청·응답 본문·토큰·쿼리 문자열은 기록하지 않으며 앱의 이동·조회 옵션·재시도는 바꾸지 않는다               |
-| `e2e-events.ts`             | e2e에서만 입력/제출 길이·순번·시각과 HTTP 시작/결과 시각을 정보로 남긴다(K3 R33). 값·본문·토큰·쿼리는 기록하지 않는다                                                                                                                            |
-| `api.ts`                    | 앱의 API 클라이언트 `apiRequest`. Accept-Language 를 싣는 유일한 자리(스펙 9.4) - 값은 기기 언어(`deviceAcceptLanguage`)이고 호출자가 정했으면 그 값이다(계약 실험실). e2e 변형의 실패 표식                                                      |
-| `secure-session-storage.ts` | 세션 항목의 SecureStore 저장 매체                                                                                                                                                                                                                |
-| `session.ts`                | 세션 관리자 `sessionManager` 하나와 상태 훅 `useSessionStatus()`                                                                                                                                                                                 |
-| `query-client.ts`           | Query 캐시 `queryClient` 하나와 기본 옵션(스펙 8.5, `networkMode: 'offlineFirst'`), 앱 복귀·네트워크 복귀의 재조회 `useQueryRefetchTriggers()`(AppState·NetInfo), 인증 오류의 한 곳(쓰기 캐시의 `onError` - 세션 거절이면 `signOut()`, 스펙 9.2) |
-| `updates.ts`                | 빌드 정보 카드가 읽는 이 실행의 값(`readBuildInfo` - expo-updates·expo-constants)과 업데이트 확인이 부르는 expo-updates 의 세 호출(`updatesApi`). 판단은 `lib/updates/build-info.ts`                                                             |
-| `theme.ts`                  | 내비게이션 테마. 색은 `nav-colors.ts`                                                                                                                                                                                                            |
-| `nav-colors.ts`             | 내비게이션 색 - `global.css` 토큰의 sRGB 값. import 가 없다 - `test/unit/ui/nav-colors.test.ts` 가 토큰과 맞댄다                                                                                                                                 |
+| 파일                        | 역할                                                                                                                                                                                                                                                                                  |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `config.ts`                 | 설정 자리를 `app.config.ts`의 `extra`로 돌리고 시작할 때 검증한다. 빌드 변형과 딥링크 scheme 을 읽는다. 판단은 `lib/config/startup.ts`·`lib/navigation/deep-link.ts`                                                                                                                  |
+| `e2e-log.ts`                | e2e 변형에서 JS 경고가 네이티브 로그로 갈 때 표식을 붙인다(`nativeLoggingHook` 을 감싼다 - iOS 의 E2E 가드가 경고를 가른다, 스펙 11.3). 표식은 `lib/jsonapi/failure-log.ts`                                                                                                           |
+| `e2e-diagnostics.ts`        | e2e 변형에서만 라우트·AppState·상세 QueryCache의 status/fetchStatus와 관찰자 수를 `[e2e-state]` 정보 줄로 남긴다(D7 실측 K3, D7-R20). 요청·응답 본문·토큰·쿼리 문자열은 기록하지 않으며 앱의 이동·조회 옵션·재시도는 바꾸지 않는다                                                    |
+| `e2e-events.ts`             | e2e에서만 입력/제출 길이·순번·시각과 HTTP 시작/결과 시각을 정보로 남긴다(K3 R33). 값·본문·토큰·쿼리는 기록하지 않는다                                                                                                                                                                 |
+| `api.ts`                    | 앱의 API 클라이언트 `apiRequest`. Accept-Language 를 싣는 유일한 자리(스펙 9.4) - 값은 기기 언어(`deviceAcceptLanguage`)이고 호출자가 정했으면 그 값이다(계약 실험실). e2e 변형의 실패 표식                                                                                           |
+| `secure-session-storage.ts` | 세션 항목의 SecureStore 저장 매체                                                                                                                                                                                                                                                     |
+| `session.ts`                | 세션 관리자 `sessionManager` 하나와 상태 훅 `useSessionStatus()`                                                                                                                                                                                                                      |
+| `query-client.ts`           | Query 캐시 `queryClient` 하나와 기본 옵션(스펙 8.5, `networkMode: 'offlineFirst'`), 앱 복귀·네트워크 복귀의 재조회 `useQueryRefetchTriggers()`(AppState·NetInfo), 인증 오류의 한 곳(쓰기 캐시의 `onError` - 세션 거절이면 `signOut()`, 스펙 9.2), 연결 판정은 `lib/jsonapi/online.ts` |
+| `updates.ts`                | 빌드 정보 카드가 읽는 이 실행의 값(`readBuildInfo` - expo-updates·expo-constants)과 업데이트 확인이 부르는 expo-updates 의 세 호출(`updatesApi`). 판단은 `lib/updates/build-info.ts`                                                                                                  |
+| `theme.ts`                  | 내비게이션 테마. 색은 `nav-colors.ts`                                                                                                                                                                                                                                                 |
+| `nav-colors.ts`             | 내비게이션 색 - `global.css` 토큰의 sRGB 값. import 가 없다 - `test/unit/ui/nav-colors.test.ts` 가 토큰과 맞댄다                                                                                                                                                                      |
 
 - 백엔드 요청은 전부 `apiRequest`를 지난다. `lib/jsonapi/client.ts`의 `request()`를 다른 곳에서
   직접 부르지 않는다 - ESLint가 `app/`·`components/`·`queries/`와 이 디렉터리의 `api.ts`가 아닌
@@ -50,6 +50,7 @@ Expo·React Native 모듈을 부르고 React 에 잇는 자리다(스펙 5장). 
 `test/unit/platform/updates.test.ts`가 `vi.mock`으로 잰다(기기 모듈과 설정 자리를 가짜로 바꾼다). 카드의 행과 확인의 순서는
 `lib/updates/`의 시험이 잰다.
 
-`e2e-diagnostics.ts`는 설정 검증을 통과한 `AppRoot`에서만 부른다. `test/unit/platform/e2e-diagnostics.test.ts`는
-다른 세 변형에서 로그·AppState·QueryCache 구독이 없음을 잰다. 실제 QueryCache 알림과 구독 회수, 민감한 본문을
-기록하지 않는 것, `ios-log.ts`가 정보 줄을 artifact의 `I/ReactNativeJS`로 보존하는 것도 잰다.
+`e2e-diagnostics.ts`는 설정 검증을 통과한 `AppRoot`에서만 부른다. 진단·이벤트·HTTP 로그는 현재
+변형 표의 e2e 전용 `logsHttpFailures`를 공유한다. 다른 변형에 그 값을 켜면 진단 범위도 함께 바뀌므로
+`test/unit/platform/e2e-diagnostics.test.ts`가 다른 세 변형에서 로그·AppState·QueryCache 구독이 없음을 재므로 그 변형 불변식과 비-e2e 구독/cleanup 시험을 함께 검토한다. 실제 QueryCache 알림과 구독 회수, 민감한 본문을
+기록하지 않는 것, `test/e2e/ios-log.ts`가 정보 줄을 artifact의 `I/ReactNativeJS`로 보존하는 것도 잰다.

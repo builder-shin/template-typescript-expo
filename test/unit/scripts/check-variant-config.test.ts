@@ -11,6 +11,8 @@ import { describe, expect, it } from 'vitest'
 const SCRIPT = resolve('scripts/check-variant-config.mjs')
 // 실제 EAS 프로젝트 id 가 아니다 - 게이트가 쓰는 것과 같은, 모양만 UUID 인 표본이다.
 const PROJECT_ID = '00000000-0000-4000-8000-000000000000'
+// 개발 클라이언트(expo-dev-client)가 slug(template-typescript-expo)로 만드는 scheme - development 에만 실린다.
+const DEV_CLIENT_SCHEME = 'exp+template-typescript-expo'
 // 다른 프로젝트의 업데이트 주소 - OTA 주소 자리가 프로젝트 id 까지 맞대는지 본다.
 const OTHER_PROJECT_URL = 'https://u.expo.dev/11111111-1111-4111-8111-111111111111'
 
@@ -18,7 +20,14 @@ type Variant = 'development' | 'preview' | 'production' | 'e2e'
 
 const NATIVE: Record<
   Variant,
-  { id: string; scheme: string; name: string; cleartext: boolean; channel: string | null }
+  {
+    id: string
+    scheme: string
+    name: string
+    cleartext: boolean
+    channel: string | null
+    devClient: boolean
+  }
 > = {
   development: {
     id: 'com.example.templateexpo.dev',
@@ -26,6 +35,7 @@ const NATIVE: Record<
     name: 'Template Expo (Dev)',
     cleartext: true,
     channel: null,
+    devClient: true,
   },
   preview: {
     id: 'com.example.templateexpo.preview',
@@ -33,6 +43,7 @@ const NATIVE: Record<
     name: 'Template Expo (Preview)',
     cleartext: false,
     channel: 'preview',
+    devClient: false,
   },
   production: {
     id: 'com.example.templateexpo',
@@ -40,6 +51,7 @@ const NATIVE: Record<
     name: 'Template Expo',
     cleartext: false,
     channel: 'production',
+    devClient: false,
   },
   e2e: {
     id: 'com.example.templateexpo.e2e',
@@ -47,6 +59,7 @@ const NATIVE: Record<
     name: 'Template Expo (E2E)',
     cleartext: true,
     channel: null,
+    devClient: false,
   },
 }
 
@@ -87,6 +100,8 @@ function introspected(variant: Variant, projectId: string | null) {
     )
   }
   const strings = [{ $: { name: 'app_name' }, _: native.name }]
+  // 설정 플러그인이 변형의 scheme 뒤에 더한다(introspect 에서 잰 순서)
+  const devClient = native.devClient ? [DEV_CLIENT_SCHEME] : []
   if (ota) strings.push({ $: { name: 'expo_runtime_version' }, _: 'file:fingerprint' })
   const expoPlist: Record<string, unknown> = {
     EXUpdatesEnabled: ota,
@@ -120,7 +135,11 @@ function introspected(variant: Variant, projectId: string | null) {
                     {
                       'intent-filter': [
                         { action: [{ $: { 'android:name': 'android.intent.action.MAIN' } }] },
-                        { data: [{ $: { 'android:scheme': native.scheme } }] },
+                        {
+                          data: [native.scheme, ...devClient].map((scheme) => ({
+                            $: { 'android:scheme': scheme },
+                          })),
+                        },
                       ],
                     },
                   ],
@@ -144,7 +163,11 @@ function introspected(variant: Variant, projectId: string | null) {
               },
             },
             NSAppTransportSecurity: { NSAllowsLocalNetworking: native.cleartext },
-            CFBundleURLTypes: [{ CFBundleURLSchemes: [native.scheme, native.id] }],
+            CFBundleDisplayName: native.name,
+            CFBundleURLTypes: [
+              { CFBundleURLSchemes: [native.scheme, native.id] },
+              ...devClient.map((scheme) => ({ CFBundleURLSchemes: [scheme] })),
+            ],
           },
           expoPlist,
         },
@@ -231,15 +254,15 @@ describe('변형별 설정 검사 - 게이트 [8]', { timeout: 30_000 }, () => {
   })
 
   it('맞는 설정이면 성공 줄이 대상과 맞댄 건수와 OTA 상태를 한 줄로 말한다', () => {
-    // 맞대는 자리는 OTA 를 끈 설정이 18개, 켠 설정은 확인 시점과 기다림이 두 플랫폼에서 더해져 22개다.
+    // 맞대는 자리는 OTA 를 끈 설정이 19개, 켠 설정은 확인 시점과 기다림이 두 플랫폼에서 더해져 23개다.
     for (const variant of VARIANTS) {
       for (const projectId of [null, PROJECT_ID]) {
         const { channel } = NATIVE[variant]
         const target = targetOf(variant, projectId)
         const expected =
           channel !== null && projectId !== null
-            ? `변형 설정 통과: ${target} - 22건, OTA 켬(채널 ${channel})`
-            : `변형 설정 통과: ${target} - 18건, OTA 끔`
+            ? `변형 설정 통과: ${target} - 23건, OTA 켬(채널 ${channel})`
+            : `변형 설정 통과: ${target} - 19건, OTA 끔`
         const result = checkConfig(introspected(variant, projectId), variant, projectId)
         expect(result.stdout.trimEnd(), target).toBe(expected)
       }
@@ -338,6 +361,46 @@ describe('변형별 설정 검사 - 게이트 [8]', { timeout: 30_000 }, () => {
         })
       },
       'Android 딥링크 scheme',
+    ],
+    [
+      'iOS 앱 이름이 다르다',
+      'preview' as const,
+      null,
+      (config: Introspected) => {
+        config._internal.modResults.ios.infoPlist.CFBundleDisplayName = '다른 앱 이름'
+      },
+      'iOS 앱 이름',
+    ],
+    [
+      'iOS 앱 이름이 빠졌다',
+      'production' as const,
+      null,
+      (config: Introspected) => {
+        Reflect.deleteProperty(config._internal.modResults.ios.infoPlist, 'CFBundleDisplayName')
+      },
+      'iOS 앱 이름',
+    ],
+    [
+      'development 에 개발 클라이언트의 scheme 이 없다(Android)',
+      'development' as const,
+      null,
+      (config: Introspected) => {
+        const [application] = config._internal.modResults.android.manifest.manifest.application
+        const filter = application?.activity[0]?.['intent-filter'][1]
+        if (filter?.data !== undefined) filter.data = filter.data.slice(0, 1)
+      },
+      'Android 딥링크 scheme',
+    ],
+    [
+      'e2e 에 개발 클라이언트의 scheme 이 실렸다(iOS)',
+      'e2e' as const,
+      null,
+      (config: Introspected) => {
+        config._internal.modResults.ios.infoPlist.CFBundleURLTypes.push({
+          CFBundleURLSchemes: [DEV_CLIENT_SCHEME],
+        })
+      },
+      'iOS URL scheme',
     ],
     [
       '앱 설정의 변형이 다르다',

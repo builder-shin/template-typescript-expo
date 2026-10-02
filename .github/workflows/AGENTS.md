@@ -6,24 +6,27 @@
 | 잡                | 러너         | 하는 일                                                                                                               |
 | ----------------- | ------------ | --------------------------------------------------------------------------------------------------------------------- |
 | `checks`          | ubuntu-24.04 | `./scripts/check.sh --static`(게이트 [1]–[11]), 워크플로 lint(actionlint)                                             |
-| `build-android`   | ubuntu-24.04 | `test/e2e/android.sh build` - e2e APK 를 한 번 만들어 아티팩트로 올린다                                               |
+| `build-android`   | ubuntu-24.04 | `test/e2e/android.sh build` - CI 전용 `E2E_ANDROID_ABIS=x86_64`로 APK를 만들고 lib ABI 집합을 확인한다                |
 | `e2e-android` × 3 | ubuntu-24.04 | 백엔드마다(`BACKEND_KIND`) 계약 거울(`test/contract/run.sh`) → KVM 에뮬레이터에서 `test/e2e/run-android.sh`(받은 APK) |
 | `build-ios`       | macos-26     | `test/e2e/ios.sh build` - 시뮬레이터용 Release .app 을 한 번 만들어 아티팩트로 올린다                                 |
-| `e2e-ios` × 3     | macos-26     | 백엔드마다 `test/e2e/native-backend.sh`(Docker 없음)로 백엔드를 준비하고 `test/e2e/run-ios.sh`(받은 .app)             |
+| `e2e-ios` × 3     | macos-26     | 백엔드마다 `test/e2e/native-backend.sh`로 백엔드를 준비하고 `test/e2e/run-ios.sh`를 실행한다(받은 .app, Docker 없음)  |
 
 ## 작업 규칙
 
-- 두 iOS 잡은 `DEVELOPER_DIR=/Applications/Xcode_26.6.app/Contents/Developer`로 판을 명시한다(D7-R22b).
+- iOS는 백엔드마다 전체 21플로를 한 잡에서 실행한다. checks 1·빌드 2·Android 3·iOS 3으로 물리 아홉 잡이며
+  논리 아홉 칸과 같다. 아티팩트는 `e2e-ios-<backend>`로 백엔드마다 올린다.
+
+- build-ios와 세 e2e-ios 잡은 모두 `DEVELOPER_DIR=/Applications/Xcode_26.6.app/Contents/Developer`로 판을 명시한다(D7-R22b).
   기본 Xcode가 27로 바뀌면 SDK 57의 기존 AppDelegate lifecycle은 iOS 27에서 시작 전에 종료된다. 앱은 이제
-  Expo의 공식 scene opt-in을 쓰며, Mac은 27.0으로 검증한다. CI 판을 바꾸는 날에는 두 iOS 잡을 함께 확인한다.
+  Expo의 공식 scene opt-in을 쓰며, Mac은 27.0으로 검증한다. CI 판을 바꾸는 날에는 네 iOS 물리 잡을 함께 확인한다.
 
 - 잡이 하는 일은 스크립트가 정한다. 워크플로에 검사 논리를 적지 않는다 - 로컬에서 같은 스크립트로 재현할 수 있어야
-  한다. 스크립트는 `bash x.sh` 처럼 우회하지 않고 `./x.sh` 로 부른다(실행 권한이 빠지면 여기서 드러난다).
+  한다. 스크립트는 `bash scripts/check.sh` 처럼 우회하지 않고 `./scripts/check.sh` 로 부른다(실행 권한이 빠지면 여기서 드러난다).
 - 앱은 플랫폼마다 한 번 만든다. E2E 잡은 아티팩트를 받는다(`E2E_APK`·`E2E_APP`) - 빌드 입력이 같은 앱을 세 백엔드가
   나눠 쓴다(스펙 16장의 "E2E 빌드 시간").
 - 매트릭스는 `fail-fast: false` 다. 재시도는 0 이다 - 실패한 잡을 코드 변경 없이 다시 돌리지 않는다(스펙 16장).
   흔들리는 플로는 원인을 고친다. `continue-on-error` 를 쓰지 않는다.
-- 멈춘 서버 확인(`E2E_CHECKS=1`)은 백엔드와 무관해 fastapi 갈래에서만 켠다.
+- 멈춘 서버 확인(`E2E_CHECKS=1`)은 Android fastapi와 iOS fastapi에서만 켠다.
 - E2E 기록은 숨김 파일도 올린다(`include-hidden-files: true`) - Maestro 2.11.0의 상세 예외·명령 시각·스크린샷이
   `<플로>/debug/.maestro/`에 있다. 기본 제외로 그 디렉터리를 잃으면 실패의 첫 오류를 읽지 못한다(D7 실측 K3).
 - 액션은 주 판(`@v7` 등)으로 고정한다. `astral-sh/setup-uv`는 주 판 태그 `v10`을 배포하지 않아 실제 릴리스

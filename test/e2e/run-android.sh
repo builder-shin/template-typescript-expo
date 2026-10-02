@@ -189,6 +189,7 @@ build_fingerprint() {
       existing_files | xargs -0 sha1sum
     sha1sum test/e2e/android.sh
     printf 'BACKEND_URL=%s\n' "$APP_BACKEND_URL"
+    printf 'E2E_ANDROID_ABIS=%s\n' "${E2E_ANDROID_ABIS:-armeabi-v7a,arm64-v8a,x86,x86_64}"
   } | sha1sum | cut -d ' ' -f 1
 }
 
@@ -212,6 +213,7 @@ build_and_install() {
   # CI 는 APK 를 한 번 만들어 백엔드 셋이 나눠 쓴다(스펙 16장의 "E2E 빌드 시간") - 받은 APK 를 그대로 설치한다.
   if [ -n "${E2E_APK:-}" ]; then
     [ -f "$E2E_APK" ] || fail "E2E_APK 가 가리키는 APK 가 없다: $E2E_APK"
+    test/e2e/android.sh assert-apk-abis "$E2E_APK"
     echo "미리 만든 APK 를 쓴다 - 빌드하지 않는다 ($E2E_APK)"
     "$ADB" install -r "$E2E_APK"
     return
@@ -385,6 +387,11 @@ run_checks() {
 rm -rf "$OUT"
 mkdir -p "$OUT"
 test/e2e/android.sh boot
+if [ "${E2E_ANDROID_ABIS:-}" = x86_64 ]; then
+  device_abi=$("$ADB" shell getprop ro.product.cpu.abi | tr -d '\r')
+  echo "에뮬레이터 ro.product.cpu.abi=$device_abi"
+  [ "$device_abi" = x86_64 ] || fail "CI APK 는 x86_64 에뮬레이터가 필요하다"
+fi
 build_and_install
 
 # 끝날 때(실패해도) 입력기 설정을 되돌리고 스택을 내린다.

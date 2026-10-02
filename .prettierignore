@@ -10,4 +10,4 @@ uniwind-types.d.ts
 
 # 계획/스펙 산문 문서. 임베드된 JSON·표 예시는 저자가 의도적으로 압축한
 # 서식이라 prettier의 표준 서식으로 재작성하면 안 된다.
-docs/
+/docs/

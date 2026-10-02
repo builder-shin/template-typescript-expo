@@ -2,7 +2,12 @@ import '@/global.css'
 
 import { PortalHost } from '@rn-primitives/portal'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { Stack, ThemeProvider } from 'expo-router'
+import {
+  ErrorBoundary as RouterErrorBoundary,
+  Stack,
+  ThemeProvider,
+  type ErrorBoundaryProps,
+} from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect } from 'react'
@@ -15,8 +20,19 @@ import { markNativeWarningsForE2e } from '@/platform/e2e-log'
 import { queryClient, useQueryRefetchTriggers } from '@/platform/query-client'
 import { sessionManager, useSessionStatus } from '@/platform/session'
 import { NAV_THEME } from '@/platform/theme'
+import { retryWithClearedQueries } from '@/queries/error-boundary'
 
-export { ErrorBoundary } from 'expo-router'
+/**
+ * 렌더 중 예외의 경계(스펙 9.3) - 화면은 Expo Router 의 기본 그대로다. "Retry" 는 조회 캐시를 비운 뒤 경계를 푼다:
+ * 결과 값으로 캐시에 든 결함을 요청 없이 다시 던지지 않고 다시 부른다(queries/error-boundary.ts, 스펙 9.3 의 D8 정정).
+ * 출구를 따로 두지 않는다 - 이 경계는 루트 레이아웃을 통째로 바꿔 그려 떠 있는 동안 내비게이터가 없고, 풀린 뒤의 앱은
+ * 루트 Stack의 일반 초기 화면(홈)에서 새로 시작하며 cold 초기 URL은 다시 적용될 수 있다.
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return (
+    <RouterErrorBoundary error={error} retry={() => retryWithClearedQueries(queryClient, retry)} />
+  )
+}
 
 // 모듈 평가 시점에 한 번 - 어떤 요청보다 먼저 설정 자리를 extra 로 돌린다.
 const STARTUP = loadStartupSettings()
