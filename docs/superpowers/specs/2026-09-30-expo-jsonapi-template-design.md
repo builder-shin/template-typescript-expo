@@ -1460,3 +1460,13 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > `build-android`·`build-ios`를 더한 아홉이다. [36950704982](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982)
 > (커밋 `53e3134`)에서 모두 초록이었다(D7 실측 기록 K3). 조건3(같은 앱 코드가 어댑터 없이 세 백엔드 모두에서 통과)도
 > 그 실행이 보였다. 조건1·5는 D8이 닫는다.
+
+> 정정(2026-10-02, D8): 다섯 조건이 모두 닫혔다. 조건1 - Windows 개발 머신의 게이트 전체 13단계가 이 브랜치의 마지막
+> 비문서 커밋 `f05c9d3` 에서 통과했다(D8 실측 기록 G1 - 2026-10-02T08:46Z–09:11Z, 단위 101파일 / 1974시험, 계약 거울 94,
+> Android 23플로와 request-stall). 조건2·3 - 같은 커밋의 [36986123148](https://github.com/builder-shin/template-typescript-expo/actions/runs/36986123148)
+> 에서 논리 아홉 칸이 모두 초록이었다(물리 잡도 아홉 - D8 이 시험한 iOS 두 shard 는 측정 뒤 13장 정정대로 철회했다).
+> 세 백엔드가 같은 앱 코드로 통과했다. 그 실행에서 iOS 하네스의 드라이버 복구는 한 번(nestjs 잡의 `logout-from-protected`)이었다.
+> 백엔드마다 받은 커밋, 앞선 실행 B·C 의 빨간 칸(Maestro iOS
+> 드라이버 결함 maestro#3538)과 그 복구는 G2 와 16장 정정에 있다. 조건4 - 복사 출처 기록과 게이트 [6] 의 검사는 그대로다
+> (경로 54 · 이탈 42 · 원본 그대로 33). 조건5 - 게이트 [7] 의 `test/unit/docs/doc-set.test.ts`(12시험)가 README 와
+> `AGENTS.md` 스물일곱을 실제 파일과 맞댄다(G3).

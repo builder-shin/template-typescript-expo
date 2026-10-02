@@ -2,75 +2,108 @@
 
 스펙 17장의 완료 조건을 닫는 기록이다. 조건 2·3(CI 매트릭스·세 백엔드)이 처음 초록이 된 실행과 그때까지 고친 것은
 `2026-10-01-d7-measurements.md` 의 K3 에 있다. 이 기록은 그 뒤 D8 의 변경(개발 클라이언트, 오류 경계의 다시 시도,
-연결 판정, 문서군, CI의 x86_64 APK와 iOS 두 shard·컴파일 캐시 후보 철회)을 얹은 마지막 상태를 적는다.
+연결 판정, 문서군, CI의 x86_64 APK - 측정 뒤 철회한 iOS 컴파일 캐시·두 shard 후보, README 의 EAS 안내 정정,
+Maestro iOS 드라이버 결함의 복구)을 얹은 마지막 상태를 적는다.
 
 ## G1 — Windows 개발 머신의 게이트 전체(13단계)
 
-**2026-10-02, Windows 전체 게이트 첫 실행 성공: [1]–[13] 모두 exit 0.** 검증한 커밋은
-`ab0d1cc0544b15e83e73aad23bc0c1e2b666c169`(`ab0d1cc`, 당시 `feat/d8-t1`)이다.
-Windows 11 Pro 10.0.26200, Node 24.19.0, pnpm 11.22.0, Docker Server 29.7.2, Maestro 2.11.0에서
-FastAPI 스택과 새로 부팅한 `Pixel_9_API_36`(Android 16/API 36, x86_64)을 사용했다.
-다른 시험·타입 검사·번들·Gradle·Maestro 작업이 없는 상태에서 시작했고 새 부팅의 uptime은 준비 확인 때 12.65초였다.
-
-Git Bash 명령은 다음과 같다. stdout·stderr는 실행 로그로 보존했다.
+**2026-10-02, 마지막 코드의 Windows 전체 게이트: [1]–[13] 모두 통과, gate exit 0.** 검증한 커밋은
+`f05c9d3399ce97812a158145bda608393deb16ea`(`f05c9d3` - 이 브랜치의 마지막 비문서 커밋, G2 의 실행 D 와 같은 커밋)이다.
+Windows 11 Pro 10.0.26200, Node 24.19.0, pnpm 11.22.0, Docker Server 29.7.2, Maestro 2.11.0 에서 FastAPI 스택과
+`Pixel_9_API_36`(Android 16/API 36, x86_64)을 썼다. 시작 상태: 다른 시험·번들·Gradle·Maestro 작업이 없었고,
+이 저장소의 AVD 를 끈 뒤 adb 서버를 손으로 다시 띄우고 `E2E_AVD=Pixel_9_API_36 ./test/e2e/android.sh boot` 로 새로
+부팅했다(확인 때 uptime 12.74초). 자동 adb 복구 · 플로 재시도는 없다.
 
 ```bash
 export GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat
 E2E_AVD=Pixel_9_API_36 E2E_ANDROID_ABIS= E2E_CHECKS=1 timeout 7200 ./scripts/check.sh
 ```
 
-UTC **2026-10-02T04:44:09.303046Z–2026-10-02T05:17:33.329689Z**, 총 **2004.027초(33분 24.027초)**,
-gate exit 0이다. 단계 시간은 0.1초 간격으로 외부 관찰한 제목 경계 간 wall time으로, 출력 배치·조회 지연을 포함한다.
-특히 [5]·[6]은 정밀 실행시간으로 해석하지 않는다.
+UTC **2026-10-02T08:46:43Z–09:11:04Z**, **24분 21초**. 단계마다의 결과(게이트 로그의 `grep` 줄):
 
-| 단계            | 결과 / exit | 관찰 시간(초) | 확인한 것                                   |
-| --------------- | ----------- | ------------: | ------------------------------------------- |
-| [1] typecheck   | PASS / 0    |         7.146 | 라우트 생성, 앱·시험 타입 프로그램          |
-| [2] lint        | PASS / 0    |        12.369 | ESLint                                      |
-| [3] format      | PASS / 0    |         2.320 | format:check                                |
-| [4] secretlint  | PASS / 0    |         0.709 | lint:secrets                                |
-| [5] 인용        | PASS / 0    |        약 0.1 | 지정 여섯 디렉터리                          |
-| [6] 복사 출처   | PASS / 0    |      0.1 미만 | 경로 54·이탈 42·원본 그대로 33              |
-| [7] unit        | PASS / 0    |        15.394 | 101파일 / 1973시험, runner 14.75초          |
-| [8] 설정        | PASS / 0    |         8.958 | 네 변형 × EAS 프로젝트 유무, 8평가          |
-| [9] 의존성 호환 | PASS / 0    |         3.125 | expo-doctor 21/21                           |
-| [10] 번들       | PASS / 0    |        21.998 | production Android·iOS, expo export --clear |
-| [11] compose    | PASS / 0    |         0.529 | 세 프로파일 config                          |
-| [12] 계약 거울  | PASS / 0    |        18.401 | FastAPI 2파일 / 94시험, runner 1.67초       |
-| [13] E2E        | PASS / 0    |      1912.563 | 새 APK·Android 23플로·request-stall·정리    |
+| 단계            | 결과                                                                                        |
+| --------------- | ------------------------------------------------------------------------------------------- |
+| [1]–[6]         | typecheck · lint · format · secretlint · 인용 · 복사 출처(경로 54 · 이탈 42 · 원본 33) 통과 |
+| [7] unit        | `Test Files  101 passed (101)` · `Tests  1974 passed (1974)`                                |
+| [8] 설정        | `변형 설정 통과` 여덟(네 변형 × EAS 프로젝트 유무, 위반 0)                                  |
+| [9] 의존성 호환 | `21/21 checks passed`                                                                       |
+| [10] 번들       | production Android · iOS `expo export --clear`                                              |
+| [11] compose    | 세 프로파일 config                                                                          |
+| [12] 계약 거울  | FastAPI `Test Files  2 passed (2)` · `Tests  94 passed (94)`                                |
+| [13] E2E        | `=== E2E 통과 - 플로 23개 ===` · request-stall                                              |
 
-D8의 의존성·앱 코드 입력이 바뀌어 APK를 한 번 새로 빌드했다. 실제 빌드 디렉터리는 하네스의 47자 이하 조건을
-충족했고, 기존 두 Gradle 호출은 모두 `--no-daemon`이며 각각 **58초·6분 23초**였다. Metro 캐시 비우기가 두 번
-출력됐고 둘째 호출의 `:app:createReleaseUpdatesResources UP-TO-DATE`도 확인했다.
-ZIP의 `lib/`에 **arm64-v8a·armeabi-v7a·x86·x86_64** 네 ABI가 있었다.
-설치 전 앱 설정 `extra.appVariant=e2e`, OTA 끔, 매니페스트의 OTA URL·머리글 없음과 cleartext 허용 단언도 통과했다.
+[13] 은 `빌드 입력이 지난번과 같다 - APK 를 다시 만들지 않는다` 로 APK 를 다시 쓰고 설치했다. 그 APK 는 바로 앞의 전체
+게이트(`838d1c7`, 아래)가 같은 기계에서 06:20Z 에 만든 것이다 - 그 뒤의 커밋은 README · 문서 · iOS 하네스 · 시험만 바꿔
+하네스의 재사용 지문(의존성 · 앱 코드 · 설정)이 같다. 그 빌드의 확인(네 로컬 ABI, 둘째 Gradle 의
+`:app:createReleaseUpdatesResources UP-TO-DATE`, e2e APK 의 앱 설정 · OTA 끔 · cleartext 단언)은 아래 "앞선 실행" 에 있다.
+Android 정규 23플로를 각각 한 번 돌았고 요청 수 단언(examples-create 회전 1 · POST 1 · 로그인 1, examples-delete 목록
+GET 2, examples-edit 회전 4 · PATCH 4, examples-scroll-refresh 상세 뒤 목록 GET 2)도 통과했다. request-stall 은 실제
+서버가 머리글과 본문을 멈춘 두 요청이 각각 `elapsed=15020` · `elapsed=15021`(상태 0) 뒤 `REQUEST_TIMEOUT` 으로 끝나고
+실패 화면 · 스켈레톤 · 다시 시도 단언과 로그 가드를 통과했다. 플로 · 단언 · timeout · 가드는 바꾸지 않았고 실패 · 환경
+flake · 재시도는 **0** 이다. `joon-*` 실행 컨테이너는 시작 전과 끝난 뒤 **9개**, 우리 compose 프로젝트
+(`template-typescript-expo-e2e`)는 시작 전과 정리 뒤 **0개**였다.
 
-Android 정규 **23플로**를 각각 한 번 실행했다. 정규 플로 구간은 **1399.291초(23분 19.291초)**,
-request-stall 포함은 **1445.041초(24분 5.041초)**였다. 생성·삭제 후 home/list 복귀와 쓰기·재조회 요청 수 단언도
-통과했다. request-stall은 실제 서버의 headers와 body를 각각 멈춘 요청이 **15031ms·15017ms** 뒤
-`REQUEST_TIMEOUT`으로 끝났고, Maestro의 실패 화면·스켈레톤·다시 시도 버튼 단언과 상태 0을 허용한 로그 가드가
-모두 통과했다. 플로·단언·timeout·가드는 변경하지 않았으며 게이트 실패·환경 flake·재시도는 **0**이다.
-
-게이트 전·compose 전후·계약 거울 후·E2E 후에 `joon-*` 실행 컨테이너는 **9개**였다.
-우리 compose 프로젝트는 시작 전과 정리 후 실행 **0개**, 종료 후에는 중지 컨테이너까지 **0개**였고,
-E2E 실행 중에만 3개였다. 하네스가 자기 스택·볼륨·멈춘 서버를 정리했으며 다른 프로젝트는 건드리지 않았다.
-
-**전체 게이트 이후 최종 통합 상태의 차이.** `ab0d1cc`에서 `059e6ea`와 이 문서 정정을 포함한 상태로 넘어오면서
-`69a7de4`의 iOS 컴파일 캐시 후보를 철회했다. 이는 iOS 설정·빌드와 CI에만 해당하며 Windows Android 앱·APK 입력은
-바뀌지 않았다. ABI·shard의 실행 조건 시험을 보강하고 Android 하네스의 머리말·사용법, Bash 공통화의 인용·출처 설명,
-README·계층 문서·실측·스펙을 정리했다. 앱 동작·Android 플로·계약 거울·단언·timeout은 그대로다.
-캐시 시험 16개 제거와 ABI 음수 경로 시험 3개 추가로 현재 단위 총계는 **100파일 / 1960시험**이며,
-위 전체 게이트의 **101파일 / 1973시험은 `ab0d1cc`의 결과**다.
-
-최종 문서 정정을 포함한 작업 트리에서 **`./scripts/check.sh --static`을 다시 실행해 [1]–[11] 모두 exit 0**을
-확인했다. 단위 **100파일 / 1960시험**, 문서군 **11/11**, 출처 **54/42/33**, 설정 **8평가**,
-expo-doctor **21/21**, Android·iOS `expo export --clear`와 세 compose 프로파일도 통과했다.
-이 정적 재검증은 위 전체 13단계 실행과 별개이며 [12]·[13]을 다시 실행한 결과로 쓰지 않는다.
+**앞선 실행.** (1) `838d1c7`(iOS shard 철회 뒤, README EAS 정정과 iOS 드라이버 복구 전) - 같은 명령, 같은 시작 상태(uptime
+25.70초), UTC 2026-10-02T06:13:22Z–06:45:39Z(32분 17초), [1]–[13] 통과, 단위 99파일 / 1947시험, 계약 거울 94,
+Android 23플로와 request-stall(`elapsed=15012` 두 번). 앞선 APK 이후 의존성(`expo-dev-client`)과 앱 코드 · 설정이 바뀌어
+APK 를 새로 만들었다 - `Metro 캐시를 비웠다` 두 번, 첫 Gradle `BUILD SUCCESSFUL in 32s`, 둘째의 정확한
+`> Task :app:createReleaseUpdatesResources UP-TO-DATE` 뒤 `BUILD SUCCESSFUL in 4m 55s`, ZIP 의 `lib/` 에
+arm64-v8a · armeabi-v7a · x86 · x86_64, 설치 전 `APK 의 앱 설정: extra.appVariant=e2e` 와 `APK 의 OTA:
+updates={"enabled":false} runtimeVersion=undefined · AndroidManifest.xml ENABLED=false URL=- HEADERS=-
+usesCleartextTraffic=true` - 개발 클라이언트가 e2e APK 의 OTA · cleartext 설정을 바꾸지 않는다. joon 9 · compose 0.
+(2) 통합 전의 로컬 사본(Task 2 시점, 이 브랜치로 cherry-pick 된 원본이라 공개 이력에 없다)에서도 13/13 이 통과했다
+(04:44:09Z–05:17:33Z, 33분 24초, 단위 101파일 / 1973시험 - 철회 전 캐시 코드 포함). 조건 1 의 증거는 마지막 코드인
+`f05c9d3` 의 실행이다(계획 결정 23).
 
 ## G2 — GitHub Actions 의 마지막 실행
 
-Task 3의 최종 실행에서 논리 아홉 칸·물리 12잡의 결론과 소요 시간, 실행 주소·커밋 및 각 E2E 백엔드 커밋을 기록한다.
-앞서 실패한 실행이 있으면 원인과 수정도 함께 적는다. Task 0의 측정 실행은 최종 코드 검증과 구분한다.
+이 브랜치의 실행은 넷이다(계획의 상한 넷 - 결정 20). 세 백엔드의 main 커밋은 네 실행 모두 같았다 -
+FastAPI `3c4eee3`, NestJS `92cc2b1`, Rails `231576e`(Android·iOS 잡이 같은 커밋을 받았다).
+
+| 실행 | 커밋 | 결론 | 빨간 칸 | 원인 | 고친 것 |
+| --- | --- | --- | --- | --- | --- |
+| [36963954302](https://github.com/builder-shin/template-typescript-expo/actions/runs/36963954302) A | `12afb8b` (Task 0) | success | - | - | 측정 실행(G4). iOS 컴파일 캐시가 아무것도 담지 못해 `69a7de4` 로 철회 |
+| [36968699911](https://github.com/builder-shin/template-typescript-expo/actions/runs/36968699911) B | `059e6ea` (Task 0–2 통합) | failure | e2e-ios (rails, shard 2/2) - `examples-write-errors` | Maestro iOS 드라이버 종료(아래) | 이 실행에서는 고치지 않았다(환경으로 판정). shard 는 비용 판단으로 `838d1c7` 에서 따로 철회했다 |
+| [36973426164](https://github.com/builder-shin/template-typescript-expo/actions/runs/36973426164) C | `838d1c7` (shard 철회) | failure | e2e-ios (nestjs) - `cold-links` | 같은 드라이버 종료 | `f05c9d3` - iOS 하네스가 이 결함의 흔적일 때만 그 플로를 한 번 다시 돈다(아래) |
+| [36986123148](https://github.com/builder-shin/template-typescript-expo/actions/runs/36986123148) D | `f05c9d3` (README EAS 정정 + iOS 드라이버 복구) | success | - | nestjs iOS 의 `logout-from-protected` 첫 시도가 같은 드라이버 종료로 끝났고 하네스가 한 번 복구했다 | - |
+
+**B·C 의 빨간 칸 - Maestro 2.11.0 iOS 드라이버의 결함([maestro#3538](https://github.com/mobile-dev-inc/maestro/issues/3538)).**
+두 칸 모두 앱의 단언은 그 자리까지 전부 통과했고(B: 로그인 화면으로 돌아온 뒤 `email-input` 을 누르는 순간, C: 앱을
+멈추고 딥링크로 새로 띄운 직후), 드라이버의 XCTest 로그가 같았다 - `Fetch status bar hierarchy - start` 뒤
+`testHttpServer] : Failed to resolve query: Failed to resolve remote element AX element pid: … kAXErrorInvalidUIElement`
+로 테스트가 끝나 드라이버의 HTTP 서버가 내려가고 Maestro 가 `Device became unreachable` 로 플로를 끝냈다.
+AX 오류의 pid 는 두 번 모두 키보드를 띄우는 `InputUI` 였다(시뮬레이터 로그의 `InputUI[28451]` · `InputUI[10706]`).
+드라이버는 매 화면 조회마다 SpringBoard 의 상태 표시줄 트리를 훑는데, 그 트리가 닿는 `InputUI` 의 원격 키보드 창이
+훑는 도중 걷히면 XCTest 가 실패를 기록하고 `try?` 로 잡히지 않아 드라이버 전체가 내려간다(상류 보고와 같다).
+Mac(iOS 26.5)에서 같은 플로를 돌려 확인했다: 키보드가 사라진 뒤 `InputUI` 는 약 4.2–4.6초 뒤에 창을 걷었고, 그 순간의
+상태 표시줄 조회에서 같은 `kAXErrorInvalidUIElement` 가 났다(그 회차는 드라이버가 넘겼다 - 치명적인 것은 캐시된 요소를
+다시 푸는 갈래뿐이다). 화면 없는 시뮬레이터에서 소프트웨어 키보드를 끄는 설정 네 가지(`AutomaticMinimizationEnabled`
+두 자리, CoreSimulator 의 하드웨어 키보드 연결, `HardwareKeyboardLastSeen`)는 모두 키보드 창을 없애지 못했다.
+그래서 iOS 하네스가 이 결함의 정확한 흔적일 때만 그 플로를 한 번 새로 돈다(`f05c9d3`, `test/e2e/ios-driver-crash.ts` - 스펙 16장 정정). 앱 단언의 실패는
+다시 돌지 않는다.
+
+**마지막 실행 D.** [36986123148](https://github.com/builder-shin/template-typescript-expo/actions/runs/36986123148) - 커밋 `f05c9d3`, 2026-10-02T08:48:14Z 생성, 09:55:58Z 끝(67.7분).
+논리 아홉 칸 = 물리 아홉 잡이 모두 success 다.
+
+| 잡                       | 시작 → 끝(UTC)      |    분 |
+| ------------------------ | ------------------- | ----: |
+| checks (게이트 [1]–[11]) | 08:48:20 → 08:51:05 |  2.75 |
+| build-android (e2e APK)  | 08:48:18 → 08:57:33 |  9.25 |
+| build-ios (e2e .app)     | 08:48:24 → 09:03:25 | 15.02 |
+| e2e-android (fastapi)    | 08:57:36 → 09:28:23 | 30.78 |
+| e2e-android (nestjs)     | 08:57:36 → 09:26:30 | 28.90 |
+| e2e-android (rails)      | 08:57:36 → 09:28:38 | 31.03 |
+| e2e-ios (fastapi)        | 09:03:35 → 09:53:08 | 49.55 |
+| e2e-ios (nestjs)         | 09:03:36 → 09:55:57 | 52.35 |
+| e2e-ios (rails)          | 09:03:35 → 09:50:56 | 47.35 |
+
+checks 의 단위 1974시험, Android 세 잡의 계약 거울 각 94시험과 `=== E2E 통과 - 플로 23개 ===`, iOS 세 잡의
+`=== E2E(iOS, <백엔드>) 통과 - 플로 21개 ===` 가 나왔고 request-stall 은 Android · iOS 모두 fastapi 잡에서 돌았다.
+세 iOS 잡은 build-ios 가 끝난 직후(09:03:35–36) macOS 슬롯 대기 없이 시작했다. iOS 하네스의 드라이버 복구는 nestjs 잡에서
+1회였다 - `logout-from-protected` 의 첫 시도가 같은 #3538 흔적으로 끝나 새 계정으로 처음부터 다시 돌아 통과했고, 첫 기록은
+그 잡의 아티팩트에 `logout-from-protected-driver-crash` 로 남았다. fastapi · rails 는 0회다. 이 실행은 이 계획의 바뀐 것 -
+개발 클라이언트가 든 두 앱, 루트 오류 경계와 연결 판정이 든 번들, x86_64 e2e APK, D7 배치로 되돌린 iOS 세 잡과 그 복구 - 를
+모두 지났다.
 
 ## G4 — CI 최적화 전후
 
