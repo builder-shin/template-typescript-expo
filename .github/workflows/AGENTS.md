@@ -9,9 +9,13 @@
 | `build-android`   | ubuntu-24.04 | `test/e2e/android.sh build` - CI 전용 `E2E_ANDROID_ABIS=x86_64`로 APK를 만들고 lib ABI 집합을 확인한다                |
 | `e2e-android` × 3 | ubuntu-24.04 | 백엔드마다(`BACKEND_KIND`) 계약 거울(`test/contract/run.sh`) → KVM 에뮬레이터에서 `test/e2e/run-android.sh`(받은 APK) |
 | `build-ios`       | macos-26     | `test/e2e/ios.sh build` - 시뮬레이터용 Release .app 을 한 번 만들어 아티팩트로 올린다                                 |
-| `e2e-ios` × 3     | macos-26     | 백엔드마다 `test/e2e/native-backend.sh`(Docker 없음)로 백엔드를 준비하고 `test/e2e/run-ios.sh`(받은 .app)             |
+| `e2e-ios` × 6     | macos-26     | 백엔드마다 두 shard의 `E2E_FLOW`로 `test/e2e/run-ios.sh`를 실행한다(받은 .app, Docker 없음)                           |
 
 ## 작업 규칙
+
+- iOS는 macOS 최대 다섯 슬롯에서 여섯 잡을 실행한다. 실제 대기를 기록하며 matrix 순서가 러너 배정을 보장하지 않는다.
+  `scripts/e2e-flow-shards.mjs`가 만든 두 manifest의 합집합은 iOS 21개이고 중복이 없어야 한다.
+  아티팩트는 `e2e-ios-<backend>-shard-<shard>`로 나눠 manifest와 성공·실패한 이름의 로그를 함께 올린다.
 
 - 두 iOS 잡은 `DEVELOPER_DIR=/Applications/Xcode_26.6.app/Contents/Developer`로 판을 명시한다(D7-R22b).
   기본 Xcode가 27로 바뀌면 SDK 57의 기존 AppDelegate lifecycle은 iOS 27에서 시작 전에 종료된다. 앱은 이제
@@ -23,7 +27,7 @@
   나눠 쓴다(스펙 16장의 "E2E 빌드 시간").
 - 매트릭스는 `fail-fast: false` 다. 재시도는 0 이다 - 실패한 잡을 코드 변경 없이 다시 돌리지 않는다(스펙 16장).
   흔들리는 플로는 원인을 고친다. `continue-on-error` 를 쓰지 않는다.
-- 멈춘 서버 확인(`E2E_CHECKS=1`)은 백엔드와 무관해 fastapi 갈래에서만 켠다.
+- 멈춘 서버 확인(`E2E_CHECKS=1`)은 Android fastapi와 iOS fastapi shard 1에서만 켠다.
 - E2E 기록은 숨김 파일도 올린다(`include-hidden-files: true`) - Maestro 2.11.0의 상세 예외·명령 시각·스크린샷이
   `<플로>/debug/.maestro/`에 있다. 기본 제외로 그 디렉터리를 잃으면 실패의 첫 오류를 읽지 못한다(D7 실측 K3).
 - 액션은 주 판(`@v7` 등)으로 고정한다. `astral-sh/setup-uv`는 주 판 태그 `v10`을 배포하지 않아 실제 릴리스

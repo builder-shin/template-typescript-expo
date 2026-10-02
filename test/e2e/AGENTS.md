@@ -269,6 +269,9 @@ prebuild 가 만드는 `android/gradle.properties` 의 기본값(Metaspace 512Mi
 
 ## iOS
 
+CI iOS는 백엔드마다 `scripts/e2e-flow-shards.mjs`의 두 shard를 `E2E_FLOW`로 전달한다. 초기 16·5 플로의 합집합은
+21개이고 중복이 없어야 한다. 각 shard의 manifest와 실제 성공·실패한 플로 이름은 CI 아티팩트에 남긴다.
+
 CI APK는 `E2E_ANDROID_ABIS=x86_64`로 빌드한다. 미지정 기본은 네 ABI(`armeabi-v7a,arm64-v8a,x86,x86_64`)이며,
 명시할 수 있는 값은 `x86_64`뿐이다. 두 Gradle 호출과 APK 재사용 지문에 같은 선택을 넣는다. CI는 APK의 lib ABI
 집합과 에뮬레이터의 `ro.product.cpu.abi`가 모두 x86_64인지 설치 전에 확인한다.
