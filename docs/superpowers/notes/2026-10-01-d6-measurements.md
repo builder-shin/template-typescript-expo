@@ -33,6 +33,15 @@ development)는 OTA 를 끈 설정이라 runtime version 이 없다 - eas-cli �
 발행하지 않는다. D(JS 만 바뀜)는 A 와 같다 - 그런 업데이트는 그 빌드에 간다. 그래서 설정이 틀린 환경의 발행은 어떤
 빌드에도 닿지 않는다. 앱 시작의 재검증(스펙 10.1)은 그 뒤의 두 번째 방어선이다.
 
+> 정정(2026-10-02, D8): 위 O1 은 expo-updates CLI 에 직접 준 환경의 설정을 잰 결과다. eas-cli 24.8.0 의 소스와
+> 도움말을 확인하니, `eas update --environment <환경>` 은 프로젝트를 찾는 첫 설정 평가를 셸 값으로 하고(`.env` 를
+> 읽지 않는다, `EXPO_NO_DOTENV=1`), 그 뒤 읽을 수 있는 EAS 환경 변수(`plaintext`·`sensitive`)로 같은 이름의 셸 값을
+> 덮어 설정을 다시 평가하고 번들을 내보내며 runtime version·fingerprint 를 계산한다. EAS 환경에 없는 이름은 셸
+> 값을 쓴다. 따라서 빌드와 같아야 하는 것은 최종 `APP_VARIANT`·`BACKEND_URL`·`EAS_PROJECT_ID` 다 - EAS 환경에
+> `BACKEND_URL` 이 있으면 셸의 주소가 다른 것만으로 지문이 달라지는 것은 아니다. 첫 평가도 통과해야 하므로 셸에는
+> 세 값을 두고 배포 변형의 주소는 https 로 준다. 발행은 `eas.json` 의 빌드 프로필 `env` 를 읽지 않는다.
+> 실계정의 빌드·발행·수신은 재지 않았다 - 이 정정은 소스·도움말 확인이고, 위 측정값은 그대로다.
+
 ## O2 — eas.json 을 EAS 의 해석기로 읽는다
 
 **명령.** eas-cli 24.8.0 이 eas.json 을 읽을 때 쓰는 `@expo/eas-json` 24.8.0 을 저장소 밖의 임시 디렉터리에 받아,

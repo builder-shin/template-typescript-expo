@@ -135,20 +135,26 @@ COMPOSE_PROFILES="$BACKEND_KIND" docker compose -p template-typescript-expo-e2e 
 | `production`  | 스토어 빌드, 빌드 번호 자동 증가(`appVersionSource: remote`) | `production` |
 | `e2e`         | Android APK, iOS 시뮬레이터 빌드, 자격 증명 없음             | -            |
 
-`BACKEND_URL` 은 `eas.json` 에 적지 않습니다 - 실제 주소는 템플릿이 알 수 없으므로 EAS 환경 변수로 넣고, 빠지면 빌드가 곧바로 멈춥니다.
+`BACKEND_URL` 은 `eas.json` 에 적지 않습니다 - 실제 주소는 템플릿이 알 수 없으므로 EAS 환경 변수로 넣습니다. eas-cli 24.8.0 은 설정을 평가할 때 `.env` 를 읽지 않습니다(`EXPO_NO_DOTENV=1`). EAS 명령 전에 셸에도 `APP_VARIANT` · `BACKEND_URL` · `EAS_PROJECT_ID` 를 내보냅니다 - 프로젝트를 찾는 첫 평가는 EAS 환경 변수를 받기 전이라, `preview` · `production` 에서는 셸의 주소도 https 여야 합니다. 첫 `init` 에서만 프로젝트 ID 를 비웁니다.
+
+아래는 eas-cli 24.8.0 을 쓰는 `preview` 예시입니다. `init` 은 프로젝트를 만들거나 찾은 뒤 동적 설정에 ID 를 쓰지 못해 경고와 ID 를 출력하고 exit 1 로 끝납니다 - 출력된 UUID 를 다음 `export` 에 넣습니다.
 
 ```bash
-eas login
-eas init   # 설정이 동적(app.config.ts)이라 id 를 파일에 쓰지 못하고 알려 줍니다 - .env 의 EAS_PROJECT_ID 에 둡니다
-eas env:create --environment preview --name BACKEND_URL --value https://api.example.com
-eas build --profile preview --platform android
-APP_VARIANT=preview BACKEND_URL=https://api.example.com EAS_PROJECT_ID=<id> eas update --channel preview --environment preview
+export APP_VARIANT=preview BACKEND_URL=https://api.example.com EAS_PROJECT_ID=
+npx -y eas-cli@24.8.0 login
+npx -y eas-cli@24.8.0 init
+export EAS_PROJECT_ID='출력된 UUID'
+npx -y eas-cli@24.8.0 env:set --environment preview --name BACKEND_URL --value "$BACKEND_URL" --visibility plaintext --non-interactive
+npx -y eas-cli@24.8.0 build --profile preview --platform android
+npx -y eas-cli@24.8.0 update --channel preview --environment preview --message "업데이트 설명" --clear-cache --non-interactive
 ```
 
-- runtime version 은 `fingerprint` 정책입니다 - 네이티브 구성이 같은 빌드에만 업데이트가 갑니다. 발행하는 셸의 `APP_VARIANT` · `BACKEND_URL` · `EAS_PROJECT_ID` 가 빌드와 다르면 지문이 달라 업데이트가 어떤 빌드에도 닿지 않습니다(`docs/superpowers/notes/2026-10-01-d6-measurements.md` 의 O1). EAS 빌드 서버에는 `EAS_PROJECT_ID` 를 넣지 않아도 됩니다 - 서버가 주는 `EAS_BUILD_PROJECT_ID` 를 씁니다.
+- runtime version 은 `fingerprint` 정책입니다 - 같은 지문의 빌드에만 업데이트가 갑니다. `--environment preview` 를 주면 읽을 수 있는 EAS 환경 변수(`plaintext` · `sensitive`)가 같은 이름의 셸 값을 덮어 이후 설정 평가·번들·runtime version 계산에 쓰입니다. EAS 환경에 없는 이름은 셸 값을 씁니다. 빌드와 맞춰야 하는 것은 이 최종 `APP_VARIANT` · `BACKEND_URL` · `EAS_PROJECT_ID` 입니다(`docs/superpowers/notes/2026-10-01-d6-measurements.md` 의 O1 정정). 위 예시의 `BACKEND_URL` 은 EAS 값이 쓰이고, `APP_VARIANT` · `EAS_PROJECT_ID` 는 셸에 둡니다 - 업데이트 발행은 `eas.json` 의 빌드 프로필 `env` 를 읽지 않습니다. EAS 빌드 서버는 `EAS_BUILD_PROJECT_ID` 를 주므로 서버에 `EAS_PROJECT_ID` 를 따로 넣지 않아도 됩니다.
+- `env:create` 는 폐기 예정이고 `env:set` 이 대체합니다. `env:create` 는 비대화형에서 `--visibility` 가 필수입니다. 위 예시는 `env:set` 에도 `plaintext` 를 명시합니다 - `BACKEND_URL` 은 앱에 실리는 공개 값이고, `secret` 은 로컬 설정 평가·발행에서 읽을 수 없습니다.
+- 비대화형 `update` 는 `--auto` 를 쓰지 않으면 채널(또는 브랜치)과 `--message` 가 필요합니다. 이 SDK 에서는 `--environment` 도 지정합니다. 24.8.0 은 `--environment` 가 있으면 번들 캐시를 자동으로 지우며, 위 명령은 `--clear-cache` 도 명시합니다.
 - 앱은 켤 때 업데이트를 확인하되 기다리지 않습니다 - 받은 업데이트는 다음 실행에 적용됩니다. 홈의 빌드 정보 카드가 앱 버전 · 변형 · OTA · runtime version · 채널 · 업데이트 ID 를 보여 주고, "업데이트 확인" 으로 받은 업데이트를 바로 적용합니다.
-- 스토어 제출은 `eas submit --profile production` 입니다. Android 는 `internal` 트랙의 draft 로 올립니다. iOS 의 App Store Connect 앱 id 같은 계정 고유 값은 저장소에 적지 않았습니다 - 첫 제출 때 EAS 가 묻고 저장합니다.
-- 조직 계정이나 로봇 토큰으로 빌드하면 eas-cli 가 `owner` 를 요구합니다 - `app.config.ts` 에 한 줄을 더합니다.
+- 스토어 제출은 `production` 빌드를 만든 뒤 `eas submit --profile production` 으로 합니다 - 제출 프로필은 빌드를 만들지 않습니다. Android 는 `internal` 트랙의 draft 로 올립니다. iOS 의 App Store Connect 앱 ID 같은 계정 고유 값은 대화형 제출에서 확인하거나 제출 프로필에 넣습니다 - 비대화형 제출에는 `ascAppId` 가 필요합니다.
+- 이 템플릿(SDK 57)은 프로젝트 ID 로 연결된 빌드·발행에 `owner` 를 요구하지 않습니다. eas-cli 24.8.0 의 조직 계정·로봇 토큰에 대한 추가 `owner` 검사는 SDK 53 미만에만 있습니다. `owner` 를 직접 넣으면 연결된 프로젝트의 소유자와 같아야 합니다.
 - `development` 프로필은 개발 클라이언트가 든 빌드를 만듭니다(`expo-dev-client` 가 설치돼 있습니다).
 
 ## 검증 - 단일 게이트
@@ -236,7 +242,7 @@ BACKEND_URL=http://localhost:4100 ./test/e2e/run-ios.sh
 - **관계 선택기**는 이름 순 첫 100건만 보이고 검색이 없습니다 - 잘리면 그 사실을 알립니다.
 - **목록 조건의 값 안에 든 `%XX`** 는 Expo Router 가 값을 한 번 더 디코딩해 바뀝니다.
 - 두 E2E 하네스(`test/e2e/run-android.sh` · `test/e2e/run-ios.sh`)가 약 60줄을 겹쳐 갖습니다 - 어긋나기 시작하면 한 파일로 모읍니다.
-- **EAS 실계정의 한 바퀴**(`preview` 빌드 설치 → 업데이트 발행 → 앱이 그 업데이트를 받는다)는 아직 돌리지 않았습니다 - 게이트와 CI 는 계정 없이 설정 값과 OTA 를 끈 빌드만 잽니다.
+- **EAS 실계정의 한 바퀴**(`preview` 빌드 설치 → 업데이트 발행 → 앱이 그 업데이트를 받는다)는 아직 돌리지 않았습니다 - 게이트와 CI 는 계정 없이 설정 값과 OTA 를 끈 빌드만 잽니다. 위 EAS 절은 eas-cli 24.8.0 의 소스와 `--help` 로 확인했으며 실계정 실행으로 검증한 안내는 아닙니다.
 
 ## 문서
 

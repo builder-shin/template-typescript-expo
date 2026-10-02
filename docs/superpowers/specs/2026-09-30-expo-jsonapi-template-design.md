@@ -929,6 +929,23 @@ xcodebuild로 직접 빌드한다. 실제 EAS 빌드와 OTA 발행은 사용자�
 빌드 크레딧을 쓰므로, 구현 완료 후 사용자 승인을 받아 별도 단계(15장 9단계)로
 한 번 실증한다 — `preview` 빌드 설치 → 업데이트 발행 → 앱이 그 업데이트를 받는다.
 
+> 정정(2026-10-02, D8): 10.1·10.5·10.6 의 EAS 환경 규칙과 명령을 eas-cli 24.8.0 의 소스와 도움말로 확인했다.
+> (a) EAS 는 설정 평가에 `EXPO_NO_DOTENV=1` 을 줘 `.env` 를 읽지 않는다. 프로젝트를 찾는 첫 평가는 EAS 환경
+> 변수를 받기 전이므로 셸에 `APP_VARIANT`·`BACKEND_URL`·`EAS_PROJECT_ID` 를 둔다(첫 `init` 에서만 ID 를 비운다).
+> preview·production 의 셸 주소도 https 여야 한다. 동적 설정의 `init` 은 프로젝트를 만들거나 찾은 뒤 ID 를
+> 쓰지 못해 경고·ID 를 출력하고 exit 1 로 끝난다 - 이 템플릿은 출력된 UUID 를 셸의 `EAS_PROJECT_ID` 로 받는다.
+> (b) `env:create` 는 폐기 예정이고 `env:set` 이 대체한다. 전자는 비대화형에서 `--visibility` 가 필수다. README 는
+> 후자에도 `--visibility plaintext` 를 명시한다 - `BACKEND_URL` 은 공개 값이고 `secret` 은 로컬에서 읽을 수 없다.
+> (c) `update --environment <환경>` 은 첫 평가 뒤 읽을 수 있는 EAS 환경 변수(`plaintext`·`sensitive`)로 같은 이름의
+> 셸 값을 덮어 설정 재평가·번들·runtime version·fingerprint 에 쓴다. EAS 환경에 없는 이름은 셸 값을 쓴다. 빌드와
+> 같아야 하는 것은 이 최종 세 값이지 셸 값만이 아니다(D6 실측 O1 의 D8 정정). 발행은 빌드 프로필 `env` 를 읽지
+> 않는다. 비대화형 발행은 `--auto` 가 없으면 채널(또는 브랜치)과 `--message` 가 필요하며, SDK 57 은 `--environment`
+> 를 지정한다. 24.8.0 은 그 플래그가 있으면 번들 캐시를 자동으로 지운다(`--clear-cache` 로도 명시할 수 있다).
+> (d) 프로젝트 ID 로 연결된 빌드·발행에서 조직 계정·로봇 토큰에 대한 추가 `owner` 검사는 SDK 53 미만뿐이다.
+> 직접 넣은 `owner` 는 프로젝트 소유자와 같아야 한다. 제출 프로필은 빌드를 만들지 않으며, iOS 비대화형 제출은
+> `ascAppId` 가 필요하다. 사용자는 실계정 실행 대신 README 정정을 선택했다 - 15장 9단계의 preview 빌드 설치 →
+> 업데이트 발행 → 앱 수신 실증은 미수행으로 남고 README 의 알려진 한계에 적는다.
+
 ## 11. 테스트 전략
 
 ### 11.1 단위 — vitest (node)
