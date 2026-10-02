@@ -1203,6 +1203,11 @@ e2e-ios × 3       macOS    백엔드를 네이티브로 실행 → Maestro
 > 빌드 기록(14일)이다. Maestro 는 `test/e2e/install-maestro.sh` 가 2.11.0 을 체크섬으로 확인해 푼다. 멈춘 서버 확인
 > (`E2E_CHECKS=1`)은 fastapi 갈래 둘이 켠다. 재시도는 0 이고, 실패한 잡을 코드 변경 없이 다시 돌리지 않는다.
 
+> 정정(2026-10-02, D7): 13장의 매트릭스가 처음 모두 초록이 된 실행은
+> [36950704982](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982)(커밋 `53e3134`)다.
+> 첫 실행부터 그 실행까지 무엇이 왜 실패했고 무엇을 고쳤는지, 칸별 결과와 시간은
+> `docs/superpowers/notes/2026-10-01-d7-measurements.md`의 K3에 있다.
+
 ## 14. 문서
 
 ```text
@@ -1360,3 +1365,8 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 3. 같은 앱 코드가 어댑터 없이 세 백엔드 모두에서 통과한다.
 4. 복사 출처 기록이 있고 게이트가 그것을 검사한다.
 5. README와 계층별 `AGENTS.md` 문서군이 실제 파일과 일치한다.
+
+> 정정(2026-10-02, D7): 조건2의 칸은 `checks`·`e2e-android` 셋·`e2e-ios` 셋에 앱을 한 번 만드는
+> `build-android`·`build-ios`를 더한 아홉이다. [36950704982](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982)
+> (커밋 `53e3134`)에서 모두 초록이었다(D7 실측 기록 K3). 조건3(같은 앱 코드가 어댑터 없이 세 백엔드 모두에서 통과)도
+> 그 실행이 보였다. 조건1·5는 D8이 닫는다.

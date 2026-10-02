@@ -204,7 +204,8 @@ Maestro 2.11.0은 스크린샷을 기본 `~/.maestro/tests/2026-10-02_012132/d7-
 
 `.github/workflows/ci.yml` 의 잡 다섯(매트릭스 둘 - 아홉 칸)을 `feat/d7-ci` 의 push 로 돌렸다(사용자 승인 - 공개 저장소,
 2026-10-01). 실행마다 무엇이 실패했고 무엇을 고쳤는지를 적는다. 같은 코드로 다시 돌린 실행은 없다(러너 할당 실패로 잡이
-시작도 못 한 경우만 예외이고, 있었으면 그 행에 적는다). 실행은 여섯 번이 상한이었다.
+시작도 못 한 경우만 예외이고, 있었으면 그 행에 적는다). 처음 계획의 실행 상한은 여섯 번이었다. 실행4의 셀별 중지 뒤 사용자가 Mac 재현·추가 실행을 승인했고,
+코디네이터가 실행6의 Task5 통합 대체와 첫 초록 뒤 최종 검토 수정 검증을 승인했다(아래 표).
 
 **시작(2026-10-02, Asia/Seoul).** `feat/d7-ci`의 깨끗한 머리 `1d15b4d86e9a72f153ed0680615224dccb18e8ce`를
 처음 push 했다. `origin/main`은 D6 병합 `bdf06b5`였고, 보낸 D7 커밋은 여덟이었다. 원격 브랜치는 없었고 저장소는
@@ -226,6 +227,10 @@ README보다 새 판이었다(`Set up job` 로그). 그 잡에서 정적 게이�
 | 2 — [36901767491](https://github.com/builder-shin/template-typescript-expo/actions/runs/36901767491) | `d8e0592` | checks·build-android·build-ios·android nestjs success; android fastapi·rails 및 ios 셋 failure | Rails: Ruby Darwin 23 플랫폼이 잠금에 없어 frozen Bundler 실패 → D7-R14 플랫폼 가드. Android 둘: splash 전송 timeout 뒤 남은 starting_reveal → D7-R15 native exit listener 해제. iOS 둘: 딥링크 시스템 확인창 → D7-R16 공통 확인창 처리. 아래에 첫 오류·증거·검증을 적는다. |
 | 3 — [36912828333](https://github.com/builder-shin/template-typescript-expo/actions/runs/36912828333) | `19db522` | checks·build-android·build-ios·android 셋 success; ios 셋 failure | Android 셋 각각 22플로 통과, splash timeout 0. iOS: Keychain entitlement 누락 → D7-R18 Simulator 서명·검증. 폼/목록 배지의 UIKit 묶음 → 부모 값·순서로 단언. NestJS 홈 유지/FastAPI 404 뒤 skeleton은 원인 미확정이며 D7-R20 승인 경계 관측만 함께 더한다. |
 | 4 — [36927109091](https://github.com/builder-shin/template-typescript-expo/actions/runs/36927109091) | `7f4cf71` | checks·빌드 둘·Android 셋 초록, iOS 셋 빨강 | iOS 세 칸 모두 JS 시작 전 Taskgated Invalid Signature로 실패했다. R18의 서명 검증·권한 존재는 통과했지만 실제 실행은 거부됐다. 같은 셀의 세 번째 수정 뒤 실패로 총4회에서 중지(D7-R20), 추가 코드 push·실행5·rerun 없음. 마지막 실패는 고치지 못했고 기록만 커밋한다. |
+| 5 — [36941340879](https://github.com/builder-shin/template-typescript-expo/actions/runs/36941340879) | `4d2d099` | checks·두 빌드·Android 셋 success; iOS 셋 failure | Rails 첫 Open 후 route 지연, NestJS 가입422/입력 불일치 징후, FastAPI 제출→요청 지연 및 별도 로그인 timeout. R29 cold 목적지 보존·R32 scheme 사전승인·R33 전용 기기 서비스 정리/재부팅/진단을 추가했다. 구체적 원인 경계와 한계는 아래 Mac 재현 기록에 있다. |
+| 6 — [36950606213](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950606213) | `52a1742` | cancelled | Task5 통합 push가 이 실행을 대체하도록 코디네이터가 승인했다. 코드 변경 없는 rerun이 아니다. |
+| 통합 — [36950704982](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982) | `53e3134` | **아홉 셀 success** | Task4b 수정·Task5 계약 거울 통합. iOS 각21·Android 각23흐름, 단위1902·계약 각94시험 통과. |
+| 최종 검토 — [36955635199](https://github.com/builder-shin/template-typescript-expo/actions/runs/36955635199) | `2599bf2` | **아홉 셀 success** | 첫 초록 뒤 코디네이터의 native Redis 소유권·BACKEND_KIND 오류 출력 검토 수정. 단위95파일1914시험·계약각94시험·iOS각21/Android각23흐름 통과. |
 
 **실행 4의 셀별 상한 중지.** iOS Rails E2E 단계가 22:01:52Z failure, 잡도 failure다. 같은 셀에 고침 배치가 세 번
 닿은 뒤 다시 빨가므로 총 여섯 실행 이전인 4회에서 중지한다(D7-R20). 실행5나 같은 코드 rerun은 하지 않는다.
@@ -428,7 +433,7 @@ starting_reveal 애니메이션 대기는 0줄이었다. 자연 재현은 원래
 `batch2-final-validation.log`·`batch2-unit-final.log`에 보존했다. `joon` 9 → 9, compose 잔여 0이며 새 소유 에뮬레이터만
 종료했다. 원래 emulator-5554는 켜져 있다. 의존성·백엔드 원격·타임아웃·앱 단언·재시도 규칙은 바꾸지 않았다.
 
-**초록 없음 — Task 4 failed.** 총 실행4회, 세 수정 배치 뒤에도 iOS 셋이 빨가므로 셀별 상한으로 중지했다. 스펙13/17의
+**실행4 종료 당시 초록 없음 — Task 4 failed.** 총 실행4회, 세 수정 배치 뒤에도 iOS 셋이 빨가므로 셀별 상한으로 중지했다. 스펙13/17의
 초록 정정은 쓰지 않는다. 마지막 실행36927109091의 코드 커밋은7f4cf71796ece8fa4d2a97174fdd64a641cb1e2e다.
 2026-10-01 UTC의 아홉 칸 최종 결과와 시간은 다음과 같다. 이 뒤에는 docs/만 바꾼 기록 커밋을 보내며 그 커밋은
 paths-ignore 대상이다. K3 최종 커밋과 새 실행이 없다는 확인은 Task4 보고에 기록한다.
@@ -769,6 +774,128 @@ R16의 정확한 Open 조건은 세 흐름에서 모두 건너뛰었다. 전용 
 증거는 `.maestro-output/mac-repro/r33-nestjs-ios26/`, 같은 이름의 `.log`, `r33-final-*.log`, `r33-build.log`다.
 최종 통합 CI 전까지 전체 아홉 셀 성공으로 세지 않는다. 새 관측은 로컬에서 값 없이 입력20/제출20과
 즉시 시작한 요청을 확인했으며, CI5의 내부 지연 원인 전체가 입증됐다는 뜻은 아니다.
+
+#### 11:26 최종 통합 CI — 아홉 셀 성공
+
+Task4b의 마지막 push는 `52a17429057e3edc8034aba3f46d2d1ecf9efedb`다. 코디네이터가 Task5의
+`151d5ff`·`53e3134`를 통합해 `feat/d7-ci`의 최종 코드 HEAD는
+`53e31343f1826bfdff70bae1e6e4719f5aaa6df3`가 됐다. 실행6
+[36950606213](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950606213)은 이 통합으로
+취소됐으며 재실행하지 않았다. 승인된 대체 통합 실행
+[36950704982](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982)은
+2026-10-02 11:25:34 KST에 마지막 셀까지 **success**, 11:26 `gh run watch --exit-status`도 exit0이었다.
+
+| 셀 | 결과 | 확인 범위 | 잡 소요 시간 |
+| --- | --- | --- | --- |
+| [build-ios (e2e .app)](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982/job/110662927577) | success | 정식 build/assert-app | 15분 43초 |
+| [checks (게이트 [1]–[11])](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982/job/110662927741) | success | 95파일/1902시험 및 정적 게이트 | 2분 18초 |
+| [build-android (e2e APK)](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982/job/110662927778) | success | e2e APK 빌드 | 26분 37초 |
+| [e2e-ios (fastapi)](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982/job/110666786411) | success | 21개 흐름·로그 가드·요청 수 검사 | 41분 34초 |
+| [e2e-ios (nestjs)](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982/job/110666786423) | success | 21개 흐름·로그 가드 | 45분 30초 |
+| [e2e-ios (rails)](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982/job/110666786462) | success | 21개 흐름·로그 가드 | 40분 8초 |
+| [e2e-android (fastapi)](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982/job/110669367654) | success | 23개 흐름·계약 거울 94시험 | 28분 33초 |
+| [e2e-android (nestjs)](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982/job/110669367704) | success | 23개 흐름·계약 거울 94시험 | 31분 30초 |
+| [e2e-android (rails)](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982/job/110669367743) | success | 23개 흐름·계약 거울 94시험 | 32분 55초 |
+
+세 iOS 셀은 native backend에서 각21흐름, Android는 각23흐름을 통과했다. 기존 iOS 제외 흐름인
+`examples-delete-offline`·`examples-offline-refetch` 두 개는 그대로이며 새 제외는 없다. CI checks는
+95파일/1902시험, Android의 계약 거울은 세 백엔드 각각94시험이었다. 로컬 R33 기기 증명은52a1742에서
+수행했고 통합 HEAD의 두 runtime 파일(form/write)은 Task5의 주석만 달라진 것을 대조했다.
+
+R33의 CI 재부팅 전후 측정은 다음과 같다. 같은 셀의 부팅 직후 스냅샷이며 RSS는 공유 매핑을 포함하므로
+실제 물리 메모리 사용량과 같지 않다. 세 셀 모두 선택한96개 서비스가 disabled이고 실행 PID가 없었으며
+AutoFill0·scheme approval·OS 언어·키보드 설정의 재부팅 뒤 readback을 통과했다.
+
+| CI iOS backend | 프로세스 수 | RSS 합계(KiB) | CPU 합계(%) |
+| --- | --- | --- | --- |
+| FastAPI | 223 → 89 | 19,552,384 → 7,632,128 | 211.8 → 50.9 |
+| NestJS | 189 → 102 | 15,690,864 → 8,471,376 | 242.5 → 34.0 |
+| Rails | 218 → 101 | 19,685,696 → 8,368,000 | 97.3 → 50.2 |
+
+`auth-links`에서 세 백엔드 모두 마지막 password 변경 길이20(seq91)→제출 길이20(seq92)을 기록했다.
+제출→HTTP 시작은 FastAPI1ms, NestJS0ms, Rails0ms였다. 가입201/로그인200의 소요 시간은 각각
+FastAPI721/254ms, NestJS459/171ms, Rails1192/265ms였고 모두 보호 화면에 도착했다.
+CI5에서 timeout이던 FastAPI `contract-lab-signed-in` 로그인도 제출과 같은 ms에 시작해431ms 뒤200이었다.
+값·본문·토큰은 이 관측에 포함하지 않는다.
+
+R32의 첫 OS Open 조건은 세 `auth-links`에서 모두 SKIPPED였다. R16의 정확한 조건/버튼/부재 단언은 남아
+있다. R29의 `cold-links`는 세 셀 모두 `/examples/new`→`/`→`/login` 뒤 인증하면 원래 화면으로 복원됐고,
+공개 cold404도 `success/idle`, observer1과 not-found UI에 도착했다. `examples-empty-notfound`의 두404도
+세 셀에서 같은 상태 전환과 UI 단언을 통과했다. `register-restore-logout`은 세 셀 모두 실제 SecureStore
+쓰기→프로세스 재시작 읽기→로그아웃 삭제→다른 계정 가입을 통과했다.
+
+이 실행은 전체 수정의 CI 통과를 입증한다. run3 warm 링크/404 skeleton의 미재현 원인이나 CI5의 내부 지연
+전체를 특정 원인으로 소급 확정하지 않는다. 재시도0, 기존 timeout/목적 화면/요청 수 가드를 유지했다.
+결정43의 둘째 로그인 tap은 위 Mac 실측대로 비대화형 홈 build-info 영역이었다.
+
+증거: `/tmp/d7-integrated/e2e-ios-{fastapi,nestjs,rails}`의 각 flow `commands.json`·`device.ndjson` 및
+simulator 전후 파일, `.maestro-output/mac-repro/integrated-*-job.log`, `integrated-ios-summary.log`,
+`integrated-detail.log`, `ci-integrated-final.json`, `ci-integrated-watch.log`.
+첫 초록 뒤 코디네이터가 최종 검토 수정2599bf2와 실행36955635199를 보냈다. 문서는 docs/**에만 수정하고,
+그 실행 완료 뒤 아홉 셀 성공이면 문서 커밋을 push하며 실패면 먼저 보고한다.
+
+
+첫 초록53e3134의 Android 빌드도 같은 두 단계 레시피였다. 두 번째 `createReleaseUpdatesResources UP-TO-DATE`는
+2026-10-02 01:40:30.3738557Z, 두 번째 Gradle은22분1초, 잡 전체는26분37초였다. APK 설정 단언은 통과했고
+실제 최대 RSS/Kotlin JVM 메모리는 별도로 계측하지 않았으므로 관측값으로 쓰지 않는다. 원본은
+`.maestro-output/mac-repro/integrated-build-android-job.log`다.
+
+**첫 초록 실행의 Step8 기기 증거 보완.** 앞의 실행4 한계는 당시 기록이다. 통합 실행53e3134에서는 iOS 셋의
+`home-build-info`·`examples-browse`·로캘 셋(`login-error-en/ko`, `examples-invalid-filter-en`)·쓰기 넷의
+화면 단언과 로그 가드가 모두 통과했다. FastAPI home-build-info의 `d7-build-info.png`를 직접 확인했으며
+앱0.1.0·변형e2e·OTA꺼짐·runtime version/채널/업데이트ID없음이었다. BackButton·sheet-backdrop·키체인 정리는
+해당 공통 subflow/하네스 경계를 그대로 사용했다. 세 iOS artifact의 변환 device.log에서 앱 W/E 및 e2e-warn은
+각0줄(FastAPI22개 로그, NestJS/Rails각21개)이었으며 JS 시작을 확인한 guard가 모두 통과했다.
+
+FastAPI iOS의 request-stall은 headers `02:20:37.894Z`, body `02:20:53.375Z`에 요청을 받았고
+`device.log`에 `[e2e-http] 0 GET /api/v1/examples REQUEST_TIMEOUT` 두 줄을 남기며 UI/로그 가드를 통과했다.
+시간은2026-10-02 UTC다. 결정43의 둘째 tap은 위 Mac 기기 좌표/노드 실측과 CI FastAPI 로그인1·회전1·POST1
+요청 수 가드 통과를 함께 근거로 쓴다. 세 쓰기 갈림/토큰 수명은 Task5의 K4 및 이 실행의 계약94시험이 담당한다.
+
+같은 실행의 offset 순회 두 `scrollUntilVisible` 시각은 commands.json의 timestamp+duration으로 계산했다.
+제한90초와 재시도0은 그대로다. Android 세 job 로그의 `E2E: 환경 흔적`은0줄이었다.
+
+| 칸 | 첫 scroll 시작–끝 UTC / 소요 | 둘째 scroll 시작–끝 UTC / 소요 |
+| --- | --- | --- |
+| Android FastAPI | 01:58:34.116–01:58:49.973 / 15.857초 | 01:58:49.974–01:59:07.280 / 17.306초 |
+| Android NestJS | 01:59:09.781–01:59:25.059 / 15.278초 | 01:59:25.060–01:59:45.547 / 20.487초 |
+| Android Rails | 02:00:25.011–02:00:42.029 / 17.018초 | 02:00:42.029–02:01:06.965 / 24.936초 |
+| iOS FastAPI | 01:53:47.737–01:54:09.928 / 22.191초 | 01:54:09.932–01:54:34.298 / 24.366초 |
+| iOS NestJS | 01:53:50.475–01:54:14.076 / 23.601초 | 01:54:14.078–01:54:37.112 / 23.034초 |
+| iOS Rails | 01:54:14.915–01:54:36.324 / 21.409초 | 01:54:36.325–01:55:05.819 / 29.494초 |
+
+#### 12:34 최종 검토 수정의 검증 — 다시 아홉 셀 성공
+
+첫 초록 뒤 코디네이터의 전체 브랜치 검토에서 native Redis 소유권(I1)과 잘못된 BACKEND_KIND의 오류 출력(M1)을
+보완했다. `2599bf2d1fb5dbfab28ed0276f03aebccfd5d41c`는 PID·실행파일·이 실행의 전용 config 경로/port·실제
+listener를 모두 확인하고 자기 Redis만 중지하며, 외부 점유자는 시작 전에 거절한다. 네 진입점의 잘못된
+BACKEND_KIND는 안내만 출력하고 exit1로 끝난다. 이 코드는 코디네이터가 검토·커밋·push했으며 Mac은 ff-only로 받았다.
+
+[최종 검토 실행36955635199](https://github.com/builder-shin/template-typescript-expo/actions/runs/36955635199)는
+2026-10-02 12:33:09 KST에 마지막 셀까지 **success**였고 `gh run watch --exit-status`도 exit0이었다.
+
+| 셀 | 결과 | 잡 소요 시간 |
+| --- | --- | --- |
+| [build-ios (e2e .app)](https://github.com/builder-shin/template-typescript-expo/actions/runs/36955635199/job/110677863623) | success | 15분 25초 |
+| [build-android (e2e APK)](https://github.com/builder-shin/template-typescript-expo/actions/runs/36955635199/job/110677863786) | success | 26분 15초 |
+| [checks (게이트 [1]–[11])](https://github.com/builder-shin/template-typescript-expo/actions/runs/36955635199/job/110677863792) | success | 2분 24초 |
+| [e2e-ios (nestjs)](https://github.com/builder-shin/template-typescript-expo/actions/runs/36955635199/job/110681567135) | success | 42분 57초 |
+| [e2e-ios (fastapi)](https://github.com/builder-shin/template-typescript-expo/actions/runs/36955635199/job/110681567235) | success | 50분 53초 |
+| [e2e-ios (rails)](https://github.com/builder-shin/template-typescript-expo/actions/runs/36955635199/job/110681567295) | success | 38분 38초 |
+| [e2e-android (fastapi)](https://github.com/builder-shin/template-typescript-expo/actions/runs/36955635199/job/110684097619) | success | 30분 51초 |
+| [e2e-android (nestjs)](https://github.com/builder-shin/template-typescript-expo/actions/runs/36955635199/job/110684097636) | success | 31분 54초 |
+| [e2e-android (rails)](https://github.com/builder-shin/template-typescript-expo/actions/runs/36955635199/job/110684097683) | success | 36분 51초 |
+
+세 iOS 셀은 수정된 native backend와 각21흐름, Android는 각23흐름·계약 거울 각각94시험을 통과했다.
+CI checks는 **95파일/1914시험**이다. Mac에서 Task4b 마지막 코드52a1742를 검증한95파일/1902시험과 구분한다.
+Redis 변경은 하네스의 자원 소유권 경계를 보완하며 앱/플로/타임아웃/재시도는 바꾸지 않았다. 원본은
+`.maestro-output/mac-repro/final-wave-*-job.log`, `ci-final-wave-final.json`, `ci-final-wave-watch.log`,
+`/tmp/d7-final-wave/e2e-ios-{fastapi,nestjs,rails}`다.
+
+최종 문서 변경은 K3 및 스펙13/17의 날짜 있는 정정 두 파일뿐이다. docs/**만 바꾼 push는 워크플로의 paths-ignore
+대상이므로 새 CI를 만들지 않는다. 첫 초록 코드는53e3134, 최종 검토까지 검증한 코드는2599bf2이며 이후 문서 커밋과
+구분한다. Mac의 booted simulator0·소유 compose project 컨테이너0을12:34 다시 확인했다. 원래 warm 링크/404
+정체의 미재현 원인과 로컬 Rails 전체 미완료 한계는 위 기록대로 유지하고 CI 성공으로 소급 해석하지 않는다.
 
 ## K4 — 쓰기 갈림과 access token 수명(세 백엔드)
 
