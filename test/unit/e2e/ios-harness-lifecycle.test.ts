@@ -40,6 +40,7 @@ function run(body: string, overrides: Record<string, string> = {}) {
   const commands: Record<string, string> = {
     git: 'printf fixture',
     lsof: 'printf "%s\\n" "$*" >> port.calls\nexit "$PORT_TAKEN"',
+    check_redis_port: 'exit 0',
     stop_api: 'echo stop_api >> launch.calls',
     start_services: 'echo start_services >> launch.calls',
     start_api: 'echo start_api >> launch.calls',

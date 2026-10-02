@@ -324,6 +324,10 @@ Android 와 같고, 다른 것은 이렇다.
   환경은 `docker-compose.e2e.yml` 과 같다. 저장소 주소는 `native-backend.sh repo-url` 한 곳이고
   `test/unit/e2e/native-backend.test.ts` 가 compose 의 빌드 컨텍스트와 맞댄다. 하네스는 `start`·`stop` 만 부른다 -
   `services`·`fetch`·`prepare` 는 CI 가 앞 단계로, 로컬에서는 손으로 한 번 돈다(아래).
+  Redis는 직접 시작한 PID와 하네스 전용 고유 설정 파일을 기록하며, 프로세스의 실행 파일·설정 경로·포트와
+  현재 리스너 PID가 모두 일치할 때만 재사용하거나 종료한다. 외부 Redis의 포트 점유는 시작 전에 오류로
+  거부하고 명령을 보내지 않는다. 시작 전 `stop`이나 simulator 준비 실패의 EXIT 정리도 외부 Redis를 건드리지
+  않으며, 낡은 PID 기록만으로 종료하지 않는다. API·PostgreSQL의 기존 정리 범위는 같다.
   CI의 Rails는 Ruby 설치 뒤 `lock-platform`을 먼저 부른다(D7-R14). 러너의 사전 빌드 Ruby 3.4.8은
   `arm64-darwin-23`이고 백엔드 잠금은 Darwin 24/25만 담아, 임시 clone의 `PLATFORMS` 한 줄만 더한다.
   다른 바이트가 바뀌면 원본을 복구하고 멈춘다. backend 원격은 고치지 않으며 설치는 frozen이다.

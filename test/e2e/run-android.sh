@@ -50,7 +50,7 @@ cd "$(dirname "$0")/../.."
 
 # 백엔드 종류를 먼저 검증한다 - 알려진 셋이 아니면 도커·기기를 건드리지 않고 멈춘다(test/e2e/matrix.ts 머리말).
 BACKEND_KIND=$(node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --input-type=module \
-  -e "import { backendKind } from './test/e2e/matrix.ts'; process.stdout.write(backendKind())") || exit 1
+  -e "import { backendKind } from './test/e2e/matrix.ts'; try { process.stdout.write(backendKind()) } catch (error) { console.error(error.message); process.exit(1) }") || exit 1
 readonly BACKEND_KIND
 
 readonly REPO_ROOT="$PWD"

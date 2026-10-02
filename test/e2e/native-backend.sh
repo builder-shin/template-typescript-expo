@@ -32,7 +32,7 @@ cd "$(dirname "$0")/../.."
 
 # 백엔드 종류를 먼저 검증한다 - 알려진 셋이 아니면 아무것도 건드리지 않고 멈춘다(test/e2e/matrix.ts 머리말).
 BACKEND_KIND=$(node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --input-type=module \
-  -e "import { backendKind } from './test/e2e/matrix.ts'; process.stdout.write(backendKind())") || exit 1
+  -e "import { backendKind } from './test/e2e/matrix.ts'; try { process.stdout.write(backendKind()) } catch (error) { console.error(error.message); process.exit(1) }") || exit 1
 readonly BACKEND_KIND
 
 readonly REPO_ROOT="$PWD"
@@ -46,6 +46,8 @@ readonly API_PID="$NATIVE_DIR/$BACKEND_KIND/api.pid"
 readonly PG_DATA="$NATIVE_DIR/postgres/data"
 readonly PG_LOG="$NATIVE_DIR/postgres/postgres.log"
 readonly REDIS_DIR="$NATIVE_DIR/redis"
+readonly REDIS_PID="$REDIS_DIR/redis.pid"
+readonly REDIS_OWNER="$REDIS_DIR/owner.config"
 # docker-compose.e2e.yml 과 같은 E2E 전용 더미 값이다.
 readonly JWT_SECRET='e2e-only-jwt-secret-key-at-least-32-bytes-long'
 readonly RAILS_SECRET='e2e-only-rails-secret-key-base-dummy-value-not-for-production'
@@ -165,7 +167,35 @@ psql_as() {
   "$(pg_bin)/psql" -v ON_ERROR_STOP=1 -h 127.0.0.1 -p "$DB_PORT" -U "$1" -d "$2" -q "${@:3}"
 }
 
+# Redis의 기본 process title은 설정 경로를 지운다. set-proc-title no로 시작 인자를 보존하고,
+# PID뿐 아니라 이번 실행의 고유 설정 파일·포트·실제 리스너를 함께 대조한다(PID 재사용 방지).
+redis_is_owned() {
+  local pid config executable args listener
+  [ -f "$REDIS_PID" ] && [ -f "$REDIS_OWNER" ] || return 1
+  pid=$(cat "$REDIS_PID") || return 1
+  case "$pid" in ''|0|*[!0-9]*) return 1 ;; esac
+  config=$(cat "$REDIS_OWNER") || return 1
+  case "$config" in "$REDIS_DIR"/redis.*) ;; *) return 1 ;; esac
+  [ -f "$config" ] || return 1
+  executable=$(ps -p "$pid" -o comm= 2>/dev/null) || return 1
+  [ "${executable##*/}" = redis-server ] || return 1
+  args=$(ps -ww -p "$pid" -o args= 2>/dev/null) || return 1
+  case "$args" in
+    "redis-server $config --port $REDIS_PORT "*|*/"redis-server $config --port $REDIS_PORT "*) ;;
+    *) return 1 ;;
+  esac
+  listener=$(lsof -nP -iTCP:"$REDIS_PORT" -sTCP:LISTEN -t 2>/dev/null) || return 1
+  [ "$listener" = "$pid" ]
+}
+
+check_redis_port() {
+  if lsof -nP -iTCP:"$REDIS_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
+    redis_is_owned || fail "Redis 포트 $REDIS_PORT 가 하네스 소유가 아닌 프로세스에 사용 중이다 - 아무것도 시작하거나 종료하지 않는다"
+  fi
+}
+
 start_services() {
+  check_redis_port
   local bin
   bin=$(pg_bin)
   mkdir -p "$(dirname "$PG_DATA")" "$REDIS_DIR"
@@ -179,9 +209,13 @@ start_services() {
   # 롤은 docker-compose.e2e.yml 의 POSTGRES_USER 와 같다 - 그 컨테이너에서처럼 슈퍼유저다(Rails 의 db:prepare 가
   # DB 를 만든다).
   psql_as postgres postgres -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'fastapi') THEN CREATE ROLE fastapi LOGIN SUPERUSER PASSWORD 'fastapi'; END IF; END \$\$;"
-  if ! redis-cli -p "$REDIS_PORT" ping >/dev/null 2>&1; then
-    redis-server --port "$REDIS_PORT" --bind 127.0.0.1 --daemonize yes --save '' --appendonly no \
-      --dir "$REDIS_DIR" --pidfile "$REDIS_DIR/redis.pid" --logfile "$REDIS_DIR/redis.log"
+  if ! redis_is_owned; then
+    local config
+    config=$(mktemp "$REDIS_DIR/redis.XXXXXX")
+    rm -f "$REDIS_PID"
+    redis-server "$config" --port "$REDIS_PORT" --bind 127.0.0.1 --daemonize yes --save '' --appendonly no \
+      --set-proc-title no --dir "$REDIS_DIR" --pidfile "$REDIS_PID" --logfile "$REDIS_DIR/redis.log"
+    printf '%s\n' "$config" >"$REDIS_OWNER"
   fi
 }
 
@@ -282,7 +316,13 @@ stop_api() {
 
 stop_all() {
   stop_api
-  redis-cli -p "$REDIS_PORT" shutdown nosave >/dev/null 2>&1 || true
+  if redis_is_owned; then
+    local config
+    config=$(cat "$REDIS_OWNER")
+    if redis-cli -p "$REDIS_PORT" shutdown nosave >/dev/null 2>&1; then
+      rm -f "$REDIS_PID" "$REDIS_OWNER" "$config"
+    fi
+  fi
   if [ -f "$PG_DATA/PG_VERSION" ]; then
     "$(pg_bin)/pg_ctl" -D "$PG_DATA" -m fast stop >/dev/null 2>&1 || true
   fi
@@ -301,6 +341,7 @@ case "${1:-}" in
     if lsof -nP -iTCP:"$API_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
       fail "API 포트 $API_PORT 가 이미 사용 중이다 - 백엔드를 시작하지 않는다"
     fi
+    check_redis_port
     mkdir -p "$(dirname "$API_LOG")"
     stop_api
     start_services
