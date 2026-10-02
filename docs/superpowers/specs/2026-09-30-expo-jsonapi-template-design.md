@@ -1098,6 +1098,14 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > 다시 설치하고 키체인을 비운다(Android 의 `pm clear` 자리) - 언어는 플로의 `launchApp` 이 싣는
 > `-AppleLanguages (<태그>)` 다(위 첫 D7 정정). iOS 에서 실제로 되는지는 CI 의 첫 실행이 잰다(D7 실측 기록 K3).
 
+> 정정(2026-10-02, D8): 재시도 0에 iOS 드라이버 종료 한 가지 예외를 둔다. 실패한 Maestro 실행의 runner 로그에
+> status-bar 조회 시작 뒤 조회 종료·Tear Down 전 `testHttpServer`의 `Failed to resolve query: Failed to resolve remote element`
+> 및 `kAXErrorInvalidUIElement`가 있고 CLI도 `Device became unreachable`을 보고한 경우만 해당 플로를 새 드라이버로
+> 처음부터 한 번 다시 실행한다([Maestro #3538](https://github.com/mobile-dev-inc/Maestro/issues/3538)). 첫 기록을 별도 보존하고,
+> 같은 설정·timeout·단언으로 새 이메일·제목 접두사를 생성한다. 초기화·로그·API offset을 새로 시작해 최종 시도만 검증한다.
+> 복구 시 두 시도의 fixture 식별자와 경로를 기록하고 CI warning·최종 복구 횟수를 남긴다. 두 번째 실패, 앱·테스트·가드 실패,
+> 시작 timeout과 이 서명 없는 unreachable은 재실행하지 않는다. Android의 재시도 0은 유지하며 상류 수정판 검증 뒤 제거한다.
+
 ### 11.4 E2E 스택
 
 - `docker-compose.e2e.yml`은 Next.js 파일에서 `web` 서비스를 뺀 것이다. 백엔드마다
@@ -1433,6 +1441,12 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > JS 시작 전에 SIGTRAP으로 종료된다. 11.4의 공식 Expo opt-in으로 대응하며 native fingerprint가 바뀐다.
 > SDK 58 이상으로 올릴 때 해당 opt-in은 불필요해지므로 제거를 검토한다([Expo 안내](https://github.com/expo/fyi/blob/main/ios-scene-lifecycle.md)).
 > CI의 두 iOS 잡은 재현성을 위해 Xcode 26.6의 `DEVELOPER_DIR`를 명시한다. 로컬 Mac 재현은 27.0이며 판별 증거는 K3다.
+
+> 정정(2026-10-02, D8): Maestro 2.11.0의 iOS XCTest 드라이버가 SpringBoard status-bar 조회 중 InputUI의 원격 AX 요소를
+> 잃으면 HTTP 서버 자체가 종료된다([Maestro #3538](https://github.com/mobile-dev-inc/Maestro/issues/3538)). Mac iOS 26.5에서
+> 하드웨어 키보드 연결·자동 최소화 설정으로 소프트웨어 키보드와 InputUI 창을 제거하지 못했다. 11.3의 정확한 실패 서명에만
+> 플로당 1회 복구를 허용한다. 첫 증거·복구 경고·횟수를 남기고 두 번째 실행의 모든 기존 단언을 통과해야 한다. 이것은 앱이나
+> 테스트 실패의 재시도가 아니며 일반 unreachable도 포함하지 않는다. 상류 수정판에서 재현되지 않는 것을 검증하면 예외를 제거한다.
 
 ## 17. 완료 조건
 

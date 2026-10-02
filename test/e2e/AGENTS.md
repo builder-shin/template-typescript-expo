@@ -357,6 +357,18 @@ Android 와 같고, 다른 것은 이렇다.
   React Native 의 iOS 는 JS 의 info 와 warn 을 같은 유형으로 남긴다 - e2e 변형이 경고 앞에 `[e2e-warn]` 을
   붙이고(`platform/e2e-log.ts`) 변환이 그 줄을 `W/` 로 옮긴다. 붙기 전과 끊은 뒤의 줄은 받지 못한다 - 하네스가
   붙은 뒤 2초, 끊기 전 2초를 둔다.
+- 드라이버 종료 예외(D8): [Maestro #3538](https://github.com/mobile-dev-inc/Maestro/issues/3538)의 status-bar
+  query 중 사라진 원격 AX 요소가 XCTest HTTP 서버를 종료할 수 있다. 실패한 Maestro 실행에 한해
+  `ios-driver-crash.ts`가 debug의 runner 로그에서 status-bar 조회 시작 뒤 조회 종료·Tear Down 전에 발생한
+  `testHttpServer`의 `Failed to resolve query: Failed to resolve remote element`·`kAXErrorInvalidUIElement`를
+  찾고 CLI의 `Device became unreachable` 오류까지 확인한다. 이 조합만 해당 플로를 새 드라이버로 처음부터
+  한 번 다시 실행한다. 앱·단언·가드 실패, 시작 timeout, 단순 연결 거절은 복구하지 않으며 두 번째 실패도 그대로 실패다.
+  첫 시도의 전체 기록은 `<플로>-driver-crash/`에 보존한다. 같은 변형·백엔드·로캘·플로·timeout·단언을 사용하고,
+  이메일과 제목 접두사는 기존 생성기로 새로 만든다. 로캘 초기화·clearState·키체인 초기화도 원래 경로를 다시 지난다.
+  시뮬레이터 로그와 API offset은 다시 시작하며 최종 시도의 가드·요청 수·request-stall 단언만 평가한다.
+  복구 줄에 두 시도의 EMAIL·OTHER_EMAIL과 첫 기록 경로를 남기고 GITHUB_ACTIONS에서는 `::warning::`도 낸다.
+  마지막 요약 앞에 복구 횟수를 적는다. 실제 CI 로그 픽스처와 가짜 Maestro 시험이 탐지·1회 제한·증거 보존·가드 격리를
+  지킨다. Android는 그대로이며 상류 수정판을 검증하면 이 예외를 제거한다.
 - 로캘 플로 앞에서 하네스가 앱을 다시 설치하고 키체인을 비운다(Android 의 `pm clear` 자리). 언어는 플로의
   `launchApp` 이 싣는 `-AppleLanguages` 다(위 "두 플랫폼").
 - `# e2e-platforms:` 에 `ios` 가 없는 플로는 건너뛰고 끝에 그 이름을 적는다.

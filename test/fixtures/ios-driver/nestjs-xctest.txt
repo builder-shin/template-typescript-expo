@@ -1,0 +1,11 @@
+# CI run 36973426164, nestjs/cold-links; contiguous excerpt, log lines unchanged except trailing whitespace.
+2026-10-02 06:44:36.337257+0000 maestro-driver-iosUITests-Runner[12235:43424] [ViewHierarchyHandler] Fetch status bar hierarchy - start
+    t =    36.42s Checking existence of `StatusBar (First Match)`
+    t =    36.44s Get all elements bound by index for: Descendants matching type StatusBar
+<unknown>:0: error: -[maestro_driver_iosUITests.maestro_driver_iosUITests testHttpServer] : Failed to resolve query: Failed to resolve remote element AX element pid: 10706, elementOrHash.elementID: 17516958506091140779.9999. (Underlying Error: Error kAXErrorInvalidUIElement getting snapshot for element <AXUIElementRef 0x1026c8d50> {pid=10706} {uid=[ID:9999 hash:0xf318bcf3d4d1d6ab]})
+2026-10-02 06:44:36.781057+0000 maestro-driver-iosUITests-Runner[12235:43424] Fetch status bar hierarchy - duration 0.44373202323913574
+2026-10-02 06:44:36.781372+0000 maestro-driver-iosUITests-Runner[12235:43424] [ViewHierarchyHandler] Fetch Safari WebView hierarchy - start
+2026-10-02 06:44:36.782343+0000 maestro-driver-iosUITests-Runner[12235:43424] Fetch Safari WebView hierarchy - duration 0.0009099245071411133
+    t =    36.86s Find the Application 'com.apple.springboard'
+2026-10-02 06:44:36.808852+0000 maestro-driver-iosUITests-Runner[12235:43424] [Done] View hierarchy snapshot for Application 'com.example.templateexpo.e2e'
+    t =    36.90s Tear Down

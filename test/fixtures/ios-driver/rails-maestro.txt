@@ -1,0 +1,5 @@
+# CI run 36968699911, rails/examples-write-errors; contiguous excerpt, log lines unchanged except trailing whitespace.
+06:21:30.673 [ERROR] device.IOSDevice.runDeviceCall: Device unreachable while processing isScreenStatic command
+ios.IOSDeviceErrors$Unreachable: Device became unreachable while processing isScreenStatic
+	at ios.xctest.XCTestIOSDevice.execute(XCTestIOSDevice.kt:249)
+	at ios.xctest.XCTestIOSDevice.isScreenStatic(XCTestIOSDevice.kt:201)

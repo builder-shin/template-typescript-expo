@@ -229,9 +229,11 @@ save_api_log() {
 
 log_pid=''
 skipped=()
+driver_recoveries=0
 
 run_flow() {
-  local flow=$1 name locale allowed platforms email other_email out rc=0 from
+  local flow=$1 name locale allowed platforms email other_email out rc from attempt
+  local previous_email previous_other_email recovery
   name=$(basename "$flow" .yaml) || return 1
   locale=$(header "$flow" e2e-app-locale) || return 1
   allowed=$(header "$flow" e2e-allow-http) || return 1
@@ -244,32 +246,48 @@ run_flow() {
   email=$(probe_email "$name") || return 1
   other_email=$(probe_email "$name-other") || return 1
   out="$OUT/$name"
-  mkdir -p "$out" || return 1
+  for attempt in 1 2; do
+    mkdir -p "$out" || return 1
 
-  if [ -n "$locale" ]; then
-    if ! reset_app; then
-      echo "E2E(iOS): $name 앞에서 앱을 다시 설치하거나 키체인을 비우지 못했다" >&2
-      return 1
+    if [ -n "$locale" ]; then
+      if ! reset_app; then
+        echo "E2E(iOS): $name 앞에서 앱을 다시 설치하거나 키체인을 비우지 못했다" >&2
+        return 1
+      fi
     fi
-  fi
 
-  echo "--- $name${locale:+ ($locale)}"
-  from=$(api_log_size) || return 1
-  start_device_log "$out/device.ndjson" || return 1
-  "$MAESTRO" test --platform ios --no-ansi --device "$UDID" --debug-output "$out/debug" \
-    -e "EMAIL=$email" -e "OTHER_EMAIL=$other_email" -e "PASSWORD=$E2E_PASSWORD" \
-    -e "API_URL=http://127.0.0.1:$API_PORT" -e "APP_LOCALE=$locale" "$flow" >"$out/maestro.log" 2>&1 || rc=$?
-  stop_device_log || return 1
-  save_api_log "$from" "$out" || return 1
-  node_quiet --input-type=module \
-    -e "import { readFileSync } from 'node:fs'; import { briefFromIosLog } from './test/e2e/ios-log.ts'; process.stdout.write(briefFromIosLog(readFileSync(0, 'utf8')))" \
-    <"$out/device.ndjson" >"$out/device.log" || return 1
+    echo "--- $name${locale:+ ($locale)}"
+    from=$(api_log_size) || return 1
+    start_device_log "$out/device.ndjson" || return 1
+    rc=0
+    "$MAESTRO" test --platform ios --no-ansi --device "$UDID" --debug-output "$out/debug" \
+      -e "EMAIL=$email" -e "OTHER_EMAIL=$other_email" -e "PASSWORD=$E2E_PASSWORD" \
+      -e "API_URL=http://127.0.0.1:$API_PORT" -e "APP_LOCALE=$locale" "$flow" >"$out/maestro.log" 2>&1 || rc=$?
+    stop_device_log || return 1
+    save_api_log "$from" "$out" || return 1
+    node_quiet --input-type=module \
+      -e "import { readFileSync } from 'node:fs'; import { briefFromIosLog } from './test/e2e/ios-log.ts'; process.stdout.write(briefFromIosLog(readFileSync(0, 'utf8')))" \
+      <"$out/device.ndjson" >"$out/device.log" || return 1
 
-  if [ "$rc" -ne 0 ]; then
+    [ "$rc" -ne 0 ] || break
+    if [ "$attempt" -eq 1 ] && node_quiet test/e2e/ios-driver-crash.ts "$out/debug"; then
+      # 첫 증거를 보존한 뒤 새 계정으로 같은 플로를 처음부터 실행한다. 로그·API offset도 새로 시작한다.
+      [ ! -e "$out-driver-crash" ] || return 1
+      mv "$out" "$out-driver-crash" || return 1
+      previous_email=$email
+      previous_other_email=$other_email
+      email=$(probe_email "$name") || return 1
+      other_email=$(probe_email "$name-other") || return 1
+      driver_recoveries=$((driver_recoveries + 1))
+      recovery="E2E(iOS): $name - Maestro iOS 드라이버 종료(maestro#3538) - 플로를 한 번 다시 돈다; EMAIL=$previous_email -> $email; OTHER_EMAIL=$previous_other_email -> $other_email; 첫 기록: $out-driver-crash"
+      echo "$recovery"
+      [ -z "${GITHUB_ACTIONS:-}" ] || echo "::warning::$recovery"
+      continue
+    fi
     tail -n 30 "$out/maestro.log" >&2
     echo "E2E(iOS): $name 플로가 실패했다(exit $rc) - 기록: $out" >&2
     return 1
-  fi
+  done
   # 허용 상태는 공백으로 나뉜 여러 인자로 넘긴다.
   # shellcheck disable=SC2086
   if ! test/e2e/guard-log.sh "$out/device.log" $allowed; then
@@ -313,9 +331,9 @@ run_checks() {
       failed+=("checks/$name")
       continue
     fi
-    # 두 방식 모두 타임아웃으로 끝났는지 본다 - 서버가 뜨지 않아 연결이 거절되면(NETWORK_ERROR) 화면은 같다.
+    # 최종 시도의 두 방식 모두 타임아웃으로 끝났는지 본다 - 연결 거절(NETWORK_ERROR)도 화면은 같다.
     if [ "$(grep -c 'REQUEST_TIMEOUT' "$OUT/$name/device.log" || true)" -lt 2 ] ||
-      ! grep -q 'mode=headers' "$stall_log" || ! grep -q 'mode=body' "$stall_log"; then
+      ! grep -q 'mode=headers' "$OUT/$name/api.log" || ! grep -q 'mode=body' "$OUT/$name/api.log"; then
       echo "E2E(iOS): checks/$name - 두 요청이 모두 멈춘 서버에서 REQUEST_TIMEOUT 으로 끝나지 않았다(기록: $OUT/$name, $stall_log)" >&2
       failed_checks=1
       failed+=("checks/$name")
@@ -380,5 +398,6 @@ if [ "${E2E_CHECKS:-}" = 1 ]; then
 fi
 
 [ "${#skipped[@]}" -eq 0 ] || echo "iOS 에서 건너뛴 플로 ${#skipped[@]}개: ${skipped[*]}"
+echo "E2E(iOS): Maestro #3538 드라이버 복구 ${driver_recoveries}회"
 [ "${#failed[@]}" -eq 0 ] || fail "실패한 플로 ${#failed[@]}개: ${failed[*]}"
 echo "=== E2E(iOS, $BACKEND_KIND) 통과 - 플로 $((${#flows[@]} - ${#skipped[@]}))개 ==="
