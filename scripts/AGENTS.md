@@ -8,11 +8,10 @@
 | `check.sh`                 | 단일 게이트 - 13단계. `--static` 이면 정적 단계 [1]–[11] 만 돈다                    | `100755`                 |
 | `check-citations.sh`       | 사라질 자리를 가리키는 인용을 찾는다(게이트 [5]) - 훑을 대상을 인자로만 받는다      | `100755`                 |
 | `check-provenance.mjs`     | 복사 출처 기록을 검사한다(게이트 [6]) - 형식·경로·이탈 없는 사본이 원본과 같은 내용 | `100644`(node 가 부른다) |
-| `e2e-flow-shards.mjs`      | CI iOS 허용 목록과 두 shard의 무중복 합집합을 정하고 목록을 출력한다                | `100644`(node)           |
 | `check-variant-config.mjs` | `expo config --type introspect` 의 결과를 변형 표와 맞댄다(게이트 [8])              | `100644`(node 가 부른다) |
 
 - 검사를 바꾸면 그 검사를 재는 시험도 함께 본다 - `test/unit/scripts/` 의 같은 이름 시험이고, `--static` 은
-  `check-static.test.ts` 다. `e2e-flow-shards.mjs`는 `test/unit/e2e/flow-shards.test.ts`가 재며, CI의 ABI·shard 실행 조건은
+  `check-static.test.ts` 다. CI의 Android ABI 선택·APK·에뮬레이터 가드는
   `test/unit/scripts/ci-speed.test.ts`가 잰다. 한 번도 빨개지지 않은 검사는 있으나 마나라서 시험마다 어긋난 입력이 실패하는 것을 본다.
 - 이 디렉터리와 `docs/`·루트 `AGENTS.md` 는 인용 검사의 대상이 아니다 - 규칙을 적으려면 금지된 패턴의 이름을
   적어야 한다(`check.sh` 머리말).

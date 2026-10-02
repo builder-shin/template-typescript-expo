@@ -623,7 +623,7 @@ offset과 cursor는 섞을 수 없다(백엔드가 거부한다). 한 화면은 
 > 그 안에 돌아온 화면은 읽은 쪽을 그대로 그리고, 지나면 첫 쪽부터 다시 읽는다. 대가는 구독자 없는 조회가 읽은 쪽 전부와 함께
 > 그 시간만큼 메모리에 남는 것이다(`queries/AGENTS.md`).
 
-> 정정(2026-10-01, D8): 네트워크 복귀의 판정 - NetInfo 의 `isConnected` 가 `false` 일 때만 오프라인이고 `null`(아직
+> 정정(2026-10-02, D8): 네트워크 복귀의 판정 - NetInfo 의 `isConnected` 가 `false` 일 때만 오프라인이고 `null`(아직
 > 모른다)은 연결로 본다 - 은 `lib/jsonapi/online.ts` 의 `isOnline` 이다. `platform/query-client.ts` 는 그 값을
 > `onlineManager` 에 옮기기만 한다(5장 - `platform/` 에 판단을 두지 않는다). 세 값을 단위 시험이 잰다
 > (`test/unit/jsonapi/online.test.ts`).
@@ -757,7 +757,7 @@ Next.js와 같다.
 > 불러도 같은 답이라 받아들인다. 경계에 출구(홈으로 나가는 길)를 두면 그 길과 "다시 시도" 가 조회 캐시를 비워야 한다 - 비우지
 > 않으면 그 30분 동안 같은 화면에 다시 들어갈 때마다 캐시의 결함을 다시 던진다.
 
-> 정정(2026-10-01, D8): 위 D4 정정 (b) 의 두 자리. (1) 루트 레이아웃의 `ErrorBoundary` 는 Expo Router 의 기본 화면을
+> 정정(2026-10-02, D8): 위 D4 정정 (b) 의 두 자리. (1) 루트 레이아웃의 `ErrorBoundary` 는 Expo Router 의 기본 화면을
 > 그대로 그리되 "Retry" 가 경계를 풀기 전에 조회 캐시를 비운다(`queries/error-boundary.ts` 의 `retryWithClearedQueries` -
 > 로그아웃과 같은 범위라 쓰기 캐시는 둔다). 다시 그린 화면은 캐시의 결함을 요청 없이 다시 던지지 않고 다시 부른다 -
 > 판정한 결함은 같은 답이라 다시 경계로 오지만, 백엔드가 고쳐지면 앱을 다시 켜지 않아도 풀린다. (2) 출구를 따로 두지
@@ -880,7 +880,7 @@ Native Generation). 네이티브 설정은 `app.config.ts`와 config plugin으�
 > 묻는다(비대화형이면 멈춘다). 프로필과 변형이 맞는지(이름·`APP_VARIANT`·채널·Node·pnpm, `BACKEND_URL` 없음)는
 > `test/unit/config/eas-json.test.ts` 가 보고, 스키마는 `@expo/eas-json` 24.8.0 의 해석기로 쟀다(D6 실측 O2).
 
-> 정정(2026-10-01, D8): `expo-dev-client`(~57.0.19)를 설치했다 - `development` 프로필의 `developmentClient` 가 그것을
+> 정정(2026-10-02, D8): `expo-dev-client`(~57.0.19)를 설치했다 - `development` 프로필의 `developmentClient` 가 그것을
 > 요구하고(위 D6 정정), 개발은 development build 로 한다(1.2). 그 설정 플러그인이 기본으로 모든 변형에 더하는 scheme
 > `exp+template-typescript-expo` 는 `development` 에만 싣는다(`lib/config/app-variant.ts` 의 `devClientScheme`,
 > `app.config.ts` 의 `addGeneratedScheme`) - 10.2 의 D1 정정(변형마다 다른 scheme)을 지킨다. 게이트 [8] 이 네 변형의
@@ -1245,6 +1245,16 @@ e2e-ios × 3       macOS    백엔드를 네이티브로 실행 → Maestro
 > iOS native-fingerprint 컴파일 캐시는 전체를 되돌렸다. 추후 Xcode compilation caching 또는 C_COMPILER_LAUNCHER를
 > 실제 실행으로 측정한 뒤 재검토한다. ABI 선택·iOS shard와 전체 검증 범위는 유지한다.
 
+> 정정(2026-10-02, D8 shard 철회): 두 shard 후보 커밋 `1cce6bd`를 되돌려 iOS는 세 백엔드가 각각 전체 21플로를
+> 실행한다. 물리 아홉 잡(checks 1·빌드 2·Android 3·iOS 3)이 논리 아홉 칸과 같으며 fastapi의 iOS request-stall도 유지한다.
+> 다섯 macOS 슬롯에 여섯 shard 잡을 배정하면 실행 A의 긴 잡 약 34.50분·짧은 잡 21.18/21.68분 기준 꼬리는
+> 최선 42.86분(기준 45.50분보다 2.64분 짧음), 최악 55.68분(10.18분 김)이다. include 순서는 배정 순서를 보장하지
+> 않고 작은 이득은 D7의 39–44분 변동폭 안이다. macOS 사용 시간은 실행당 142.92분에서 177.52분으로 약 24% 늘며
+> 비공개 저장소에서는 10배로 계산한다. 비용·대기를 포함한 이득이 입증되지 않아 계획의 규칙대로 이 후보만 철회한다.
+> CI x86_64 APK·로컬 네 ABI, 세 백엔드 × 두 플랫폼·계약 94개·기존 플로·단언·timeout·재시도 0은 유지한다.
+> 실행 A의 마지막 Android는 생성 뒤 43.20분, 마지막 iOS는 59.82분으로 전체 벽시계를 묶은 것은 iOS 경로였다.
+> 다음 측정 후보는 Xcode compilation caching 또는 explicit modules를 쓰는 C_COMPILER_LAUNCHER다. 실측과 판정은 D8 기록 G4에 있다.
+
 ## 14. 문서
 
 ```text
@@ -1277,12 +1287,12 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 5. 계약 거울에 자원 추가, E2E 플로 추가
 ```
 
-> 정정(2026-10-01, D8): 문서군은 위 목록에 더해 `components/`(그리고 `app/`·`form/`·`ui/`·`lab/`)·`lib/`·
+> 정정(2026-10-02, D8): 문서군은 위 목록에 더해 `components/`(그리고 `app/`·`form/`·`ui/`·`lab/`)·`lib/`·
 > `scripts/`·`test/`·`test/unit/`·`docs/` 의 `AGENTS.md` 를 둔다(`lib/config/`·`lib/navigation/`·`lib/lab/`·
 > `lib/updates/`·`plugins/`·`test/contract/`·`test/e2e/`·`.github/` 의 것은 앞 단계가 뒀다). 루트 `AGENTS.md` 가 새 자원 추가 절차와 디렉터리
 > 문서 탐색을 갖는다. 17장 조건 5 는 게이트 [7] 의 `test/unit/docs/doc-set.test.ts` 가 매번 잰다 - README 와
 > `AGENTS.md` 가 인용한 경로가 있고, 각 `AGENTS.md` 가 자기 디렉터리의 바로 아래 항목을 모두 부르고, 이 장의 문서가
-> 있고, 환경 변수가 10.1 의 세 곳에서 같다. 저장소 밖의 경로를 이름 그대로 부르는 자리는 그 시험의 `EXTERNAL` 에
+> 있고, README 표와 `.env.example`의 변수 이름·기본값, 코드의 `APP_VARIANT` 기본값을 맞댄다. 저장소 밖의 경로를 이름 그대로 부르는 자리는 그 시험의 `EXTERNAL` 에
 > 까닭과 함께 적는다.
 
 ## 15. 구현 단계
@@ -1322,7 +1332,7 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > 다 되면 `REQUEST_TIMEOUT`, 호출자가 끊으면 `NON_JSONAPI_RESPONSE`(status 는 응답의 것)이고 단위 시험이
 > 지킨다.
 
-> 정정(2026-10-01, D8): 단계 8 의 "GitHub 저장소 생성" 은 D3 전에 끝났다 - `builder-shin/template-typescript-expo` 는
+> 정정(2026-10-02, D8): 단계 8 의 "GitHub 저장소 생성" 은 D3 전에 끝났다 - `builder-shin/template-typescript-expo` 는
 > 공개 저장소다(사용자 확인). 끝난 단계는 컨트롤러가 `main` 에 병합 커밋으로 병합해 push 하고, CI 는 모든 브랜치의
 > push 에서 돈다(13장의 D7 정정). 태그·릴리스는 만들지 않았다 - 이 표가 산출로 정하지 않았다.
 

@@ -1,7 +1,7 @@
 name: CI
 
 # 스펙 13장의 잡 다섯 - checks(게이트 [1]–[11]), 앱을 플랫폼마다 한 번 만드는 build-android·build-ios, 그 앱을 세
-# 백엔드가 나눠 쓰는 e2e-android × 3·e2e-ios × 6(두 shard/백엔드), 물리 12잡. 로컬 게이트는 FastAPI·Android 하나만 돈다 -
+# 백엔드가 나눠 쓰는 e2e-android × 3·e2e-ios × 3. 로컬 게이트(./scripts/check.sh)는 FastAPI·Android 하나만 돈다 -
 # 세 백엔드와 iOS 는 여기서만 돈다(스펙 12장).
 #
 # 모든 브랜치의 push 와 pull request 에서 돈다 - 단계별 작업은 브랜치에서 매트릭스를 초록으로 만든 뒤 PR 없이 main 에
@@ -115,7 +115,7 @@ jobs:
     name: e2e-android (${{ matrix.backend }})
     needs: build-android
     runs-on: ubuntu-24.04
-    # 계약 거울(백엔드 이미지 빌드)·AVD·플로 스물둘 - 소프트웨어 렌더링 에뮬레이터는 로컬보다 느리다.
+    # 계약 거울(백엔드 이미지 빌드)·AVD·플로 스물셋 - 소프트웨어 렌더링 에뮬레이터는 로컬보다 느리다.
     timeout-minutes: 90
     strategy:
       # 하나가 죽어도 나머지를 끝까지 돌린다 - "어느 백엔드가 어디서 갈리는가" 가 이 잡의 산출물이다.
@@ -305,28 +305,15 @@ jobs:
           retention-days: 14
 
   e2e-ios:
-    name: e2e-ios (${{ matrix.backend }}, shard ${{ matrix.shard }}/2)
+    name: e2e-ios (${{ matrix.backend }})
     needs: build-ios
     runs-on: macos-26
     # 백엔드 런타임 준비(Homebrew·uv·pnpm·bundler)가 Android 갈래의 이미지 빌드보다 길다.
     timeout-minutes: 90
     strategy:
       fail-fast: false
-      max-parallel: 5
       matrix:
-        include:
-          - backend: fastapi
-            shard: 1
-          - backend: nestjs
-            shard: 1
-          - backend: rails
-            shard: 1
-          - backend: fastapi
-            shard: 2
-          - backend: nestjs
-            shard: 2
-          - backend: rails
-            shard: 2
+        backend: [fastapi, nestjs, rails]
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
       # test/e2e/native-backend.sh·test/e2e/run-ios.sh 가 띄울 백엔드 - test/e2e/matrix.ts 가 검증한다.
@@ -423,27 +410,21 @@ jobs:
       - name: .app 풀기
         run: ditto -x -k "$RUNNER_TEMP/app/ios-e2e-app.zip" "$RUNNER_TEMP/app"
 
-      # 재시도는 0 이다(스펙 16장). iOS request-stall는 fastapi shard 1에서 한 번 돈다.
+      # 재시도는 0 이다(스펙 16장). 멈춘 서버 확인(E2E_CHECKS)은 백엔드와 무관해 fastapi 갈래에서만 돈다.
       - name: E2E
         env:
-          E2E_CHECKS: ${{ matrix.backend == 'fastapi' && matrix.shard == 1 && '1' || '' }}
+          E2E_CHECKS: ${{ matrix.backend == 'fastapi' && '1' || '' }}
         run: |
           app=$(find "$RUNNER_TEMP/app" -maxdepth 1 -name '*.app' -type d | head -n 1)
-          flows=$(node scripts/e2e-flow-shards.mjs "${{ matrix.shard }}")
-          [ -n "$flows" ] || { echo '빈 iOS shard'; exit 1; }
-          mkdir -p .maestro-output
-          node scripts/e2e-flow-shards.mjs --manifest > .maestro-output/ios-flow-manifest.json
-          E2E_FLOW="$flows" E2E_APP="$app" ./test/e2e/run-ios.sh 2>&1 | tee .maestro-output/ios-shard.log
+          E2E_APP="$app" ./test/e2e/run-ios.sh
 
       - name: 기록 올리기
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-ios-${{ matrix.backend }}-shard-${{ matrix.shard }}
+          name: e2e-ios-${{ matrix.backend }}
           path: |
             .maestro-output/e2e
-            .maestro-output/ios-flow-manifest.json
-            .maestro-output/ios-shard.log
             ${{ runner.temp }}/native-backend/*/api.log
             ${{ runner.temp }}/native-backend/postgres/postgres.log
           include-hidden-files: true

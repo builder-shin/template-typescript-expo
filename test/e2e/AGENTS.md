@@ -250,6 +250,7 @@ prebuild 가 만드는 `android/gradle.properties` 의 기본값(Metaspace 512Mi
 | `E2E_FLOW`                                   | 돌릴 플로 이름(공백으로 구분, 확장자 없이). 비우면 전부 - 게이트는 비우고 부른다                                                                                   |
 | `BACKEND_KIND`                               | 띄울 백엔드(fastapi·nestjs·rails, 기본 fastapi) - `test/e2e/matrix.ts` 가 검증한다                                                                                 |
 | `E2E_APK`                                    | 미리 만든 e2e APK. 주면 빌드하지 않고 설치한다(CI 의 build-android 잡)                                                                                             |
+| `E2E_ANDROID_ABIS`                           | 미지정이면 네 ABI(armeabi-v7a·arm64-v8a·x86·x86_64), `x86_64`는 CI 전용. 그 밖의 값은 prebuild 전에 exit 1로 멈춘다                                                |
 | `E2E_CHECKS`                                 | `1` 이면 플로 뒤에 멈춘 서버로 `checks/` 를 돈다(위 "멈춘 서버 확인")                                                                                              |
 | `MAESTRO`                                    | Maestro 실행 파일(기본 PATH 의 `maestro`, 없으면 `~/.maestro/bin/maestro`). 2.11.x 가 아니면 멈춘다                                                                |
 | `MAESTRO_CLI_NO_ANALYTICS`                   | 하네스가 `1` 로 export 한다 - Maestro 의 사용 통계를 끈다                                                                                                          |
@@ -274,17 +275,20 @@ prebuild 가 만드는 `android/gradle.properties` 의 기본값(Metaspace 512Mi
 경우에만 수동으로 한다. 하네스가 자동으로 adb 서버를 재시작하지 않는다. UI 계층 질의 정지/연결 끊김은
 실패 회차의 로그·uptime·동시 작업과 함께 기록하고 retry/timeout을 늘리지 않는다.
 
+## Android ABI 선택
+
+CI APK는 `E2E_ANDROID_ABIS=x86_64`로 빌드한다. 미지정 기본은 네 ABI(`armeabi-v7a,arm64-v8a,x86,x86_64`)이며,
+명시할 수 있는 값은 `x86_64`뿐이다. 두 Gradle 호출과 APK 재사용 지문에 같은 선택을 넣는다. CI는 APK의 lib ABI
+집합과 에뮬레이터의 `ro.product.cpu.abi`가 모두 x86_64인지 설치 전에 확인한다.
+
+## iOS simulator 도우미
+
 `ios-simulator.sh`는 run-ios.sh가 source하는 도우미다(100644). `ios-simulator.ts`의 허용 목록으로 전용 simulator의
 서비스를 축소하고 설정 준비 뒤 한 번만 재부팅한다. 사용자 기기는 선택 정보를 읽는 데만 쓰고 설정하지 않는다.
 
 ## iOS
 
-CI iOS는 백엔드마다 `scripts/e2e-flow-shards.mjs`의 두 shard를 `E2E_FLOW`로 전달한다. 초기 16·5 플로의 합집합은
-21개이고 중복이 없어야 한다. 각 shard의 manifest와 실제 성공·실패한 플로 이름은 CI 아티팩트에 남긴다.
-
-CI APK는 `E2E_ANDROID_ABIS=x86_64`로 빌드한다. 미지정 기본은 네 ABI(`armeabi-v7a,arm64-v8a,x86,x86_64`)이며,
-명시할 수 있는 값은 `x86_64`뿐이다. 두 Gradle 호출과 APK 재사용 지문에 같은 선택을 넣는다. CI는 APK의 lib ABI
-집합과 에뮬레이터의 `ro.product.cpu.abi`가 모두 x86_64인지 설치 전에 확인한다.
+CI는 백엔드마다 전체 iOS 21플로를 한 잡에서 실행한다. request-stall은 fastapi 갈래에서 한 번 실행한다.
 
 `run-ios.sh` 는 macOS 에서만 돈다(Xcode·Homebrew·Java 17 - CI 의 e2e-ios 잡, Mac 을 쓰는 사람의 로컬). 플로·머리말·가드·요청 수 단언은
 Android 와 같고, 다른 것은 이렇다.

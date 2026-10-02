@@ -9,8 +9,8 @@ import { DEFAULT_APP_VARIANT } from '@/lib/config/app-variant'
  * 문서군이 실제 파일과 일치한다(스펙 17장 조건 5) - 루트 README.md 와 모든 AGENTS.md 를 훑는다.
  *
  * 1. 인용한 경로가 있다. 마크다운 링크의 대상과, 저장소 경로처럼 생긴 인라인 코드(`lib/auth/`·`app.config.ts`)를
- *    잰다. 첫 조각이 저장소의 항목(또는 그 문서 디렉터리의 항목)이 아닌 경로는 저장소 밖의 것이라 재지 않는다
- *    (`node_modules/.bin/secretlint`·`.maestro-output/e2e`). 파일 이름 하나(`screen-state.ts`)는 루트, 문서의
+ *    잰다. 생성 디렉터리·외부 패키지 경로의 명시 목록만 제외한다(`node_modules/.bin/secretlint`·`.maestro-output/e2e`).
+ *    알 수 없는 첫 조각도 오타나 삭제된 경로일 수 있으므로 검사한다. 파일 이름 하나(`screen-state.ts`)는 루트, 문서의
  *    디렉터리, 같은 문단에서 먼저 부른 경로의 디렉터리 가운데 한 곳에 있으면 된다 - `lib/resources/view.ts`·
  *    `screen-state.ts` 처럼 쓰는 이 저장소의 문체다. 코드 울타리 안의 명령은 재지 않는다(플래그·자리표시가 섞인다).
  * 2. AGENTS.md 는 자기 디렉터리의 바로 아래 항목(파일·디렉터리)을 전부 부른다 - 새 파일을 만들면 그 디렉터리의
@@ -26,6 +26,23 @@ import { DEFAULT_APP_VARIANT } from '@/lib/config/app-variant'
 const EXTENSION = /\.(ts|tsx|js|mjs|cjs|json|md|sh|ya?ml|sql|css|png)$/
 // 자리표시(`<이름>`)·glob(`*`)·명령(공백·`=`)·URL(`:`)이 든 코드는 경로가 아니다.
 const NOT_A_PATH = /[\s<>*{}$…=|?#%'",;:@\\]/
+
+// .gitignore의 생성 디렉터리와 설치본/기기 번들의 생성 경로다. 추적된 항목이 있으면 제외하지 않는다.
+const GENERATED_ROOTS = new Set([
+  'node_modules',
+  '.maestro-output',
+  'android',
+  'ios',
+  'dist',
+  '.expo',
+  'coverage',
+  'web-build',
+  '.superpowers',
+  'build',
+  'EXConstants.bundle',
+])
+// 문서가 설명하는 외부 import와 액션 이름이다. 알 수 없는 첫 조각을 일반적으로 제외하지 않는다.
+const EXTERNAL_NAMESPACES = new Set(['expo', 'firebase', 'astral-sh'])
 
 /**
  * 저장소 밖의 경로를 이름 그대로 부르는 자리 - 원본 저장소·백엔드 저장소·액션 저장소의 파일과, 계층 표가 소유
@@ -151,6 +168,7 @@ function pathCandidate(token: string): Candidate | null {
   const raw = token.trim().replace(/^\.\//, '')
   if (raw === '' || NOT_A_PATH.test(raw) || /^[-/~]|^\.\./.test(raw)) return null
   if (/^\.[a-z]+$/.test(raw)) return null // 확장자 이야기(`.ts`·`.sh`)
+  if (/^\[\d+\/\d+\]$|^[VDIWE]\/(?:ReactNativeJS)?$/.test(raw)) return null // 게이트 번호·로그 표식
   if (!raw.includes('/') && !EXTENSION.test(raw)) return null
   return { path: raw.replace(/\/$/, ''), nested: raw.includes('/') }
 }
@@ -202,7 +220,13 @@ function inspectDoc(tree: Tree, doc: string, text: string, external: readonly st
           continue
         }
         const first = candidate.path.split('/')[0] ?? ''
-        if (candidate.nested && !rootEntries.has(first) && !docEntries.has(first)) continue
+        if (
+          candidate.nested &&
+          (GENERATED_ROOTS.has(first) || EXTERNAL_NAMESPACES.has(first)) &&
+          !rootEntries.has(first) &&
+          !docEntries.has(first)
+        )
+          continue
         // 루트 기준과 문서 디렉터리 기준이 둘 다 있으면 둘 다 부른 것이다(`test/unit/` 문서의 `platform/`)
         const hits = [candidate.path, posix.join(docDir, candidate.path)].filter((path) =>
           exists(tree, path),
@@ -337,8 +361,15 @@ describe('검사가 실제로 잡는다', () => {
 
   it('저장소 밖의 경로·명령·자리표시·확장자 이야기는 재지 않는다', () => {
     const text =
-      '`node_modules/.bin/x` `.maestro-output/e2e` `pnpm test` `lib/<이름>.ts` `lib/**` `.ts` `https://x.invalid/a.ts`'
+      '`node_modules/.bin/x` `.maestro-output/e2e` `pnpm test` `lib/<이름>.ts` `lib/**` `.ts` `https://x.invalid/a.ts` `expo/fetch` `firebase/app` `astral-sh/setup-uv` `EXConstants.bundle/app.config` `build/fork/extractPathFromURL.js` `[12/13]` `I/ReactNativeJS` `W/`'
     expect(inspectDoc(tree, 'AGENTS.md', text, []).dead).toEqual([])
+  })
+
+  it('최상위 디렉터리의 오타와 삭제된 경로도 죽은 인용으로 잡는다', () => {
+    expect(inspectDoc(tree, 'AGENTS.md', '`qeuries/keys.ts` `queries/keys.ts`', []).dead).toEqual([
+      'AGENTS.md:1: `qeuries/keys.ts`',
+      'AGENTS.md:1: `queries/keys.ts`',
+    ])
   })
 
   it('부르지 않은 파일과 디렉터리를 잡는다 - 코드 울타리 안의 경로는 부른 것으로 친다', () => {

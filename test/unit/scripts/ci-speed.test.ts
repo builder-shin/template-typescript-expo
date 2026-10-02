@@ -9,7 +9,6 @@ const WORK = mkdtempSync(join(tmpdir(), 'ci-speed-'))
 const ANDROID = readFileSync(resolve('test/e2e/android.sh'), 'utf8')
 const RUN_ANDROID = readFileSync(resolve('test/e2e/run-android.sh'), 'utf8')
 const JVM = '-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m'
-const CI = readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
 let bash: string
 beforeAll(() => {
   bash = resolveBash()
@@ -211,88 +210,5 @@ describe('CI APK의 설치 전 ABI 가드', () => {
       expect(shell(directory, '[ -f installed ]').status).toBe(abi === 'x86_64' ? 0 : 1)
       expect(result.stdout).toContain(`에뮬레이터 ro.product.cpu.abi=${abi}`)
     }
-  })
-})
-
-const IOS_JOB = CI.split('\n  e2e-ios:\n')[1] ?? ''
-function iosStep() {
-  const step = /      - name: E2E\n[\s\S]*?        run: \|\n([\s\S]*?)(?=\n      - name:)/.exec(
-    IOS_JOB,
-  )?.[1]
-  if (step === undefined) throw new Error('iOS E2E 단계가 없다')
-  return step.replace(/^          /gm, '').replaceAll('${{ matrix.shard }}', '1')
-}
-function iosHarnessStep(output: string, nodeExit = 0, harnessExit = 0) {
-  const directory = scene()
-  mkdirSync(join(directory, 'test/e2e'), { recursive: true })
-  mkdirSync(join(directory, 'app/Probe.app'), { recursive: true })
-  executable(
-    directory,
-    'node',
-    'case "$*" in *--manifest*) echo "{}" ;; *) echo "$FAKE_FLOWS" ;; esac\nexit "$FAKE_NODE_EXIT"',
-  )
-  executable(
-    join(directory, 'test/e2e'),
-    'run-ios.sh',
-    'printf "%s\\n" "$E2E_FLOW" > invoked\nexit "$FAKE_HARNESS_EXIT"',
-  )
-  return {
-    directory,
-    result: shell(directory, iosStep(), {
-      RUNNER_TEMP: directory.split('\\').join('/'),
-      FAKE_FLOWS: output,
-      FAKE_NODE_EXIT: String(nodeExit),
-      FAKE_HARNESS_EXIT: String(harnessExit),
-    }),
-  }
-}
-
-describe('CI iOS shard 배선', () => {
-  it('백엔드×shard 여섯 행을 긴 셋 우선으로 만들고 동시 실행은 다섯이다', () => {
-    const rows = [...IOS_JOB.matchAll(/- backend: (fastapi|nestjs|rails)\n\s+shard: (\d+)/g)].map(
-      (match) => [match[1], Number(match[2])],
-    )
-    expect(rows).toEqual([
-      ['fastapi', 1],
-      ['nestjs', 1],
-      ['rails', 1],
-      ['fastapi', 2],
-      ['nestjs', 2],
-      ['rails', 2],
-    ])
-    expect(IOS_JOB).toContain('max-parallel: 5')
-    expect(CI.split('\n  e2e-android:\n')[1]?.split('\n  build-ios:\n')[0]).toContain(
-      'backend: [fastapi, nestjs, rails]',
-    )
-  })
-  it('iOS request-stall는 fastapi shard 1에서만 돈다', () => {
-    const condition = /E2E_CHECKS: \$\{\{ (.*?) \}\}/.exec(IOS_JOB)?.[1]
-    expect(condition).toBe("matrix.backend == 'fastapi' && matrix.shard == 1 && '1' || ''")
-  })
-  it('목록 계산 실패·빈 출력은 하네스를 부르지 않는다', () => {
-    for (const [output, exit] of [
-      ['cold-links', 17],
-      ['', 0],
-    ] as const) {
-      const { result, directory } = iosHarnessStep(output, exit)
-      expect(result.status).not.toBe(0)
-      expect(shell(directory, '[ ! -f invoked ]').status).toBe(0)
-    }
-  })
-  it('아티팩트 여섯 이름은 구별되며 정리 실패가 잡 실패로 전파된다', () => {
-    expect(CI).toMatch(/^defaults:\n  run:\n    shell: bash$/m)
-    const template = /name: (e2e-ios-\$\{\{ matrix.backend \}\}[^\n]*)/.exec(IOS_JOB)?.[1]
-    expect(template).toBe('e2e-ios-${{ matrix.backend }}-shard-${{ matrix.shard }}')
-    const names = ['fastapi', 'nestjs', 'rails'].flatMap((backend) =>
-      [1, 2].map((shard) =>
-        template
-          ?.replace('${{ matrix.backend }}', backend)
-          .replace('${{ matrix.shard }}', String(shard)),
-      ),
-    )
-    expect(new Set(names).size).toBe(6)
-    const { result, directory } = iosHarnessStep('cold-links auth-links', 0, 23)
-    expect(result.status).toBe(23)
-    expect(readFileSync(join(directory, 'invoked'), 'utf8').trim()).toBe('cold-links auth-links')
   })
 })

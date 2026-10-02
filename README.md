@@ -53,7 +53,7 @@ pnpm start                   # 개발 빌드가 이미 설치돼 있으면 Metro
 
 ## 환경 변수
 
-앱이 읽는 변수는 셋입니다. 정본은 `app.config.ts` 이고(검증은 `lib/config/` - `settings.ts` · `app-variant.ts` · `updates.ts`), `.env.example` 이 같은 값을 적습니다. 세 곳이 어긋나면 게이트가 멈춥니다(`test/unit/docs/doc-set.test.ts`).
+앱이 읽는 변수는 셋입니다. 정본은 `app.config.ts` 이고(검증은 `lib/config/` - `settings.ts` · `app-variant.ts` · `updates.ts`), `.env.example` 이 같은 값을 적습니다. 게이트는 이 표와 `.env.example`의 변수 이름·기본값을 맞대고, `APP_VARIANT`의 기본값은 코드와도 비교합니다(`test/unit/docs/doc-set.test.ts`).
 
 | 변수             | 필수   | 기본값        | 역할                                                                                                                        |
 | ---------------- | ------ | ------------- | --------------------------------------------------------------------------------------------------------------------------- |
@@ -102,7 +102,7 @@ templateexpo-dev://examples?filter%5Bstatus%5D=active&sort=-createdAt
 
 로딩은 스켈레톤과 스피너로만 그리고 글자를 쓰지 않습니다. 오류 문구는 백엔드가 `Accept-Language`(기기의 언어 설정)로 협상한 것을 그대로 그립니다 - 앱 자신의 문구는 둘뿐입니다. 쓸 수 있는 응답을 받지 못했을 때(네트워크 실패 · 타임아웃 · 계약을 어긴 응답)의 한 문장과, 가입은 됐는데 이어지는 로그인이 실패했을 때의 안내입니다. 조회 화면은 앞의 문장과 함께 "다시 시도" 를 그립니다. 조회가 계약을 어긴 응답(문구 없는 오류 문서 · 본문 없는 성공 응답)을 받거나 코드에 결함이 있으면 화면 대신 루트의 오류 경계가 그려집니다(아래 "알려진 한계"). 다크 모드는 시스템 설정을 따릅니다.
 
-> **계약 실험실은 개발 · 검증용 표면입니다.** 공개인 채로 두면 익명 클릭 한 번이 백엔드 요청을 최대 스무 개(offset 순회의 상한) 내고, 가입이 열려 있어 계정을 만들면 PUT upsert · 관계 전용 쓰기로 쓰기까지 닿습니다. 프로덕션에 올릴 때는 라우트(`app/(lab)/contract.tsx`)와 홈(`app/(app)/index.tsx`)의 실험실 진입, 그 E2E 플로(`test/e2e/flows/` 의 `contract-lab-*`)를 지우십시오 - 실험실만 쓰는 `components/lab/` · `queries/lab.ts` · `lib/lab/` 도 함께 지울 수 있습니다. 실험실 코드까지 삭제하면 `test/unit/lab/`의 시험, `docs/provenance/copied-core.json`의 해당 경로 기록, 루트와 `lib/`·`components/`·`queries/`·`test/unit/`의 `AGENTS.md`에 있는 관련 항목·인용도 함께 정리합니다. 실험실은 앱 셸 밖의 라우트라 보호 경로 목록에 더해도 가드가 닿지 않습니다.
+> **계약 실험실은 개발 · 검증용 표면입니다.** 공개인 채로 두면 익명 클릭 한 번이 백엔드 요청을 최대 스무 개(offset 순회의 상한) 내고, 가입이 열려 있어 계정을 만들면 PUT upsert · 관계 전용 쓰기로 쓰기까지 닿습니다. 프로덕션에 올릴 때는 라우트(`app/(lab)/contract.tsx`)와 홈(`app/(app)/index.tsx`)의 실험실 진입, 그 E2E 플로(`test/e2e/flows/` 의 `contract-lab-*`)를 지우십시오 - 실험실만 쓰는 `components/lab/` · `queries/lab.ts` · `lib/lab/` 도 함께 지울 수 있습니다. 실험실 코드까지 삭제하면 `test/unit/lab/`의 시험, `docs/provenance/copied-core.json`의 해당 경로 기록, 루트와 `lib/`·`components/`·`queries/`·`test/unit/`의 `AGENTS.md`에 있는 관련 항목·인용, `test/unit/docs/doc-set.test.ts`의 `EXTERNAL`에 있는 `lib/lab/AGENTS.md` 항목도 함께 정리합니다. 실험실은 앱 셸 밖의 라우트라 보호 경로 목록에 더해도 가드가 닿지 않습니다.
 
 ## 백엔드 전환
 
@@ -189,18 +189,18 @@ APK 를 다시 만들 때 하네스는 Metro 캐시를 비우고 Gradle 을 데�
 
 `.github/workflows/ci.yml` 하나이고, 모든 브랜치의 push 와 pull request 에서 돕니다(`docs/` 만 바꾼 커밋은 돌지 않습니다).
 
-| 잡                | 러너   | 하는 일                                                                                                                   |
-| ----------------- | ------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `checks`          | ubuntu | `./scripts/check.sh --static`(게이트 [1]–[11])과 워크플로 lint(actionlint)                                                |
-| `build-android`   | ubuntu | e2e APK 를 한 번 만들어 아티팩트로 올립니다                                                                               |
-| `e2e-android` × 3 | ubuntu | 백엔드마다 계약 거울 → KVM 에뮬레이터에서 Maestro(받은 APK)                                                               |
-| `build-ios`       | macOS  | 시뮬레이터용 Release `.app` 을 한 번 만들어 올립니다                                                                      |
-| `e2e-ios` × 6     | macOS  | 백엔드마다 두 shard, 합집합으로 기존 한 iOS 셀. 소유 simulator의 서비스 축소·AutoFill/scheme 준비·한 번 재부팅 후 Maestro |
+| 잡                | 러너   | 하는 일                                                                                           |
+| ----------------- | ------ | ------------------------------------------------------------------------------------------------- |
+| `checks`          | ubuntu | `./scripts/check.sh --static`(게이트 [1]–[11])과 워크플로 lint(actionlint)                        |
+| `build-android`   | ubuntu | e2e APK 를 한 번 만들어 아티팩트로 올립니다                                                       |
+| `e2e-android` × 3 | ubuntu | 백엔드마다 계약 거울 → KVM 에뮬레이터에서 Maestro(받은 APK)                                       |
+| `build-ios`       | macOS  | 시뮬레이터용 Release `.app` 을 한 번 만들어 올립니다                                              |
+| `e2e-ios` × 3     | macOS  | 백엔드마다 전체 21플로. 소유 simulator의 서비스 축소·AutoFill/scheme 준비·한 번 재부팅 후 Maestro |
 
 - 매트릭스는 `fail-fast: false` 이고 재시도는 0 입니다 - 실패한 잡을 코드 변경 없이 다시 돌리지 않습니다. 흔들리는 플로는 원인을 고칩니다.
-- 아티팩트: 갈래마다 `e2e-android-<백엔드>` · `e2e-ios-<백엔드>-shard-<번호>` 에 플로별 Maestro 기록 · 스크린샷 · 기기 로그 · `api.log`(14일), 앱 둘(7일), iOS 빌드 기록이 남습니다. 빨간 칸은 그 플로의 기기 로그(`device.log` - 가드가 본 것)와 스크린샷부터 봅니다.
-- macOS 실행은 계정의 동시 잡 한도를 공유합니다. 이 워크플로는 다섯 이하로 제한하며 여섯 번째 shard의 대기도 측정합니다.
-- CI APK는 x86_64만 만들고 로컬 기본 APK는 네 ABI입니다. iOS는 backend마다 두 shard이며 macOS 동시 잡은 최대 다섯입니다. 플로 목록의 합집합·무중복이 검사됩니다. 빌드·E2E 시간과 실제 macOS 대기는 `docs/superpowers/notes/2026-10-01-d8-measurements.md`의 G4에 있습니다. 검증되지 않은 iOS 컴파일 캐시는 철회했습니다. Expo 미리 빌드한 모듈과 action SHA 고정은 적용하지 않았습니다.
+- 아티팩트: 갈래마다 `e2e-android-<백엔드>` · `e2e-ios-<백엔드>` 에 플로별 Maestro 기록 · 스크린샷 · 기기 로그 · `api.log`(14일), 앱 둘(7일), iOS 빌드 기록이 남습니다. 빨간 칸은 그 플로의 기기 로그(`device.log` - 가드가 본 것)와 스크린샷부터 봅니다.
+- macOS 실행은 계정의 동시 잡 한도를 공유하므로 러너 배정을 기다릴 수 있습니다.
+- CI APK는 x86_64만 만들고 로컬 기본 APK는 네 ABI입니다. checks 1·빌드 2·Android 3·iOS 3으로 물리 아홉 잡이 논리 아홉 칸을 검증합니다. iOS 두 shard는 macOS 사용 시간이 약 24% 늘고 전체 시간 이득이 확정되지 않아 철회했습니다(비공개 저장소의 macOS 시간은 10배로 계산됩니다). 빌드·E2E 시간과 실제 macOS 대기, 철회 근거는 `docs/superpowers/notes/2026-10-01-d8-measurements.md`의 G4에 있습니다. 검증되지 않은 iOS 컴파일 캐시도 철회했습니다. Expo 미리 빌드한 모듈과 action SHA 고정은 적용하지 않았습니다.
 
 잡이 하는 일의 정본은 저장소의 스크립트이고 워크플로는 러너 · 캐시 · 아티팩트만 정합니다(`.github/workflows/AGENTS.md`). Mac 이 있으면 iOS 갈래를 로컬에서 같은 스크립트로 돕니다.
 
@@ -229,7 +229,7 @@ BACKEND_URL=http://localhost:4100 ./test/e2e/run-ios.sh
 - **세션**: 회전 요청을 보낸 직후 OS 가 앱을 멈춰 응답을 받지 못하면 서버는 이미 옛 refresh 를 폐기했으므로 다음 실행에서 로그아웃됩니다. 기기 시계를 크게 바꾸면 만료 판정이 틀어질 수 있습니다. 회전 응답이 5xx · 408 · 429 면 세션을 지우지 않는데, 서버가 회전을 마친 뒤 그 응답을 냈다면 다음 회전이 재사용 감지에 걸려 그 사용자의 세션이 모두 끊깁니다.
 - **iOS 키체인의 세션은 앱을 지워도 남습니다** - 같은 기기에 다시 설치하면 이전 세션이 되살아날 수 있습니다(로그아웃한 세션은 되살아나지 않습니다).
 - **반응형 변형을 쓰지 않습니다.** Uniwind 1.12.0 이 한 `@media` 블록의 둘째 규칙부터 조건을 잃어, `sm:` 같은 너비 변형과 `ios:` · `android:` 같은 플랫폼 변형을 쓰지 않습니다 - 폰과 태블릿이 같은 크기를 씁니다(`docs/superpowers/notes/2026-09-30-d3-measurements.md` 의 L2).
-- **Xcode와 scene:** CI는 build-ios와 여섯 e2e-ios 잡에 Xcode 26.6를 명시합니다. Xcode 27/iOS 27 빌드는 SDK 57의 scene lifecycle opt-in이 필요하며 현재 모든 변형에 `ios.enableSceneSupport: true`가 켜져 있습니다. SDK 58 이상으로 올릴 때 제거 여부를 검토합니다.
+- **Xcode와 scene:** CI는 build-ios와 세 e2e-ios 잡에 Xcode 26.6를 명시합니다. Xcode 27/iOS 27 빌드는 SDK 57의 scene lifecycle opt-in이 필요하며 현재 모든 변형에 `ios.enableSceneSupport: true`가 켜져 있습니다. SDK 58 이상으로 올릴 때 제거 여부를 검토합니다.
 - **Windows 의 Android 네이티브 빌드**는 저장소 경로 47자 이하에서만 됩니다(위 "시작하기").
 - **iOS의 네트워크 복귀 재조회·삭제 실패 문구 UI는 기기에서 확인하지 않았습니다.** 비행기 모드가 필요한 플로 둘(`examples-offline-refetch` · `examples-delete-offline`)은 iOS 시뮬레이터에 비행기 모드가 없어 건너뜁니다. 같은 JavaScript 동작은 Android의 두 플로가 검증합니다. 나머지 iOS 전체 매트릭스는 CI의 macOS 러너에서 검증합니다. 개발 머신은 Windows이지만 `docs/superpowers/notes/2026-10-01-d7-measurements.md`의 K3에는 Mac의 부분 재현도 있습니다. 그 로컬 회차에서 실행하지 않은 iOS 27 일부 플로와 이후 통합 CI 성공을 구분합니다. iOS의 E2E 가드는 루트 레이아웃보다 먼저 평가된 모듈의 경고를 가르지 못합니다(같은 번들을 도는 Android가 수준으로 잡습니다).
 - **렌더 중 예외의 화면은 Expo Router 의 기본(영어)입니다.** 계약을 어긴 응답과 코드의 결함은 루트의 오류 경계(`app/_layout.tsx` 의 `ErrorBoundary`)로 갑니다. "Retry" 는 조회 캐시를 비운 뒤 루트 앱을 다시 그립니다(일반 시작은 홈이며 초기 cold 링크가 있으면 그 목적지가 다시 적용될 수 있습니다)(`queries/error-boundary.ts`) - 이 초기화 동작은 설치된 react-navigation core를 Node에서 확인했으며 기기에서는 확인하지 않았습니다. 경계에는 다른 출구가 없고, 백엔드가 같은 응답을 주는 동안은 그 화면에 들어갈 때마다 경계가 다시 보입니다.
