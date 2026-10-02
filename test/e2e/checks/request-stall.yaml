@@ -1,0 +1,29 @@
+# e2e-allow-http: 0
+# 백엔드가 응답하지 않거나(헤더 전) 헤더를 보낸 뒤 본문을 멈추면 요청이 15초 타임아웃(lib/jsonapi/client.ts 의
+# REQUEST_TIMEOUT_MS)에 끊기고 목록이 앱 문구와 "다시 시도" 를 그린다(스펙 8.5·9.3). 본문 단계는 request() 가 json() 을
+# 요청 signal 과 경주시켜 끝낸다. 하네스가 백엔드를 내리고 같은 포트에 test/e2e/stall-server.ts 를 띄운 뒤 돈다
+# (E2E_CHECKS=1) - 제목 필터의 값이 서버가 멈추는 방식을 고른다. 두 요청이 모두 REQUEST_TIMEOUT 으로 끝났는지는
+# 하네스가 기기 로그에서 본다(끊긴 요청은 e2e 변형이 상태 0 실패로 남긴다).
+appId: com.example.templateexpo.e2e
+---
+- runFlow: ../subflows/start-signed-out.yaml
+# 헤더 전에 멈춘다.
+- openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=probe-stall-headers
+- runFlow: ../subflows/confirm-ios-open-link.yaml
+- extendedWaitUntil:
+    visible:
+      id: request-failed
+    timeout: 30000
+# 헤더 뒤, 본문에서 멈춘다 - 새 목록 화면이 스켈레톤으로 시작해야 앞 화면의 실패를 다시 보지 않는다.
+- openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=probe-stall-body
+- runFlow: ../subflows/confirm-ios-open-link.yaml
+- extendedWaitUntil:
+    visible:
+      id: list-skeleton
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      id: request-failed
+    timeout: 30000
+- assertVisible:
+    id: retry-button

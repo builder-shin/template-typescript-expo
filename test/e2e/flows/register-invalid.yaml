@@ -5,6 +5,7 @@ appId: com.example.templateexpo.e2e
 ---
 - runFlow: ../subflows/start-signed-out.yaml
 - openLink: templateexpo-e2e://register
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: register-screen

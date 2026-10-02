@@ -139,7 +139,9 @@ describe('apiRequest - e2e 변형의 실패 표식(스펙 11.3)', () => {
     const result = await apiRequest('/api/v1/auth/register', { method: 'POST' })
 
     expect(result).toBe(CONFLICT)
-    expect(info).toHaveBeenCalledTimes(1)
+    expect(info.mock.calls.filter(([line]) => String(line).startsWith('[e2e-http]'))).toHaveLength(
+      1,
+    )
     expect(info).toHaveBeenCalledWith(
       '[e2e-http] 409 POST /api/v1/auth/register EMAIL_ALREADY_REGISTERED',
     )
@@ -155,7 +157,9 @@ describe('apiRequest - e2e 변형의 실패 표식(스펙 11.3)', () => {
 
     await apiRequest('/health/ready')
 
-    expect(info).toHaveBeenCalledTimes(1)
+    expect(info.mock.calls.filter(([line]) => String(line).startsWith('[e2e-http]'))).toHaveLength(
+      1,
+    )
     expect(info).toHaveBeenCalledWith('[e2e-http] 0 GET /health/ready NETWORK_ERROR')
   })
 
@@ -171,13 +175,16 @@ describe('apiRequest - e2e 변형의 실패 표식(스펙 11.3)', () => {
     },
   )
 
-  it.each([SUCCESS, NO_CONTENT])('e2e 라도 2xx(%j)는 남기지 않는다', async (result) => {
+  it.each([SUCCESS, NO_CONTENT])('e2e의 2xx(%j)는 실패 줄 없이 시각만 남긴다', async (result) => {
     mocks.startupVariant.mockReturnValue('e2e')
     mocks.request.mockResolvedValue(result)
 
     await expect(apiRequest('/api/v1/probe')).resolves.toBe(result)
 
-    expect(info).not.toHaveBeenCalled()
+    expect(info.mock.calls.filter(([line]) => String(line).startsWith('[e2e-http]'))).toHaveLength(
+      0,
+    )
+    expect(info).toHaveBeenCalledTimes(2)
   })
 
   it('한 줄에 토큰·본문·쿼리·문구를 싣지 않는다 - 로그에 자격증명이 남지 않는다', async () => {
@@ -203,7 +210,9 @@ describe('apiRequest - e2e 변형의 실패 표식(스펙 11.3)', () => {
     })
 
     // 인자가 정확히 한 줄이다 - 옵션이나 결과를 함께 넘기지 않는다.
-    expect(info).toHaveBeenCalledTimes(1)
+    expect(info.mock.calls.filter(([line]) => String(line).startsWith('[e2e-http]'))).toHaveLength(
+      1,
+    )
     expect(info).toHaveBeenCalledWith('[e2e-http] 401 POST /api/v1/auth/login INVALID_CREDENTIALS')
     const logged = JSON.stringify(info.mock.calls)
     for (const secret of [

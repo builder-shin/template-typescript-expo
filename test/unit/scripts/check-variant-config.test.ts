@@ -132,6 +132,17 @@ function introspected(variant: Variant, projectId: string | null) {
         },
         ios: {
           infoPlist: {
+            UIApplicationSceneManifest: {
+              UIApplicationSupportsMultipleScenes: false,
+              UISceneConfigurations: {
+                UIWindowSceneSessionRoleApplication: [
+                  {
+                    UISceneConfigurationName: 'Default Configuration',
+                    UISceneDelegateClassName: 'EXExpoAppSceneDelegate',
+                  },
+                ],
+              },
+            },
             NSAppTransportSecurity: { NSAllowsLocalNetworking: native.cleartext },
             CFBundleURLTypes: [{ CFBundleURLSchemes: [native.scheme, native.id] }],
           },
@@ -198,6 +209,12 @@ function metaItem(config: Introspected, name: string): MetaData | undefined {
 const VARIANTS: Variant[] = ['development', 'preview', 'production', 'e2e']
 
 describe('변형별 설정 검사 - 게이트 [8]', { timeout: 30_000 }, () => {
+  it('Expo의 scene delegate가 없으면 JS 시작 전에 죽는 설정을 거절한다', () => {
+    const config = introspected('e2e', null)
+    config._internal.modResults.ios.infoPlist.UIApplicationSceneManifest.UISceneConfigurations.UIWindowSceneSessionRoleApplication =
+      []
+    expect(checkConfig(config, 'e2e', null).status).toBe(1)
+  })
   it.each(
     VARIANTS.flatMap((variant) => [[variant, null] as const, [variant, PROJECT_ID] as const]),
   )('%s (EAS 프로젝트 %s) 의 맞는 설정은 통과한다', (variant, projectId) => {
@@ -214,15 +231,15 @@ describe('변형별 설정 검사 - 게이트 [8]', { timeout: 30_000 }, () => {
   })
 
   it('맞는 설정이면 성공 줄이 대상과 맞댄 건수와 OTA 상태를 한 줄로 말한다', () => {
-    // 맞대는 자리는 OTA 를 끈 설정이 17개, 켠 설정은 확인 시점과 기다림이 두 플랫폼에서 더해져 21개다.
+    // 맞대는 자리는 OTA 를 끈 설정이 18개, 켠 설정은 확인 시점과 기다림이 두 플랫폼에서 더해져 22개다.
     for (const variant of VARIANTS) {
       for (const projectId of [null, PROJECT_ID]) {
         const { channel } = NATIVE[variant]
         const target = targetOf(variant, projectId)
         const expected =
           channel !== null && projectId !== null
-            ? `변형 설정 통과: ${target} - 21건, OTA 켬(채널 ${channel})`
-            : `변형 설정 통과: ${target} - 17건, OTA 끔`
+            ? `변형 설정 통과: ${target} - 22건, OTA 켬(채널 ${channel})`
+            : `변형 설정 통과: ${target} - 18건, OTA 끔`
         const result = checkConfig(introspected(variant, projectId), variant, projectId)
         expect(result.stdout.trimEnd(), target).toBe(expected)
       }

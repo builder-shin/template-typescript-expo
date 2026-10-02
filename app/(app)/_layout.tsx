@@ -2,7 +2,7 @@ import { Redirect, Stack, usePathname, useSegments, type Href } from 'expo-route
 import { useState } from 'react'
 
 import { LogoutButton } from '@/components/app/logout-button'
-import { decideGuard } from '@/lib/auth/guard-latch'
+import { decideGuard, decidePendingLogin } from '@/lib/auth/guard-latch'
 import { loginHref, routePattern } from '@/lib/auth/protected-paths'
 import { useSessionStatus } from '@/platform/session'
 import { useIsLoggingOut } from '@/queries/auth'
@@ -44,17 +44,26 @@ export default function AppLayout() {
   const status = useSessionStatus()
   const loggingOut = useIsLoggingOut()
   const [latched, setLatched] = useState(false)
+  const [pendingLogin, setPendingLogin] = useState<string | null>(null)
 
   const guard = decideGuard({ status, loggingOut, latched, pathname: route })
   // 래치를 렌더 중에 갱신한다(이전 렌더의 값에서 파생하는 상태). 돌려준 값을 다시 넣으면 같은 판단이
   // 나오므로(시험이 모든 입력에서 잰다) 한 번의 재렌더로 가라앉는다. 효과에서 갱신하면 그만큼 늦다.
   if (guard.latched !== latched) setLatched(guard.latched)
 
-  if (guard.redirect) {
+  const nextLogin = decidePendingLogin({
+    status,
+    pending: pendingLogin,
+    requested: guard.redirect ? loginHref(pathname) : null,
+  })
+  if (nextLogin !== pendingLogin) setPendingLogin(nextLogin)
+  if (nextLogin !== null) {
     // loginHref 는 런타임에 만든 앱 안 경로다 - 타입드 라우트가 모르는 문자열이라 단언한다. 단언을
     // 변수에 담는다: prop 자리에 두면 타입드 라우트를 만들기 전(새 체크아웃)의 lint 가 받는 쪽이
     // string 을 받는다며 "불필요한 단언"으로 본다.
-    const target = loginHref(pathname) as Href
+    const target = nextLogin as Href
+    // 콜드 링크에서는 Redirect가 내비게이터 준비를 기다리는 사이 Stack을 거둔 상태가 홈 앵커로 읽힐 수 있다.
+    // 첫 목적지를 유지한다 - 경로가 잠깐 /로 바뀌어도 이동을 취소하지 않는다. 로그인으로 옮기면 이 셸이 해제된다(K3).
     return <Redirect href={target} />
   }
 

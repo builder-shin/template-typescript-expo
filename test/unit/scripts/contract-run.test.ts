@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
+import { BASH_TIMEOUT_MS, resolveBash } from '../support/bash'
 
 /**
  * `test/contract/run.sh`(게이트 `[12/13]`)의 불변식을 실제 스크립트로 잰다.
@@ -26,15 +27,16 @@ import { afterAll, describe, expect, it } from 'vitest'
  * 1. **compose 호출은 전부 이 저장소의 프로젝트로 범위가 좁혀진다**(`-p template-typescript-expo-e2e -f
  *    docker-compose.e2e.yml`). 개발 머신에는 이 저장소와 무관한 스택(`joon-*` 등)이 떠 있고, 프로젝트 이름이 빠진
  *    compose 호출은 디렉터리 이름으로 프로젝트를 추측한다. 시험이 모든 장면에서 이것을 확인한다.
- * 2. **access token 수명은 900초다.** 거울은 한 번 로그인한 토큰으로 속성 제약을 재므로, E2E 하네스의 10초가
- *    셸에 남아 있어도 compose 가 900 을 봐야 한다.
+ * 2. **access token 수명은 기본 900초와 다른 600초다.** 설정을 무시한 백엔드를 거울이 구별하고, 한 번 로그인한
+ *    토큰으로 속성 제약도 잰다. E2E 하네스의 10초가 셸에 남아 있어도 compose 와 거울이 같은 600 을 봐야 한다.
  * 3. **정리 트랩은 사전 점검(docker·데몬·curl)이 모두 끝난 뒤에만 선다.** 점검이 실패하면 compose 호출이 하나도
  *    없다 - docker 가 없거나 데몬이 꺼진 머신에서 `down` 을 부르는 것은 소음이다. 트랩이 선 뒤에는 어떤 끝(띄우기·
  *    준비 확인·거울의 실패)에서도 이 프로젝트의 세 프로파일을 내린다.
  * 4. **거울(`pnpm test:contract`)의 종료 코드가 그대로 `run.sh` 의 종료 코드다.**
  *
  * 그리고 호출의 순서, 포트의 출처(`E2E_API_PORT` 한 값에서 준비 확인 주소와 `CONTRACT_API_URL` 이 나온다), compose
- * 가 저장소 루트에서 불리는 것(`-f` 가 상대 경로다)을 잰다.
+ * 가 저장소 루트에서 불리는 것(`-f` 가 상대 경로다)을 잰다. 백엔드 선택(`BACKEND_KIND` - D7)은 띄우는 프로파일과 준비
+ * 실패 문구의 이름을 정하고, 모르는 값이면 docker 를 한 번도 부르지 않고 멈춘다(`test/e2e/matrix.ts` 의 `backendKind()`).
  */
 
 /** Git Bash 는 역슬래시 경로를 이스케이프로 먹어 치운다. */
@@ -51,43 +53,12 @@ const COMPOSE_FILE = 'docker-compose.e2e.yml'
 /** 이 저장소의 compose 호출이 반드시 시작하는 말. */
 const SCOPE = `compose -p ${PROJECT} -f ${COMPOSE_FILE}`
 
-/**
- * bash 를 한 번 부르는 일의 상한. 가짜 도구는 즉시 끝나므로 이보다 오래 걸리면 `run.sh` 안에 기다리는 반복
- * (폴링·sleep)이 생긴 것이다 - 시험이 멈춰 서는 대신 이유와 함께 빨개진다.
- */
-const SPAWN_TIMEOUT_MS = 30_000
-
 const WORK = mkdtempSync(join(tmpdir(), 'contract-run-'))
 const SHIMS = join(WORK, 'shims')
 
 afterAll(() => {
   rmSync(WORK, { recursive: true, force: true })
 })
-
-/**
- * 쓸 수 있는 bash 를 하나 고른다. 후보를 실제로 돌려 보고 판정한다 - Windows 의 PATH 에서 `bash` 는 WSL 의
- * bash.exe 로 잡힐 수 있고 그것은 /bin/bash 를 못 찾아 죽는다(test/unit/scripts/check-citations.test.ts 와
- * 같은 방법).
- */
-function resolveBash(): string {
-  const programFiles = process.env.ProgramW6432 ?? process.env.ProgramFiles ?? 'C:\\Program Files'
-  const candidates =
-    process.platform === 'win32'
-      ? [
-          'bash',
-          join(programFiles, 'Git', 'bin', 'bash.exe'),
-          join(programFiles, 'Git', 'usr', 'bin', 'bash.exe'),
-        ]
-      : ['bash']
-  for (const candidate of candidates) {
-    const probe = spawnSync(candidate, ['-c', 'printf ok'], {
-      encoding: 'utf8',
-      timeout: SPAWN_TIMEOUT_MS,
-    })
-    if (probe.status === 0 && probe.stdout === 'ok') return candidate
-  }
-  throw new Error(`쓸 수 있는 bash 를 찾지 못했다 - 후보: ${candidates.join(' · ')}`)
-}
 
 const BASH = resolveBash()
 
@@ -101,7 +72,7 @@ function bashPathOf(path: string): string {
   const result = spawnSync(BASH, ['-c', 'cd "$1" && pwd', 'bash', toPosix(path)], {
     env,
     encoding: 'utf8',
-    timeout: SPAWN_TIMEOUT_MS,
+    timeout: BASH_TIMEOUT_MS,
   })
   const resolved = result.stdout.trim()
   if (result.status !== 0 || resolved === '') throw new Error(`bash 가 경로를 풀지 못했다: ${path}`)
@@ -114,6 +85,7 @@ function bashPathOf(path: string): string {
 
 /** 가짜가 한 줄에 적는 환경 - `run.sh` 가 도구에 넘긴 것 중 이 시험이 보는 것. */
 const LOGGED_ENV = [
+  'BACKEND_KIND',
   'CONTRACT_API_URL',
   'E2E_API_PORT',
   'E2E_ACCESS_EXPIRES_SECONDS',
@@ -143,7 +115,12 @@ const SHIM_FILES: Readonly<Record<string, string>> = {
     'if [ "${1:-}" = "info" ]; then exit "${FAKE_DOCKER_INFO_EXIT:-0}"; fi',
     'case " $* " in *" up "*) exit "${FAKE_DOCKER_UP_EXIT:-0}" ;; esac',
   ]),
-  curl: shimScript('curl', 'FAKE_CURL_EXIT'),
+  curl: shimScript('curl', 'FAKE_CURL_EXIT', [
+    'calls=$(grep -c "^curl " "$SHIM_LOG")',
+    'if [ "$calls" -le "${FAKE_CURL_FAILS:-0}" ]; then exit 22; fi',
+  ]),
+  sleep:
+    '#!/bin/sh\nif [ "${1:-}" = "__shim__" ]; then echo fake-sleep; exit 0; fi\necho "$*" >>"$SHIM_SLEEP_LOG"\n',
   pnpm: shimScript('pnpm', 'FAKE_PNPM_EXIT'),
 }
 for (const [name, source] of Object.entries(SHIM_FILES)) {
@@ -177,8 +154,12 @@ writeFileSync(
   'utf8',
 )
 
-/** 호출자의 셸이 장면을 흔들지 못하게 지우는 변수 - 개발자의 셸에는 포트나 E2E 의 짧은 수명이 남아 있을 수 있다. */
+/**
+ * 호출자의 셸이 장면을 흔들지 못하게 지우는 변수 - 개발자의 셸에는 포트나 E2E 의 짧은 수명, 다른 백엔드의 이름
+ * (`BACKEND_KIND`)이 남아 있을 수 있다.
+ */
 const SCRUBBED = [
+  'BACKEND_KIND',
   'E2E_API_PORT',
   'E2E_ACCESS_EXPIRES_SECONDS',
   'CONTRACT_API_URL',
@@ -189,6 +170,8 @@ const SCRUBBED = [
   'FAKE_DOCKER_INFO_EXIT',
   'FAKE_DOCKER_UP_EXIT',
   'FAKE_CURL_EXIT',
+  'FAKE_CURL_FAILS',
+  'SHIM_SLEEP_LOG',
   'FAKE_PNPM_EXIT',
 ]
 
@@ -206,12 +189,16 @@ function sceneEnv(): NodeJS.ProcessEnv {
 
 /** 가짜가 PATH 맨 앞에서 잡히는지 - 아니면 `run.sh` 를 돌리지 않는다. */
 function assertShimsAreFirst(): void {
-  const probe = spawnSync(BASH, ['-c', 'docker __shim__ && curl __shim__ && pnpm __shim__'], {
-    env: sceneEnv(),
-    encoding: 'utf8',
-    timeout: SPAWN_TIMEOUT_MS,
-  })
-  if (probe.stdout !== 'fake-docker\nfake-curl\nfake-pnpm\n') {
+  const probe = spawnSync(
+    BASH,
+    ['-c', 'docker __shim__ && curl __shim__ && pnpm __shim__ && sleep __shim__'],
+    {
+      env: sceneEnv(),
+      encoding: 'utf8',
+      timeout: BASH_TIMEOUT_MS,
+    },
+  )
+  if (probe.stdout !== 'fake-docker\nfake-curl\nfake-pnpm\nfake-sleep\n') {
     throw new Error(
       `가짜 docker·curl·pnpm 이 PATH 맨 앞에서 잡히지 않는다 - run.sh 를 돌리면 진짜 Docker 가 불릴 수 있어 멈춘다: ${probe.stdout}${probe.stderr}`,
     )
@@ -237,6 +224,7 @@ interface Outcome {
   readonly status: number
   readonly stderr: string
   readonly calls: readonly Call[]
+  readonly sleeps: readonly string[]
 }
 
 interface Scene {
@@ -290,8 +278,11 @@ function run(scene: Scene = {}): Outcome {
   scenes += 1
   const log = join(WORK, `calls-${String(scenes)}.log`)
   writeFileSync(log, '', 'utf8')
+  const sleeps = join(WORK, `sleeps-${String(scenes)}.log`)
+  writeFileSync(sleeps, '', 'utf8')
   const env = sceneEnv()
   env.SHIM_LOG = toPosix(log)
+  env.SHIM_SLEEP_LOG = toPosix(sleeps)
   Object.assign(env, scene.env)
   if (scene.hide !== undefined) env.HIDE_TOOL = scene.hide
   // 저장소 루트가 아닌 곳에서 부른다 - 스크립트가 제 위치에서 루트를 찾아야 한다.
@@ -299,12 +290,12 @@ function run(scene: Scene = {}): Outcome {
     cwd: WORK,
     env,
     encoding: 'utf8',
-    timeout: SPAWN_TIMEOUT_MS,
+    timeout: BASH_TIMEOUT_MS,
   })
   if (result.error) {
     if ((result.error as NodeJS.ErrnoException).code === 'ETIMEDOUT') {
       throw new Error(
-        `run.sh 가 ${String(SPAWN_TIMEOUT_MS / 1000)}초 안에 끝나지 않았다 - 가짜 도구는 즉시 끝나므로 run.sh 에 기다리는 반복(폴링·sleep)이 생겼는지 본다`,
+        `run.sh 가 ${String(BASH_TIMEOUT_MS / 1000)}초 안에 끝나지 않았다 - 가짜 curl·sleep 을 지나지 않은 기다림이나 무한 반복이 있는지 본다`,
       )
     }
     throw result.error
@@ -317,7 +308,12 @@ function run(scene: Scene = {}): Outcome {
       `이 저장소의 프로젝트로 범위가 좁혀지지 않은 docker 호출이 있다: ${unscoped.map((call) => `docker ${call.args}`).join(' ; ')}`,
     )
   }
-  return { status: result.status, stderr: result.stderr, calls }
+  return {
+    status: result.status,
+    stderr: result.stderr,
+    calls,
+    sleeps: readFileSync(sleeps, 'utf8').trim().split('\n').filter(Boolean),
+  }
 }
 
 /** 같은 장면을 여러 시험이 나눠 볼 때 한 번만 돈다. 던졌으면 던진 것을 그대로 다시 던진다. */
@@ -387,12 +383,12 @@ describe('test/contract/run.sh', { timeout: 60_000 }, () => {
       for (const call of compose) expect(call.env.PWD).toBe(REPO_ROOT_IN_BASH)
     })
 
-    it('[불변식 2] 셸에 E2E 의 10초가 남아 있어도 compose 와 거울은 900 을 본다', () => {
+    it('[불변식 2] 셸에 E2E 의 10초가 남아 있어도 compose 와 거울은 600 을 본다', () => {
       const outcome = success()
       const seen = outcome.calls.filter((call) => call.tool === 'pnpm' || stage(call) === 'up')
 
       expect(seen.map(stage)).toEqual(['up', 'pnpm'])
-      for (const call of seen) expect(call.env.E2E_ACCESS_EXPIRES_SECONDS).toBe('900')
+      for (const call of seen) expect(call.env.E2E_ACCESS_EXPIRES_SECONDS).toBe('600')
     })
   })
 
@@ -406,7 +402,7 @@ describe('test/contract/run.sh', { timeout: 60_000 }, () => {
         const outcome = given === undefined ? run() : run({ env: { E2E_API_PORT: given } })
 
         expect(callsOf(outcome, 'curl').map((call) => call.args)).toEqual([
-          `-fsS http://127.0.0.1:${port}/health/ready`,
+          `-fsS --connect-timeout 1 --max-time 2 http://127.0.0.1:${port}/health/ready`,
         ])
         const [pnpm] = callsOf(outcome, 'pnpm')
         expect(pnpm?.args).toBe('test:contract')
@@ -449,7 +445,14 @@ describe('test/contract/run.sh', { timeout: 60_000 }, () => {
 
       expect(outcome.status).toBe(1)
       expect(outcome.stderr).toContain('계약 거울: FastAPI 가 127.0.0.1:4100 에서 준비되지 않았다')
-      expect(outcome.calls.map(stage)).toEqual(['info', 'down', 'up', 'curl', 'down'])
+      expect(outcome.calls.map(stage)).toEqual([
+        'info',
+        'down',
+        'up',
+        ...Array<string>(30).fill('curl'),
+        'down',
+      ])
+      expect(outcome.sleeps).toEqual(Array<string>(29).fill('1'))
     })
 
     it('[불변식 4] 거울이 실패하면(3) 그 코드로 끝나고 그래도 내린다', () => {
@@ -457,6 +460,51 @@ describe('test/contract/run.sh', { timeout: 60_000 }, () => {
 
       expect(outcome.status).toBe(3)
       expect(outcome.calls.map(stage)).toEqual(['info', 'down', 'up', 'curl', 'pnpm', 'down'])
+    })
+  })
+
+  it('준비 확인 두 번 실패 뒤 성공하면 거울은 한 번, 기다림은 실패 사이에만 있다', () => {
+    const outcome = run({ env: { FAKE_CURL_FAILS: '2' } })
+    expect(outcome.status).toBe(0)
+    expect(outcome.calls.map(stage)).toEqual([
+      'info',
+      'down',
+      'up',
+      'curl',
+      'curl',
+      'curl',
+      'pnpm',
+      'down',
+    ])
+    expect(outcome.sleeps).toEqual(['1', '1'])
+  })
+
+  describe('백엔드 선택 - BACKEND_KIND(D7)', () => {
+    it.each<[string, string]>([
+      ['fastapi', 'FastAPI'],
+      ['nestjs', 'NestJS'],
+      ['rails', 'Rails'],
+    ])('%s: 그 프로파일을 띄우고, 준비 실패의 문구는 %s 다', (kind, name) => {
+      const outcome = run({ env: { BACKEND_KIND: kind } })
+      const up = callsOf(outcome, 'up')
+      expect(up.map((call) => call.args)).toEqual([
+        `${SCOPE} --profile ${kind} up -d --build --wait`,
+      ])
+      for (const call of [...up, ...callsOf(outcome, 'pnpm')]) {
+        expect(call.env.BACKEND_KIND).toBe(kind)
+      }
+
+      const unready = run({ env: { BACKEND_KIND: kind, FAKE_CURL_EXIT: '22' } })
+      expect(unready.status).toBe(1)
+      expect(unready.stderr).toContain(`계약 거울: ${name} 가 127.0.0.1:4100 에서 준비되지 않았다`)
+    })
+
+    it('모르는 값이면 1 로 끝나고 docker 를 한 번도 부르지 않는다 - 점검도 정리도 없다', () => {
+      const outcome = run({ env: { BACKEND_KIND: 'probe-lab-unknown' } })
+
+      expect(outcome.status).toBe(1)
+      expect(outcome.stderr).toContain('probe-lab-unknown')
+      expect(outcome.calls).toEqual([])
     })
   })
 })

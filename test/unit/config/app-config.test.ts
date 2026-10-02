@@ -52,7 +52,10 @@ describe('app.config.ts - 스펙 10.1·10.2', () => {
     expect(config.scheme).toBe(`${BASE_SCHEME}-e2e`)
     expect(config.android?.package).toBe(`${BASE_APP_ID}.e2e`)
     expect(config.ios?.bundleIdentifier).toBe(`${BASE_APP_ID}.e2e`)
-    expect(buildProperties(config)).toEqual({ android: { usesCleartextTraffic: true } })
+    expect(buildProperties(config)).toEqual({
+      ios: { enableSceneSupport: true },
+      android: { usesCleartextTraffic: true },
+    })
     expect(config.ios?.infoPlist?.NSAppTransportSecurity).toEqual({
       NSAllowsLocalNetworking: true,
     })
@@ -67,7 +70,10 @@ describe('app.config.ts - 스펙 10.1·10.2', () => {
     expect(config.name).toBe(BASE_NAME)
     expect(config.scheme).toBe(BASE_SCHEME)
     expect(config.android?.package).toBe(BASE_APP_ID)
-    expect(buildProperties(config)).toEqual({ android: { usesCleartextTraffic: false } })
+    expect(buildProperties(config)).toEqual({
+      ios: { enableSceneSupport: true },
+      android: { usesCleartextTraffic: false },
+    })
     expect(config.ios?.infoPlist?.NSAppTransportSecurity).toEqual({
       NSAllowsLocalNetworking: false,
     })
@@ -76,6 +82,24 @@ describe('app.config.ts - 스펙 10.1·10.2', () => {
   it('기본 식별자는 배포할 수 없는 com.example 이다 - 스펙 10.3', () => {
     expect(BASE_APP_ID).toBe('com.example.templateexpo')
   })
+
+  it.each(['development', 'preview', 'production', 'e2e'])(
+    '%s 의 Android splash 종료 수정은 역순 mod 실행에서 Expo splash 뒤에 돈다',
+    (variant) => {
+      const config = evaluate({
+        BACKEND_URL: 'https://probe-backend.example',
+        APP_VARIANT: variant,
+      })
+      const plugins = config.plugins ?? []
+      const splash = plugins.findIndex(
+        (entry) => Array.isArray(entry) && entry[0] === 'expo-splash-screen',
+      )
+      const fix = plugins.indexOf('./plugins/with-android-splash-exit.ts')
+      expect(splash).toBeGreaterThanOrEqual(0)
+      expect(fix).toBeGreaterThanOrEqual(0)
+      expect(fix).toBeLessThan(splash)
+    },
+  )
 
   it('expo-secure-store 플러그인이 세션을 Android 자동 백업에서 빼고 Face ID 문구를 넣지 않는다 - 스펙 7.1', () => {
     const config = evaluate({

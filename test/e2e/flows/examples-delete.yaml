@@ -1,14 +1,10 @@
-# e2e-allow-http: 0
 # 삭제 - 수정 화면의 삭제는 확인 시트를 거친다. 취소하면 그대로이고, 확인하면 이 자원을 보던 목록으로
 # 돌아간다(스펙 8.1·8.5·11.3). 목록에서 들어간 경우 돌아온 목록은 같은 조건의 같은 화면이고 지운 행이
 # 사라져 있다 - 상세 제거·목록 무효화. 딥링크로 곧장 연 수정 화면은 보호 경로라 로그인을 거쳐
-# 돌아오고(스펙 7.3), 거기서 지우면 목록으로 간다. 삭제가 실패하면 문구를 시트 안에 그리고, 취소하고 다시 열면
-# 그 문구가 없다 - 실패는 비행기 모드로 만든다(끊긴 요청은 상태 0, 선언했다). 그 밖의 2xx 밖 상태는 허용하지
-# 않는다 - 지운 자원의 상세를 다시 부르거나(404) 삭제가 두 번 나가면(404) 여기서 걸린다.
-# 비행기 모드는 이 플로가 끝나면 실패해도 끈다(onFlowComplete).
+# 돌아오고(스펙 7.3), 거기서 지우면 목록으로 간다. 이 플로는 2xx 밖의 상태를 하나도 허용하지 않는다 - 지운 자원의
+# 상세를 다시 부르거나(404) 삭제가 두 번 나가면(404) 여기서 걸린다. 삭제가 실패했을 때의 문구(비행기 모드)는
+# examples-delete-offline 이 Android 에서 잰다 - 두 플랫폼에서 도는 이 플로에는 비행기 모드가 없다.
 appId: com.example.templateexpo.e2e
-onFlowComplete:
-  - setAirplaneMode: disabled
 ---
 - runFlow: ../subflows/start-signed-out.yaml
 - runScript:
@@ -23,6 +19,7 @@ onFlowComplete:
 # 로그인하지 않고 수정 화면을 딥링크로 연다 - 경로 가드가 로그인으로 보낸다. 헤더의 "홈으로" 가 홈으로 데려간다 - iOS 에는
 # 뒤로 가기 키가 없어 가드가 보낸 로그인 화면의 눈에 보이는 출구다(스펙 7.3 의 D4 정정).
 - openLink: templateexpo-e2e://examples/${output.exampleId}/edit
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: login-screen
@@ -37,6 +34,7 @@ onFlowComplete:
     id: login-screen
 # 다시 연다 - 이번에는 로그인하고, 로그인하면 그 수정 화면으로 돌아온다.
 - openLink: templateexpo-e2e://examples/${output.exampleId}/edit
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: login-screen
@@ -66,58 +64,6 @@ onFlowComplete:
     timeout: 10000
 - assertVisible:
     id: edit-example-screen
-# 삭제가 실패하면 시트를 닫지 않고 그 문구를 시트 안에 그린다. 취소하고 다시 열면 지난 실패를 들고 열리지 않는다
-# (DeleteWrite.reset). 실패는 비행기 모드로 만든다 - 쓰기 앞의 회전이 닿지 못한다.
-- setAirplaneMode: enabled
-- tapOn:
-    id: delete-button
-- extendedWaitUntil:
-    visible:
-      id: delete-confirm-accept
-    timeout: 10000
-- tapOn:
-    id: delete-confirm-accept
-- extendedWaitUntil:
-    visible:
-      id: form-banner
-    timeout: 20000
-- assertVisible:
-    id: delete-confirm-cancel
-- tapOn:
-    id: delete-confirm-cancel
-- extendedWaitUntil:
-    notVisible:
-      id: delete-confirm-cancel
-    timeout: 10000
-- tapOn:
-    id: delete-button
-- extendedWaitUntil:
-    visible:
-      id: delete-confirm-accept
-    timeout: 10000
-- assertNotVisible:
-    id: form-banner
-- tapOn:
-    id: delete-confirm-cancel
-- extendedWaitUntil:
-    notVisible:
-      id: delete-confirm-cancel
-    timeout: 10000
-# 연결을 되살리고 돌아온 것을 확인한다 - 아직 읽지 않은 목록(씨앗, 읽기만 한다)을 열어 행이 그려질 때까지 기다린다. 첫
-# 조회가 닿지 못해도 네트워크 복귀의 재조회가 그린다. 뒤로 가면 이 수정 화면이다.
-- setAirplaneMode: disabled
-- openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=probe-seed
-- extendedWaitUntil:
-    visible:
-      id: resource-row-title
-      text: probe-seed alpha
-    timeout: 30000
-- pressKey: back
-- extendedWaitUntil:
-    visible:
-      id: field-input-title
-      text: ${output.prefix} d1
-    timeout: 10000
 # 확인하면 지운다 - 스택에 목록이 없으니 이 화면이 (조건 없는) 목록으로 바뀐다.
 - tapOn:
     id: delete-button
@@ -140,6 +86,7 @@ onFlowComplete:
       STEP: example
       TITLE: ${output.prefix} d2
 - openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=${output.prefix}
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: resource-row-title

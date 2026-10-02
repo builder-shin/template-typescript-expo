@@ -190,6 +190,19 @@ clear_metro_cache() {
   echo "Metro 캐시를 비웠다: $cache"
 }
 
+# D6 의 두 단계 빌드: 둘째 실행에서는 매니페스트 단계가 다시 돌면 안 된다(결정 41).
+assemble_release() {
+  local gradle_jvm="$1" log rc=0
+  log=$(mktemp)
+  (cd android && ./gradlew assembleRelease --no-daemon --console=plain "$gradle_jvm") | tee "$log" || rc=$?
+  if [ "$rc" -eq 0 ] && ! grep -Fxq '> Task :app:createReleaseUpdatesResources UP-TO-DATE' "$log"; then
+    echo "APK 빌드: 둘째 Gradle 의 createReleaseUpdatesResources 가 UP-TO-DATE 가 아니다 - 입력·출력과 Metro 캐시 순서를 확인한다" >&2
+    rc=1
+  fi
+  rm -f "$log"
+  return "$rc"
+}
+
 build() {
   : "${BACKEND_URL:?BACKEND_URL 이 필요하다 - 에뮬레이터에서 호스트는 http://10.0.2.2:<포트>}"
   check_path || exit 1
@@ -214,7 +227,7 @@ build() {
   # 스스로 캐시를 지운다(--reset-cache).
   (cd android && ./gradlew :app:createReleaseUpdatesResources --no-daemon "$gradle_jvm")
   clear_metro_cache
-  (cd android && ./gradlew assembleRelease --no-daemon "$gradle_jvm")
+  assemble_release "$gradle_jvm"
   assert_apk_variant
   assert_apk_ota_off
   ls -l "$APK"

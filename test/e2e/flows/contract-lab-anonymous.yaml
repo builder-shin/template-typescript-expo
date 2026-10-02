@@ -16,6 +16,7 @@ appId: com.example.templateexpo.e2e
 # 그려지지 않는다.
 - stopApp
 - openLink: templateexpo-e2e://contract
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: back-to-home-button
@@ -42,7 +43,7 @@ appId: com.example.templateexpo.e2e
     timeout: 15000
 - assertNotVisible:
     id: back-to-home-button
-- pressKey: back
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       id: home-screen
@@ -64,7 +65,7 @@ appId: com.example.templateexpo.e2e
     visible:
       id: login-screen
     timeout: 15000
-- pressKey: back
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       id: lab-run-putUpsert
@@ -83,7 +84,7 @@ appId: com.example.templateexpo.e2e
     visible:
       id: login-screen
     timeout: 15000
-- pressKey: back
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       id: lab-run-relationshipWrite
@@ -102,7 +103,7 @@ appId: com.example.templateexpo.e2e
     visible:
       id: login-screen
     timeout: 15000
-- pressKey: back
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       id: lab-run-acceptLanguage
@@ -183,15 +184,17 @@ appId: com.example.templateexpo.e2e
       text: '.*\(상태 200\)'
     direction: DOWN
     timeout: 20000
+# 아래 두 스크롤은 긴 본문을 조금씩 내려가 D5 의 로컬 에뮬레이터에서도 16.2–17.2초가 걸렸다(세 회차, 제한 30초) - CI 의
+# 느린 기기(소프트웨어 렌더링 에뮬레이터, macOS 러너의 시뮬레이터)에 맞춰 90초를 준다. 찾는 요소와 글자는 그대로다.
 - scrollUntilVisible:
     element:
       id: lab-step-heading-offsetWalk-1
       text: '.*\(상태 200\)'
     direction: DOWN
-    timeout: 30000
+    timeout: 90000
 - scrollUntilVisible:
     element:
       id: lab-note-offsetWalk
       text: '.*컬렉션 끝에 닿았다.*'
     direction: DOWN
-    timeout: 30000
+    timeout: 90000

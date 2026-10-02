@@ -1,0 +1,16 @@
+# 한 화면 뒤로 - Android 는 뒤로 가기, iOS 는 머리글의 뒤로 버튼(UIKit 이 붙이는 식별자 BackButton)이다. Maestro
+# 2.11.0 의 iOS 는 back·pressKey: back 이 아무것도 하지 않는다 - 플로는 뒤로 갈 때 이 서브플로를 부른다
+# (test/unit/e2e/flows.test.ts 가 잰다). 돌아갈 화면이 없는 화면의 Android 뒤로 가기는 android-back.yaml 이다.
+appId: com.example.templateexpo.e2e
+---
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          id: BackButton

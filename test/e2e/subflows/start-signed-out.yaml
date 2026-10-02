@@ -1,9 +1,12 @@
 # 앱 상태를 지우고 띄워 홈이 보일 때까지 기다린다 - 세션 없이 시작한다.
 # 로캘 플로에서는 쓰지 않는다: clearState 가 앱별 언어까지 지운다(D1 실측 M3).
+# 키체인도 비운다 - iOS 에서 clearState 는 앱을 다시 설치할 뿐이고 키체인의 세션(SecureStore)은 앱을 지워도
+# 남는다(스펙 7.5 의 D2 정정). Android 에서 clearKeychain 은 아무것도 하지 않는다(세션은 clearState 가 지운다).
 appId: com.example.templateexpo.e2e
 ---
 - launchApp:
     clearState: true
+    clearKeychain: true
 - extendedWaitUntil:
     visible:
       id: home-screen

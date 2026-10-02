@@ -8,6 +8,7 @@ appId: com.example.templateexpo.e2e
 ---
 - runFlow: ../subflows/start-signed-out.yaml
 - openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=probe-seed
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: resource-row-title
@@ -33,7 +34,7 @@ appId: com.example.templateexpo.e2e
     below:
       text: probe-seed delta
 # 뒤로 가기 - 기본 정렬의 목록으로 돌아간다.
-- back
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       text: probe-seed foxtrot
@@ -78,7 +79,7 @@ appId: com.example.templateexpo.e2e
     text: probe-seed delta
 # 뒤로 가기 - 필터 없는(제목 접두사만 있는) 목록으로 돌아간다. charlie 는 보관·0점이라 위 필터에
 # 걸리지 않던 행이다.
-- back
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       id: resource-row-title

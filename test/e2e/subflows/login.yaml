@@ -3,6 +3,7 @@
 appId: com.example.templateexpo.e2e
 ---
 - openLink: templateexpo-e2e://login
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: login-screen

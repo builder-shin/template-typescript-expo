@@ -1,0 +1,29 @@
+# 콜드 딥링크 - 종료된 앱의 보호 경로는 next를 가진 로그인으로, 공개 404는 not-found로 간다(K3 Mac 재현).
+# warm auth-links와 별개다. URL을 받은 뒤 중첩 Stack의 홈 앵커가 잠깐 보이더라도 로그인 이동을 잃지 않아야 한다.
+# e2e-allow-http: 404
+appId: com.example.templateexpo.e2e
+---
+- runFlow: ../subflows/start-signed-out.yaml
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: account
+- stopApp
+- openLink: templateexpo-e2e://examples/new
+- runFlow: ../subflows/confirm-ios-open-link.yaml
+- extendedWaitUntil:
+    visible:
+      id: login-screen
+    timeout: 15000
+- runFlow: ../subflows/submit-credentials.yaml
+- extendedWaitUntil:
+    visible:
+      id: new-example-screen
+    timeout: 20000
+- stopApp
+- openLink: templateexpo-e2e://examples/00000000-0000-4000-8000-000000000099
+- runFlow: ../subflows/confirm-ios-open-link.yaml
+- extendedWaitUntil:
+    visible:
+      id: not-found-screen
+    timeout: 20000

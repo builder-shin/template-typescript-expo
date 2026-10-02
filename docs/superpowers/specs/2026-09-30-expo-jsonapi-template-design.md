@@ -207,6 +207,18 @@ docs/superpowers/specs/ · plans/ · notes/
 > 설정의 판단(10.6 의 D6 정정)이고, `scripts/check-variant-config.mjs` 는 게이트 8단계의 변형별 설정 검사(12장의 D6
 > 정정)다. 소유 규칙은 루트 `AGENTS.md` 의 표다.
 
+> 정정(2026-10-01, D7): 트리에 `.github/` 가 없다 - `.github/workflows/ci.yml` 하나가 13장의 CI 다(잡이 하는 일의 정본은
+> 스크립트이고 워크플로는 러너·캐시·아티팩트만 정한다 - `.github/workflows/AGENTS.md`). `test/e2e/` 에는 Android
+> 하네스(`run-android.sh`·`android.sh`) 옆에 iOS 하네스(`run-ios.sh`·`ios.sh`·`ios-log.ts`), Docker 없는 백엔드
+> (`native-backend.sh`), 백엔드 종류 검증(`matrix.ts` - Next.js 에서 원본 그대로), 요청 타임아웃 확인(`stall-server.ts`·
+> `checks/`), Maestro 설치(`install-maestro.sh`)가 산다.
+
+> 정정(2026-10-02, D7): 트리에 `plugins/`를 더한다. 생성된 네이티브 프로젝트 파일을 고치는 Expo 설정 플러그인의
+> 자리이며 판단·화면·네트워크를 두지 않는다(루트와 `plugins/AGENTS.md`). `with-android-splash-exit.ts`는 Expo splash
+> 플러그인 뒤에서 모든 변형의 Kotlin MainActivity에 API 31 이상의 exit listener 해제를 넣는다. 소스는 Node type
+> stripping으로 평가할 수 있어야 한다. 앵커와 업그레이드 뒤 확인법은 `plugins/AGENTS.md`, 원인과 대가는 16장의
+> D7 실측 정정이다.
+
 ## 5. 계층 소유권
 
 | 위치 | 소유하는 것 | 소유하지 않는 것 |
@@ -931,6 +943,19 @@ xcodebuild로 직접 빌드한다. 실제 EAS 빌드와 OTA 발행은 사용자�
 > 잡는지는 선언을 일부러 바꿔 재 보았다 - `docs/superpowers/notes/2026-10-01-d5-measurements.md` 의 C1. 그 실증은 1(필터
 > 연산자)과 3(`maxLength`)만 건드렸다 - 2 와 4 는 실제 스택에서 변이로 재 보지 않았다.
 
+> 정정(2026-10-02, D7): `test/contract/write-paths.test.ts`가 앱에서 피하는 쓰기 경로(빈 PATCH·미선언 속성·읽기 전용
+> `createdAt`·중복 태그 id)와 새 로그인 access token의 수명을 더 잰다. 기존 89개와 새 프로브 5개로 백엔드마다 94개다.
+> 쓰기는 `BACKEND_KIND`별 실측 기대값(HTTP 상태·오류 코드·`source.pointer`)으로 대조한다. 과거 Next.js D4 표에서
+> NestJS의 빈 PATCH는 200 no-op·중복 태그는 중복 제거였고 Rails의 금지 속성은 400 문서 오류였다. 현재 실측에서는
+> 세 백엔드 모두 빈 PATCH 422 `/data`, 금지 속성 422 필드 오류, 중복 태그 400 관계 포인터로 거절한다. 앱은 쓰기 속성
+> 전부를 화이트리스트로 보내고 태그 id를 중복 제거하므로 그대로다. 과거 표·현재 값·백엔드 커밋·소스 근거는
+> `docs/superpowers/notes/2026-10-01-d7-measurements.md`의 K4에 있다. compose가 백엔드 `main`을 빌드하므로 이 저장소가
+> 바뀌지 않아도 백엔드 변경으로 해당 프로브가 실패할 수 있다.
+> access 수명은 위 D5 시점의 기본 900초에서 비기본 600초로 바꿨다. `run.sh`가 내보낸 `E2E_ACCESS_EXPIRES_SECONDS`가
+> compose의 `JWT_ACCESS_EXPIRES_SECONDS`와 시험의 기대값 한 출처다. JWT payload를 디코딩해 `exp - iat`가 그 값인지
+> 대조하며 서명은 재지 않는다. 거울은 로그인 뒤 수초에 끝나므로 기존 속성 제약 시험의 토큰도 만료되지 않는다. 기대값
+> 하나를 뒤집으면 한 프로브만 실패하고 복원하면 94개가 통과하는 것도 실측했다(K4).
+
 ### 11.3 E2E — Maestro
 
 범위는 Next.js 브라우저 시나리오(인증·목록·상세·쓰기·실험실)와 같고, 모바일
@@ -1008,6 +1033,29 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > (`aapt2` - expo-updates 의 `ENABLED` 가 `false`, 업데이트 주소·채널 머리글이 없고 평문 HTTP 가 켜져 있다)을
 > 단언한다. OTA 를 켠 변형의 기기 실증은 계정이 필요해 15장 9단계다. 결과는 D6 실측 O4.
 
+> 정정(2026-10-01, D7): 같은 플로를 iOS 하네스도 돈다(13장) - 플로는 두 플랫폼에서 같은 뜻이어야 한다. Maestro 2.11.0 의
+> iOS 드라이버는 `back`·`pressKey: back` 을 아무것도 하지 않고(`IOSDriver.backPress` 가 빈 구현) `setAirplaneMode` 는
+> 경고만 남긴다. 그래서 한 화면 뒤로는 `test/e2e/subflows/back.yaml`(iOS 는 머리글 뒤로 버튼의 식별자 `BackButton`),
+> Android 에만 있는 뒤로 가기(돌아갈 화면이 없는 로그인 화면 → 홈)는 `subflows/android-back.yaml` 과 플로의 iOS 갈래
+> (머리글의 "홈으로" - `back-to-home-button`, 7.3 의 D4 정정)이고, 시트는 두 플랫폼 모두 배경(`sheet-backdrop`)을 눌러 닫고, 비행기 모드 플로(`examples-offline-refetch`,
+> D4 의 `examples-delete` 에서 떼어 낸 `examples-delete-offline`)는 머리말 `# e2e-platforms: android` 로 iOS 에서 건너뛴다(같은
+> 플로 안의 Android 갈래로 두면 머리말이 선언한 상태 0 이 iOS 에서 나오지 않아 가드가 실패한다). 로캘 플로의 `launchApp` 은 iOS 의 실행 인자(`-AppleLanguages`)를
+> `arguments` 로 싣고(하네스가 넘기는 `APP_LOCALE`), `start-signed-out` 은 `clearKeychain` 도 준다(7.5 의 D2 정정 - iOS
+> 키체인의 세션은 앱을 다시 설치해도 남는다). `test/unit/e2e/flows.test.ts` 가 규칙을 소스에서 잰다. 요청 타임아웃(8.5)은
+> `E2E_CHECKS=1` 일 때 하네스가 백엔드 대신 멈춘 서버(`test/e2e/stall-server.ts`)를 같은 포트에 띄워
+> `test/e2e/checks/request-stall.yaml` 로 잰다 - 헤더 전에 멈추는 요청과 헤더 뒤 본문에서 멈추는 요청이 모두 전체 화면
+> 실패로 끝나고, 기기 로그에 `REQUEST_TIMEOUT` 둘, 서버 기록에 두 방식이 있어야 통과다. Android 의 결과는 D7 실측 기록 K1.
+
+> 정정(2026-10-01, D7): iOS 의 가드와 로캘. 하네스(`test/e2e/run-ios.sh`)가 플로마다 시뮬레이터 로그를
+> `log stream --style ndjson`(서브시스템 `com.facebook.react.log`)으로 받고 `test/e2e/ios-log.ts` 가 `adb logcat -v brief`
+> 모양으로 옮겨 Android 와 같은 `test/e2e/guard-log.sh` 에 넘긴다. React Native 0.86 의 iOS 는 JS 의 info 와 warn 을 같은
+> os_log 유형(Info)으로 남겨(`React/Base/RCTLog.mm`) 로그만으로는 경고를 가를 수 없다 - e2e 변형이 경고 수준의 줄 앞에
+> `[e2e-warn]` 을 붙이고(`platform/e2e-log.ts` 가 `nativeLoggingHook` 을 감싼다, 표식의 판단은
+> `lib/jsonapi/failure-log.ts`) 변환이 그 줄을 `W` 로 옮긴다. 루트 레이아웃이 모듈 평가 시점에 감싸므로 그보다 먼저
+> 평가된 모듈의 iOS 경고는 표식이 없다(같은 번들을 도는 Android 가 수준으로 잡는다). 로캘 플로 앞에서 하네스가 앱을
+> 다시 설치하고 키체인을 비운다(Android 의 `pm clear` 자리) - 언어는 플로의 `launchApp` 이 싣는
+> `-AppleLanguages (<태그>)` 다(위 첫 D7 정정). iOS 에서 실제로 되는지는 CI 의 첫 실행이 잰다(D7 실측 기록 K3).
+
 ### 11.4 E2E 스택
 
 - `docker-compose.e2e.yml`은 Next.js 파일에서 `web` 서비스를 뺀 것이다. 백엔드마다
@@ -1021,6 +1069,36 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
   하나로 세 백엔드를 검증한다.**
 - 백엔드 이미지는 GitHub `main`에서 빌드한다. 백엔드 `main`이 바뀐 뒤에는
   `--pull`로 다시 빌드해야 최신 코드가 검증된다(Next.js README의 교훈).
+
+> 정정(2026-10-01, D7): 띄울 백엔드는 `BACKEND_KIND`(fastapi·nestjs·rails, 기본 fastapi)가 고른다 - `test/contract/run.sh`·
+> `test/e2e/run-android.sh` 는 그 compose 프로파일을, `test/e2e/run-ios.sh` 는 `test/e2e/native-backend.sh` 를 쓴다. 13장의
+> `native-backend.sh <종류>` 는 인자가 아니라 이 변수이고, 하위 명령으로 나뉜다 - `services`(Homebrew 의 PostgreSQL 18·
+> Redis)·`fetch`(백엔드 저장소 `main`)·`prepare`(uv·pnpm·bundler)·`start`(DB 를 새로 만들어 마이그레이션 → 같은 SQL 시드 →
+> API 를 4100 에)·`stop`. DB·Redis 는 127.0.0.1 의 55432·56379 에 뜨고, 저장소·DB·로그는 이 저장소 밖(`E2E_NATIVE_DIR`,
+> 기본 `~/.cache/template-typescript-expo-e2e`)에 둔다 - lint·format·secretlint 가 백엔드 저장소를 훑지 않게. 롤·DB 이름·
+> JWT 더미·Rails 의 환경은 `docker-compose.e2e.yml` 과 같고, 세 저장소의 주소는 `native-backend.sh repo-url` 한 곳에서 나와
+> 단위 시험이 compose 의 빌드 컨텍스트와 맞댄다. iOS 앱은 `test/e2e/ios.sh build` 가 한 번 만든다 - `APP_VARIANT=e2e`·
+> `BACKEND_URL=http://localhost:4100` 을 export 해 Xcode 빌드가 `app.config.ts` 를 다시 평가하고, `ios.sh assert-app` 이
+> `.app` 의 앱 설정·`Expo.plist`·`Info.plist`(`NSAllowsLocalNetworking`)를 단언한다(Android 의 `android.sh build` 와 같은
+> 자리).
+
+> 정정(2026-10-02, D7 Mac 재현; R18 대체): Simulator e2e `.app`은 Xcode의 `Sign to Run Locally`로 만든다
+> (`CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=`). Xcode가 iOS 권한을 Mach-O의
+> `__TEXT,__entitlements`·`__ents_der`에 연결한다. R18처럼 호스트 ad-hoc 서명에 제한 권한을 넣으면 amfid가
+> 실행을 거부한다. `assert-app`은 strict/deep 무결성, 내장 XML의 앱 식별자·명시된 경우 같은 Keychain 그룹,
+> DER section의 존재·범위, 호스트 서명의 제한 권한 부재를 잰다. Keychain 기본 그룹은 내장 application-identifier다.
+> Apple 계정·인증서·프로비저닝 없이 만들며 EAS·배포·실기기 서명과 무관하다. 실제 저장·복원은 E2E가 검증한다(K3).
+>
+> 정정(2026-10-02, D7-R22b): 모든 변형은 기존 `expo-build-properties`의 `ios.enableSceneSupport: true`로
+> [Expo SDK 57의 공식 scene lifecycle 경로](https://github.com/expo/fyi/blob/main/ios-scene-lifecycle.md)를 쓴다.
+> Xcode 27 SDK로 만든 기존 AppDelegate 앱은 iOS 27의 UIKit에서 JS 전에 종료됐다. Expo의 scene delegate가
+> 창과 React Native를 시작하고 cold/warm URL 및 생명주기 이벤트를 전달한다. 의존성을 추가하지 않으며 생성된
+> 네이티브 코드가 바뀌므로 fingerprint도 바뀐다. OTA를 켠 배포 변형은 새 네이티브 빌드가 필요하다.
+
+> 정정(2026-10-02, D7-R33): iOS 하네스는 기존 기기의 runtime/type만 읽어 전용 기기를 새로 만든다.
+> 앱이 쓰지 않는 서비스의 기기별 launchd override와 자동완성/링크 승인 설정을 준비한 뒤 한 번 재부팅하고
+> 실제 적용 값을 검사한다. 기존 사용자 기기와 host 서비스는 바꾸지 않으며 EXIT에서 자기 기기를 삭제한다.
+> 허용 목록·자원 실측·시험 범위는 `test/e2e/AGENTS.md`와 K3에 둔다. 앱 기능·시간·재시도·단언은 그대로다.
 
 ## 12. 검증 게이트
 
@@ -1085,6 +1163,15 @@ iOS 시뮬레이터 로그)를 모은다. JS 오류·경고가 있으면 실패�
 > 어긋난 것처럼 보인다. 사본을 만들고 지우는 것까지 여덟 평가가 이 개발 머신에서 10초 안팎이고, 설정에 어긋남을 넣으면 그
 > 자리를 알리며 멈춘다(D6 실측 O3).
 
+> 정정(2026-10-01, D7): `./scripts/check.sh --static` 은 정적 단계 [1]–[11] 만 돌고 "정적 단계 [1]–[11] 통과 (--static)" 로
+> 끝난다 - CI 의 checks 잡이 부른다(13장). 인자로만 켜고 모르는 인자는 exit 2 다 - 셸에 남은 환경 변수가 로컬 게이트를
+> 조용히 줄이지 않는다. 인자 없는 게이트는 13단계 그대로다. [12]·[13] 이 띄우는 백엔드는 `BACKEND_KIND`(fastapi·nestjs·
+> rails, 기본 fastapi)가 고르고, Next.js 에서 원본 그대로 복사한 `test/e2e/matrix.ts` 의 `backendKind()` 가 도커를 건드리기
+> 전에 검증한다 - compose 는 모르는 프로파일을 오류 없이 부분 스택으로 푼다. 게이트는 그 변수를 주지 않는다(FastAPI). E2E
+> 단계에 `E2E_CHECKS=1` 을 주면 플로 뒤에 멈춘 서버 확인(11.3 의 D7 정정)을 더 돈다 - 게이트는 주지 않는다. E2E 단계는
+> 플로마다 가드 뒤에 앱의 요청 수(D4 실측 W2–W4 - 쓰기마다 회전, 돌아온 목록의 재조회, 두 번 누른 제출의 요청 하나)를 그
+> 플로의 접근 로그에서 단언한다(`test/e2e/request-counts.ts` - FastAPI 의 접근 로그만 센다).
+
 ## 13. CI (GitHub Actions)
 
 ```text
@@ -1104,6 +1191,22 @@ e2e-ios × 3       macOS    백엔드를 네이티브로 실행 → Maestro
   남긴다.
 - macOS 러너 시간은 공개 저장소에서는 무료이고 비공개 저장소에서는 10배로
   계산된다. 저장소 공개 범위는 생성할 때 사용자에게 확인한다(15장 8단계).
+
+> 정정(2026-10-01, D7): CI 는 `.github/workflows/ci.yml` 하나다. 모든 브랜치의 push 와 pull request 에서 돌고(`docs/` 만
+> 바꾼 커밋은 돌지 않고, 같은 브랜치의 앞 실행은 새 실행이 취소한다), 권한은 `contents: read` 이고 비밀 값을 쓰지 않는다. 잡이 하는 일의 정본은 스크립트다 - `checks` 는
+> `./scripts/check.sh --static`(12장의 D7 정정)과 actionlint 1.7.12, `build-android` 는 `test/e2e/android.sh build`(APK 의
+> 변형·OTA 단언, D6 JVM 4GiB/1GiB·빈 캐시 두 단계와 둘째 UP-TO-DATE 기계 단언 포함 - 공개 ubuntu RAM 16GB, Kotlin 힙도 고려, 부족하면 측정·컨트롤러 보고), `e2e-android` 는 백엔드마다 `test/contract/run.sh` → `test/e2e/run-android.sh`(받은 APK 를
+> `E2E_APK` 로 - API 36 Google Play 이미지·`pixel_7`, 로컬 AVD 와 같은 이미지·폭), `build-ios` 는 `test/e2e/ios.sh build`
+> (러너 `macos-26`, Xcode 26.6 명시), `e2e-ios` 는 `test/e2e/native-backend.sh`(11.4 의 D7 정정) → `test/e2e/run-ios.sh`(받은
+> `.app` 을 `E2E_APP` 으로, 가장 새 iOS 런타임의 iPhone)다. E2E 잡은 `checks` 를 기다리지 않는다. 캐시는 pnpm·Gradle·
+> CocoaPods·AVD 스냅샷·Ruby 젬·uv 이고, 아티팩트는 앱 둘(7일)과 갈래마다의 `.maestro-output/e2e`·iOS 백엔드 로그·iOS
+> 빌드 기록(14일)이다. Maestro 는 `test/e2e/install-maestro.sh` 가 2.11.0 을 체크섬으로 확인해 푼다. 멈춘 서버 확인
+> (`E2E_CHECKS=1`)은 fastapi 갈래 둘이 켠다. 재시도는 0 이고, 실패한 잡을 코드 변경 없이 다시 돌리지 않는다.
+
+> 정정(2026-10-02, D7): 13장의 매트릭스가 처음 모두 초록이 된 실행은
+> [36950704982](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982)(커밋 `53e3134`)다.
+> 첫 실행부터 그 실행까지 무엇이 왜 실패했고 무엇을 고쳤는지, 칸별 결과와 시간은
+> `docs/superpowers/notes/2026-10-01-d7-measurements.md`의 K3에 있다.
 
 ## 14. 문서
 
@@ -1230,6 +1333,31 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > D9)는 prebuild 기본값(512MiB)을 쓴다 - 같은 OOM 을 만나면 넓은 고침은 `withGradleProperties` 설정 플러그인이고,
 > 이 고침은 fingerprint 를 바꾼다. 근거와 레시피 유지 조건은 D6 실측 O4.
 
+> 정정(2026-10-01, D7): 리스크 넷을 더한다. (1) Maestro 2.11.0 의 iOS 드라이버는 `back`·`pressKey: back`·
+> `setAirplaneMode` 를 조용히 무시한다 - 플로가 엉뚱한 화면에서 단언한다. 대응은 서브플로·머리말과 소스 시험(11.3 의 첫
+> D7 정정)이고, 머리글 뒤로 버튼의 식별자(`BackButton`)는 CI 의 첫 실행이 잰다. (2) iOS 가드의 재료인 시뮬레이터 로그는
+> 스트림으로만 온다(info 수준은 저장되지 않는다) - 붙기 전과 끊은 뒤의 줄을 잃을 수 있어 하네스가 붙은 뒤 2초, 끊기 전
+> 2초를 둔다. 줄을 잃으면 가드의 "선언했는데 없다" 로 드러난다(재시도로 덮지 않는다). (3) macOS 러너의 Xcode·iOS
+> 런타임은 GitHub 이 바꾼다 - Xcode 26.6은 명시하지만 러너 라벨(`macos-26`)에서 설치된 판이나 시뮬레이터 이름이 갈릴 수
+> 있다. `build-ios` 가 판을 로그에 남긴다(`xcodebuild -version`·`xcrun simctl list runtimes`). 표의 "iOS 매트릭스의
+> 네이티브 백엔드 구동은 CI에서만 검증된다" 의 대응(처음 통과할 때까지 CI 를 반복해 돌린다)은 코드를 고쳐 새 실행을 만드는
+> 것이다 - 같은 코드로 다시 돌리지 않는다(D7 실측 기록 K3). (4) macOS 러너와 Mac 의 기본 bash 는 3.2 다 - macOS 에서 도는
+> 스크립트는 그 구문만 쓴다(`.github/workflows/AGENTS.md`).
+
+> 정정(2026-10-02, D7 실측 K3, 컨트롤러 D7-R15): Android 16에서 Expo splash의 앱 전송이 2초 제한을 넘으면
+> 성공 경로의 starting-window 애니메이션 취소를 거치지 않아 `starting_reveal`이 남을 수 있다. 실행 2의 FastAPI·Rails
+> 로그에서 전송 timeout state 2와 같은 MainActivity의 반복된 5초 애니메이션 대기가 확인됐고 문자 입력은 Maestro의
+> 120초 RPC 제한으로 실패했다. `with-android-splash-exit.ts`가 등록 직후·`super.onCreate` 전에 API 31 이상에서
+> `splashScreen.clearOnExitAnimationListener()`를 호출해 시스템 기본 exit를 쓴다. Expo의 splash 유지·hide 프리드로우
+> 게이트와 iOS는 보존하지만 Android의 400ms fade를 포기한다. 생성 앵커가 바뀌면 prebuild가 오류로 멈춘다. 로컬에서
+> 자연 재현되지 않은 한계는 남는다. K3의 실행 3에서는 Android 세 셀이 모두 통과했고 splash 전송 timeout과
+> `starting_reveal` timeout은 0건이었다.
+
+> 정정(2026-10-02, D7-R22b): Xcode 27 SDK의 scene lifecycle 필수화로 SDK 57의 기본 AppDelegate 앱은 iOS 27에서
+> JS 시작 전에 SIGTRAP으로 종료된다. 11.4의 공식 Expo opt-in으로 대응하며 native fingerprint가 바뀐다.
+> SDK 58 이상으로 올릴 때 해당 opt-in은 불필요해지므로 제거를 검토한다([Expo 안내](https://github.com/expo/fyi/blob/main/ios-scene-lifecycle.md)).
+> CI의 두 iOS 잡은 재현성을 위해 Xcode 26.6의 `DEVELOPER_DIR`를 명시한다. 로컬 Mac 재현은 27.0이며 판별 증거는 K3다.
+
 ## 17. 완료 조건
 
 1. 로컬 게이트(`./scripts/check.sh`)가 개발 머신(Windows)에서 통과한다.
@@ -1237,3 +1365,8 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 3. 같은 앱 코드가 어댑터 없이 세 백엔드 모두에서 통과한다.
 4. 복사 출처 기록이 있고 게이트가 그것을 검사한다.
 5. README와 계층별 `AGENTS.md` 문서군이 실제 파일과 일치한다.
+
+> 정정(2026-10-02, D7): 조건2의 칸은 `checks`·`e2e-android` 셋·`e2e-ios` 셋에 앱을 한 번 만드는
+> `build-android`·`build-ios`를 더한 아홉이다. [36950704982](https://github.com/builder-shin/template-typescript-expo/actions/runs/36950704982)
+> (커밋 `53e3134`)에서 모두 초록이었다(D7 실측 기록 K3). 조건3(같은 앱 코드가 어댑터 없이 세 백엔드 모두에서 통과)도
+> 그 실행이 보였다. 조건1·5는 D8이 닫는다.

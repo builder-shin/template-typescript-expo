@@ -53,19 +53,19 @@
 
 ## 파일
 
-| 파일                 | 역할                                                                             |
-| -------------------- | -------------------------------------------------------------------------------- |
-| `tokens.ts`          | (복사) access 만료 시각, 60초 여유 판정                                          |
-| `credentials.ts`     | (복사·수정) 가입·로그인 요청과 해석, 가입 뒤 로그인                              |
-| `flow.ts`            | (복사) 복귀 경로 검사(`safeRedirectTarget`), 폼 오류 상태, 로그인·가입 뒤의 결정 |
-| `form-state.ts`      | (복사·수정) 폼 입력 이름과 상태, 쓸 수 없는 응답의 문구                          |
-| `logout.ts`          | (복사·수정) 기기 쪽을 먼저 비우고 refresh 폐기를 요청                            |
-| `rotation.ts`        | (복사·수정) 회전 요청과 응답 해석                                                |
-| `protected-paths.ts` | 보호 경로 목록 하나와 로그인 주소, 앱 셸이 대조할 라우트 모양(`routePattern`)    |
-| `guard-latch.ts`     | 경로 가드의 판단 - 로그아웃 중과 직후에는 보내지 않는다                          |
-| `session-store.ts`   | 저장 모양(항목 하나의 JSON)과 복원 판단                                          |
-| `session-manager.ts` | 회전의 유일한 자리, 세션 상태와 구독                                             |
-| `error-detail.ts`    | 거절을 남기는 로그 한 줄 - 오류는 "이름: 문구", 그 밖의 값은 종류(`typeof`)만    |
+| 파일                 | 역할                                                                                |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| `tokens.ts`          | (복사) access 만료 시각, 60초 여유 판정                                             |
+| `credentials.ts`     | (복사·수정) 가입·로그인 요청과 해석, 가입 뒤 로그인                                 |
+| `flow.ts`            | (복사) 복귀 경로 검사(`safeRedirectTarget`), 폼 오류 상태, 로그인·가입 뒤의 결정    |
+| `form-state.ts`      | (복사·수정) 폼 입력 이름과 상태, 쓸 수 없는 응답의 문구                             |
+| `logout.ts`          | (복사·수정) 기기 쪽을 먼저 비우고 refresh 폐기를 요청                               |
+| `rotation.ts`        | (복사·수정) 회전 요청과 응답 해석                                                   |
+| `protected-paths.ts` | 보호 경로 목록 하나와 로그인 주소, 앱 셸이 대조할 라우트 모양(`routePattern`)       |
+| `guard-latch.ts`     | 경로 가드의 판단 - 로그아웃 중 이동 억제와 내비게이터 준비 중 첫 로그인 목적지 유지 |
+| `session-store.ts`   | 저장 모양(항목 하나의 JSON)과 복원 판단                                             |
+| `session-manager.ts` | 회전의 유일한 자리, 세션 상태와 구독                                                |
+| `error-detail.ts`    | 거절을 남기는 로그 한 줄 - 오류는 "이름: 문구", 그 밖의 값은 종류(`typeof`)만       |
 
 (복사) 표시 파일은 `template-typescript-nextjs`에서 복사했다. 출처와 이탈은
 `docs/provenance/copied-core.json`이다. 그 주석의 "쿠키"·"proxy.ts"·"Server Action" 같은 자리는

@@ -31,6 +31,7 @@ appId: com.example.templateexpo.e2e
 # 세션을 막지 않는다. 누구로 로그인했는지 그리는 화면은 없다(스펙 7.4 - 헤더는 로그아웃 버튼만).
 # 중첩 runFlow 의 env 범위에 기대지 않으려고 공통 단계를 풀어 쓴다.
 - openLink: templateexpo-e2e://register
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: register-screen

@@ -5,13 +5,17 @@
 # 싣는 한 자리(platform/api.ts)를 지난다. 헤더가 빠지면 백엔드가 ko 로 떨어져 여기서 실패한다.
 appId: com.example.templateexpo.e2e
 ---
-# clearState 를 쓰지 않는다 - 하네스가 정한 앱별 언어가 지워진다(D1 실측 M3).
-- launchApp
+# clearState 를 쓰지 않는다 - 하네스가 정한 앱별 언어가 지워진다(D1 실측 M3). iOS 는 앱별 언어 대신 실행 인자로
+# 언어를 건다(하네스가 넘기는 APP_LOCALE - Android 는 이 인자를 쓰지 않는다).
+- launchApp:
+    arguments:
+      AppleLanguages: '(${APP_LOCALE})'
 - extendedWaitUntil:
     visible:
       id: home-screen
     timeout: 30000
 - openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bprobe%5D=probe-d3
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: form-banner-message

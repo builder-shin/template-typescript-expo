@@ -1,0 +1,10 @@
+# Android 의 하드웨어 뒤로 가기 - iOS 에는 없다. 돌아갈 화면이 없는 화면(가드가 보낸 로그인 화면)의 뒤로 가기처럼
+# Android 에만 있는 동작을 잴 때 부른다. iOS 에서 같은 자리로 가는 단계는 부르는 플로가 `when: platform: iOS` 로
+# 따로 적는다. 한 화면 뒤로는 back.yaml 이다.
+appId: com.example.templateexpo.e2e
+---
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back

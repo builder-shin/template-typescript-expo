@@ -20,6 +20,7 @@
 | `lib/navigation/`      | 밖에서 들어온 URL·딥링크를 앱 안 주소로 바꾸는 정규화, 화면을 쌓는 이동을 한 번만 하는 가드(`once.ts`)               | 화면, fetch, 네이티브 모듈                |
 | `lib/updates/`         | 빌드 정보 카드의 판단 - 카드의 행, 업데이트 확인의 순서와 문구                                                       | 네이티브 모듈, 화면                       |
 | `platform/`            | SecureStore·로캘·AppState·NetInfo·Updates·Constants 호출, React Provider, API 클라이언트 조립                        | 판단                                      |
+| `plugins/`             | 생성된 네이티브 프로젝트 파일을 고치는 Expo 설정 플러그인                                                            | 판단, 화면, 네트워크                      |
 | `queries/`             | 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화                                                                                | JSX, 쿼리 문자열 조립                     |
 | `app/`                 | 화면, 라우팅, 가드 배치                                                                                              | fetch, `request()` 호출, 쿼리 문자열 조립 |
 | `components/ui/`       | React Native Reusables 복사본                                                                                        | 자원 이름, fetch, 세션                    |
@@ -130,14 +131,17 @@ pnpm install --frozen-lockfile
 
 `./scripts/check.sh` 하나가 유일한 게이트다(typecheck · lint · format · secretlint · 인용 ·
 복사 출처 · unit · 설정 · 의존성 호환 · 번들 · compose · 계약 거울 · E2E). 전제 조건(Docker, 네트워크,
-Android SDK·Maestro·에뮬레이터)은 그 파일 머리말에 있다. Windows에서는 Git Bash에서
+Android SDK·Maestro·에뮬레이터)은 그 파일 머리말에 있다. 정적 단계 [1]–[11] 만은
+`./scripts/check.sh --static`이다(CI 의 checks 잡이 부른다 - 통과해도 게이트 통과가 아니다). Windows에서는 Git Bash에서
 `./scripts/check.sh`로 돌린다 - `package.json`의 `check` 스크립트(`pnpm check`)는 pnpm이 cmd.exe로
 돌려 `./`를 못 찾고 실패한다. 실행 권한이 살아 있어야 통과한다 - `git ls-tree HEAD scripts/ test/e2e/ test/contract/`에서
 `scripts/check.sh`·`scripts/check-citations.sh`·`test/e2e/android.sh`·`test/e2e/run-android.sh`·
-`test/e2e/guard-log.sh`·`test/contract/run.sh` 여섯이 `100755`인지 확인한다(`scripts/check-provenance.mjs`·
+`test/e2e/guard-log.sh`·`test/contract/run.sh`·`test/e2e/run-ios.sh`·`test/e2e/ios.sh`·
+`test/e2e/native-backend.sh`·`test/e2e/install-maestro.sh` 열이 `100755`인지 확인한다(`scripts/check-provenance.mjs`·
 `scripts/check-variant-config.mjs`는 `node`가 부르므로 `100644`가 맞다). `core.filemode=false`인 머신에서는 권한이 빠져도 `git status`로 드러나지
 않는다. E2E 플로를 쓰는 규칙과 하네스의 환경 변수는 `test/e2e/AGENTS.md`에, 계약 거울의 규칙과 돌리는 법은
-`test/contract/AGENTS.md`에 있다.
+`test/contract/AGENTS.md`에 있다. CI(`checks`, 세 백엔드 × Android·iOS)는 `.github/workflows/ci.yml`이고, 잡마다
+무엇을 부르는지는 `.github/workflows/AGENTS.md`에 있다.
 
 설정 단계 [8]은 네 변형을 EAS 프로젝트가 없을 때와 있을 때(가짜 id)로 평가해, 설정 플러그인이 네이티브 설정으로
 옮길 값(`expo config --type introspect`)이 변형 표·OTA 판단(`lib/config/`)과 같은지 `scripts/check-variant-config.mjs`로
@@ -174,3 +178,5 @@ secretlint 단계는 `pnpm lint:secrets`다. 스크립트 이름을 `secretlint`
 `docs/superpowers/notes/2026-10-01-d5-measurements.md`에 있다.
 EAS·OTA 설정의 변형별 검증, 설정이 다르면 fingerprint runtime version 이 갈리는 것, 빌드 정보 카드(D6 실측 O1–O4)는
 `docs/superpowers/notes/2026-10-01-d6-measurements.md`에 있다.
+세 백엔드의 계약 거울, 멈춘 서버로 잰 요청 타임아웃, 360dp 의 날짜 자리표시자, CI 매트릭스의 첫 실행, 쓰기 갈림과 access token 수명(D7 실측 K1–K4)은
+`docs/superpowers/notes/2026-10-01-d7-measurements.md`에 있다.

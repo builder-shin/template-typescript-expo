@@ -18,6 +18,7 @@ appId: com.example.templateexpo.e2e
       STEP: account
 # 이 실행만의 행을 보는 목록 - 아직 비어 있다.
 - openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=${output.prefix}
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: list-empty
@@ -29,7 +30,16 @@ appId: com.example.templateexpo.e2e
     visible:
       id: login-screen
     timeout: 15000
-- pressKey: back
+# 돌아갈 화면이 없는 로그인 화면의 뒤로 가기는 Android 에만 있다(components/app/back-to-home.ts 의 BackHandler). iOS
+# 에는 하드웨어 뒤로 가기도, 스택의 바닥이라 머리글의 뒤로 버튼도 없다 - 머리글의 "홈으로"(components/app/home-button.tsx)를
+# 누른다. 그 버튼은 두 플랫폼에 다 있다 - Android 는 examples-delete 가 잰다.
+- runFlow: ../subflows/android-back.yaml
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          id: back-to-home-button
 - extendedWaitUntil:
     visible:
       id: home-screen
@@ -39,6 +49,7 @@ appId: com.example.templateexpo.e2e
 # subflows/login.yaml 을 부르지 않고 같은 단계를 풀어 쓴다 - 그 서브플로는 제출을 한 번 누르고, 여기서는 두 번 누른다. 로그인이
 # 끝난 뒤에 닿은 둘째 누름은 홈의 빌드 정보 카드(버전·변형 행 사이)다 - OTA 를 끈 e2e 빌드의 카드에는 누를 것이 없다.
 - openLink: templateexpo-e2e://login
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: login-screen
@@ -49,6 +60,8 @@ appId: com.example.templateexpo.e2e
 - tapOn:
     id: password-input
 - inputText: ${PASSWORD}
+# K3에서 두 번 누른 좌표를 이동 뒤 화면과 맞댈 수 있도록 두 화면을 보존한다.
+- takeScreenshot: d7-login-before
 - tapOn:
     id: submit-button
     repeat: 2
@@ -57,7 +70,9 @@ appId: com.example.templateexpo.e2e
     visible:
       id: logout-button
     timeout: 20000
+- takeScreenshot: d7-login-after
 - openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=${output.prefix}
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: list-empty
@@ -107,11 +122,25 @@ appId: com.example.templateexpo.e2e
 - tapOn:
     id: relationship-option-category
     text: 프로브 분류 하나
-- extendedWaitUntil:
-    visible:
-      id: relationship-value-category-0
-      text: 프로브 분류 하나
-    timeout: 10000
+# iOS는 접근성 버튼이 자식 배지를 묶는다. 실제 선택은 버튼의 accessibilityValue로 읽는다(K3 실행 3).
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: relationship-value-category-0
+            text: 프로브 분류 하나
+          timeout: 10000
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: relationship-open-category
+            text: 프로브 분류 하나
+          timeout: 10000
 # 태그 둘 - 씨앗 id 의 반대 순서로 고른다. 폼은 고른 순서 그대로 그린다.
 - scrollUntilVisible:
     element:
@@ -132,12 +161,23 @@ appId: com.example.templateexpo.e2e
     text: 프로브 라벨 하나
 - tapOn:
     id: relationship-done-tags
-- assertVisible:
-    id: relationship-value-tags-0
-    text: 프로브 라벨 둘
-- assertVisible:
-    id: relationship-value-tags-1
-    text: 프로브 라벨 하나
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible:
+          id: relationship-value-tags-0
+          text: 프로브 라벨 둘
+      - assertVisible:
+          id: relationship-value-tags-1
+          text: 프로브 라벨 하나
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: relationship-open-tags
+          text: '프로브 라벨 둘, 프로브 라벨 하나'
 - scrollUntilVisible:
     element:
       id: submit-button
@@ -172,7 +212,7 @@ appId: com.example.templateexpo.e2e
     id: detail-badge-tags-1
     text: 프로브 라벨 둘
 # 생성은 상세로 바꿔 들어갔다 - 뒤로 가면 온 목록이다. 비어 있던 그 목록이 다시 불려 새 행을 그린다.
-- pressKey: back
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       id: resource-row-title
@@ -187,7 +227,7 @@ appId: com.example.templateexpo.e2e
     visible:
       id: resource-form
     timeout: 20000
-- pressKey: back
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       id: resource-row-title

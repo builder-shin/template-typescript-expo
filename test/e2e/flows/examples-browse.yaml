@@ -11,13 +11,14 @@ appId: com.example.templateexpo.e2e
     visible:
       id: resource-list
     timeout: 20000
-- back
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       id: home-screen
     timeout: 10000
 # 딥링크가 조건을 그대로 재현한다 - 제목 순서(sort=title)의 씨앗 여섯 건.
 - openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=probe-seed&sort=title
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: resource-row-title
@@ -32,9 +33,29 @@ appId: com.example.templateexpo.e2e
     below:
       text: probe-seed bravo
 # 관계 배지(분류·태그)와 UTC 시각 - alpha 는 2026-04-06T05:06:07+00:00 에 만들어졌다.
-- assertVisible: 프로브 분류 하나
-- assertVisible: 프로브 라벨 둘
-- assertVisible: 2026-04-06 05:06
+# UIKit이 행 버튼의 배지·시각을 하나의 접근성 라벨로 묶는다. 행 ID와 실제 값을 함께 잰다.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible: 프로브 분류 하나
+      - assertVisible: 프로브 라벨 둘
+      - assertVisible: 2026-04-06 05:06
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: resource-row
+          text: '^probe-seed bravo, .*분류, 프로브 분류 하나,.*'
+      - assertVisible:
+          id: resource-row
+          # JSON:API linkage 배열은 순서를 보장하지 않는다. K3의 NestJS 목록은 둘·하나, tags 단독 조회는 하나·둘이었다.
+          # 두 정확한 멤버/각 한 번만 허용한다(D7-R26). 폼의 선택 순서와 앱의 응답 순서 보존은 별도로 유지한다.
+          text: '^probe-seed charlie, 상태, 보관, 점수, 0, 생성, 2026-04-05 05:06, 분류, 프로브 분류 둘, 태그, (프로브 라벨 하나, 프로브 라벨 둘|프로브 라벨 둘, 프로브 라벨 하나)$'
+      - assertVisible:
+          id: resource-row
+          text: '^probe-seed alpha, .*생성, 2026-04-06 05:06,.*'
 # 상세 - 목록에 없는 설명(여러 줄)과 수정 시각까지 그린다.
 - tapOn:
     id: resource-row-title
@@ -56,9 +77,13 @@ appId: com.example.templateexpo.e2e
 - assertVisible:
     id: detail-value-updatedAt
     text: 2026-04-15 01:02
-- assertVisible: 프로브 분류 하나
-- assertVisible: 프로브 라벨 하나
-- back
+- assertVisible:
+    id: detail-badge-category-0
+    text: 프로브 분류 하나
+- assertVisible:
+    id: detail-badge-tags-0
+    text: 프로브 라벨 하나
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       id: resource-row-title
@@ -69,7 +94,7 @@ appId: com.example.templateexpo.e2e
 # 과녁 `<접두사> 가+나&다=라#마` 와 미끼 셋. 미끼는 값이 & 에서 잘리면(`가+나`), + 가 공백이 되면
 # (`가 나&다=라#마`), # 에서 잘리면(`가+나&다=라`) 필터에 걸린다 - 값이 그대로 백엔드에 닿아야 과녁만 남는다.
 # 단언의 text 는 정규식이라 + 를 \+ 로 적는다.
-- back
+- runFlow: ../subflows/back.yaml
 - extendedWaitUntil:
     visible:
       id: home-screen
@@ -102,6 +127,7 @@ appId: com.example.templateexpo.e2e
 # 값: `<접두사> 가+나&다=라#마` - 공백 %20, 가 %EA%B0%80, + %2B, 나 %EB%82%98, & %26, 다 %EB%8B%A4,
 # = %3D, 라 %EB%9D%BC, # %23, 마 %EB%A7%88.
 - openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=${output.prefix}%20%EA%B0%80%2B%EB%82%98%26%EB%8B%A4%3D%EB%9D%BC%23%EB%A7%88
+- runFlow: ../subflows/confirm-ios-open-link.yaml
 - extendedWaitUntil:
     visible:
       id: resource-row-title
@@ -126,8 +152,9 @@ appId: com.example.templateexpo.e2e
 - assertVisible:
     id: filter-input-title-contains
     text: '${output.prefix} 가\+나&다=라#마'
-# 뒤로 가기는 시트만 닫는다(키보드가 없다 - 칸을 누르지 않았다).
-- back
+# 시트의 배경을 누르면 시트만 닫힌다 - 두 플랫폼이 같은 길이다(iOS 에는 뒤로 가기가 없다).
+- tapOn:
+    id: sheet-backdrop
 - extendedWaitUntil:
     notVisible:
       id: filter-sheet

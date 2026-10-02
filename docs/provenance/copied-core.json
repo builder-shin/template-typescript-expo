@@ -54,9 +54,11 @@
     "lib/lab/experiments.ts",
     "lib/lab/result.ts",
     "test/unit/lab/experiments.test.ts",
-    "test/unit/lab/result.test.ts"
+    "test/unit/lab/result.test.ts",
+    "test/e2e/matrix.ts",
+    "test/unit/e2e/matrix.test.ts"
   ],
-  "note": "복사본이다. 원본에서 계약 버그가 고쳐지면 이 커밋과 원본을 비교해 반영 여부를 판단한다. 개별 이탈은 divergences 배열에 기록한다(스펙 6.3). 복사본의 주석이 말하는 '스펙'·'D2 Task N'·'proxy.ts' 같은 자리는 원본 저장소의 것이다. scripts/check-citations.sh 머리말의 게이트 단계 번호 '[5/9]' 도 원본 게이트의 번호다(이 저장소의 게이트에서는 [5/13]). 같은 머리말이 계약이 적혀 있다고 가리키는 '루트 AGENTS.md 의 R21 절'도 원본 저장소의 것이고 이 저장소의 루트 AGENTS.md 에는 없다(이 저장소에서 그 계약은 '사라질 자리를 인용하지 마라' 절이다). test/unit/scripts/check-citations.test.ts 의 toPosix 주석은 원본의 실측 문장(계정 이름이 든 예시 경로)을 그대로 둔 것이다. 복사한 시드 파일과 시드 시험도 원본 저장소의 것을 가리킨다 - 원본의 web 서비스와 TZ, test/e2e/*.spec.ts, 원본 루트 AGENTS.md 의 문장은 이 저장소에 없다. sourceBlobs 는 원본 그대로인 경로마다 원본 커밋의 blob SHA-1 이다(git -C <원본> rev-parse <commit>:<경로>) - 그 파일을 고치면 divergences 에 적고 sourceBlobs 에서 항목을 지운다. lib/resources/view.ts 의 주석이 말하는 page.tsx·RSC·headers()·app/error.tsx·filter-bar.tsx·loading.tsx·'Task N' 같은 자리도 원본 저장소의 것이다. lib/jsonapi/query.ts 의 주석이 가리키는 view.ts 의 쪽 이동(paginationView)은 이 저장소의 view.ts 에서 뺐다 - 목록은 커서다(스펙 8.3). lib/resources/form.ts 의 주석이 말하는 Server Action·app/(app)/examples/actions.ts·useActionState·<select>·체크박스·'Task N'·'계획서 §N'·view.ts 의 줄 번호도 원본 저장소의 것이다. lib/lab/ 의 experiments.ts·result.ts 는 원본의 app/(lab)/contract/ 에서, 그 시험 둘(test/unit/lab/experiments.test.ts·result.test.ts)은 원본의 test/unit/app/contract-experiments.test.ts·contract-result.test.ts 에서 옮겼다 - 이 저장소의 app/ 에는 라우트 파일만 둔다(스펙 4장). result.ts 는 옮긴 자리만 다르고 내용이 원본과 같아서 sourceBlobs 의 값이 원본 경로(app/(lab)/contract/result.ts)의 blob 이다. 그 파일들의 주석이 말하는 actions.ts·runExperiment·'use server'·page.tsx·result-view.tsx·useActionState·test/e2e/contract-lab.spec.ts·test/unit/components/contract-result.test.ts·브리핑·판정 N·스펙 8.5 도 원본 저장소의 것이다 - 이 저장소에서 실험의 실행부는 lib/lab/run.ts, 화면은 app/(lab)/contract.tsx 와 components/lab/experiment-card.tsx, E2E 는 test/e2e/flows/contract-lab-*.yaml 이다. lib/resources/mirror.ts 와 그 시험(test/unit/resources/mirror.test.ts)의 주석이 가리키는 test/e2e/mirror.spec.ts 와 'Task 2' 도 원본 저장소의 것이다 - 이 저장소에서 프로브를 들고 실제 백엔드를 치는 자리는 test/contract/mirror.test.ts 다(게이트 [12/13]).",
+  "note": "복사본이다. 원본에서 계약 버그가 고쳐지면 이 커밋과 원본을 비교해 반영 여부를 판단한다. 개별 이탈은 divergences 배열에 기록한다(스펙 6.3). 복사본의 주석이 말하는 '스펙'·'D2 Task N'·'proxy.ts' 같은 자리는 원본 저장소의 것이다. scripts/check-citations.sh 머리말의 게이트 단계 번호 '[5/9]' 도 원본 게이트의 번호다(이 저장소의 게이트에서는 [5/13]). 같은 머리말이 계약이 적혀 있다고 가리키는 '루트 AGENTS.md 의 R21 절'도 원본 저장소의 것이고 이 저장소의 루트 AGENTS.md 에는 없다(이 저장소에서 그 계약은 '사라질 자리를 인용하지 마라' 절이다). test/unit/scripts/check-citations.test.ts 의 toPosix 주석은 원본의 실측 문장(계정 이름이 든 예시 경로)을 그대로 둔 것이다. 복사한 시드 파일과 시드 시험도 원본 저장소의 것을 가리킨다 - 원본의 web 서비스와 TZ, test/e2e/*.spec.ts, 원본 루트 AGENTS.md 의 문장은 이 저장소에 없다. sourceBlobs 는 원본 그대로인 경로마다 원본 커밋의 blob SHA-1 이다(git -C <원본> rev-parse <commit>:<경로>) - 그 파일을 고치면 divergences 에 적고 sourceBlobs 에서 항목을 지운다. lib/resources/view.ts 의 주석이 말하는 page.tsx·RSC·headers()·app/error.tsx·filter-bar.tsx·loading.tsx·'Task N' 같은 자리도 원본 저장소의 것이다. lib/jsonapi/query.ts 의 주석이 가리키는 view.ts 의 쪽 이동(paginationView)은 이 저장소의 view.ts 에서 뺐다 - 목록은 커서다(스펙 8.3). lib/resources/form.ts 의 주석이 말하는 Server Action·app/(app)/examples/actions.ts·useActionState·<select>·체크박스·'Task N'·'계획서 §N'·view.ts 의 줄 번호도 원본 저장소의 것이다. lib/lab/ 의 experiments.ts·result.ts 는 원본의 app/(lab)/contract/ 에서, 그 시험 둘(test/unit/lab/experiments.test.ts·result.test.ts)은 원본의 test/unit/app/contract-experiments.test.ts·contract-result.test.ts 에서 옮겼다 - 이 저장소의 app/ 에는 라우트 파일만 둔다(스펙 4장). result.ts 는 옮긴 자리만 다르고 내용이 원본과 같아서 sourceBlobs 의 값이 원본 경로(app/(lab)/contract/result.ts)의 blob 이다. 그 파일들의 주석이 말하는 actions.ts·runExperiment·'use server'·page.tsx·result-view.tsx·useActionState·test/e2e/contract-lab.spec.ts·test/unit/components/contract-result.test.ts·브리핑·판정 N·스펙 8.5 도 원본 저장소의 것이다 - 이 저장소에서 실험의 실행부는 lib/lab/run.ts, 화면은 app/(lab)/contract.tsx 와 components/lab/experiment-card.tsx, E2E 는 test/e2e/flows/contract-lab-*.yaml 이다. lib/resources/mirror.ts 와 그 시험(test/unit/resources/mirror.test.ts)의 주석이 가리키는 test/e2e/mirror.spec.ts 와 'Task 2' 도 원본 저장소의 것이다 - 이 저장소에서 프로브를 들고 실제 백엔드를 치는 자리는 test/contract/mirror.test.ts 다(게이트 [12/13]). test/e2e/matrix.ts 의 주석이 말하는 stack.ts·global-setup.ts·test.fail·Playwright·\"D5 Task 5\" 도 원본 저장소의 것이다 - 이 저장소에서는 하네스 스크립트가 도커·기기를 건드리기 전에 backendKind() 를 부르고 스택을 띄울 때 reportKnownDivergences() 를 찍는다(test/e2e/AGENTS.md 의 \"백엔드 매트릭스\").",
   "divergences": [
     {
       "path": "lib/config/settings.ts",
@@ -214,6 +216,11 @@
       "why": "스펙 11.1 - 이 앱에는 컴포넌트 시험이 없어서 원본이 컴포넌트와 화면 파일에 두던 판단을 lib 에 두고 test/unit/resources/form-expo.test.ts 가 잰다. 참조 조회의 실패는 목록·상세처럼 lib/resources/screen-state.ts 의 referenceState 가 정한다(이 저장소의 새 파일)."
     },
     {
+      "path": "lib/resources/form.ts",
+      "what": "relationshipWireValue 의 중복 태그 id 주석을 2026-10-02 실측으로 고쳤다 - 세 백엔드 모두 400 으로 거절하고 NestJS 는 예전에 중복을 조용히 제거했다고 적었다. docs/superpowers/notes/2026-10-01-d7-measurements.md 의 K4 를 근거로 가리키며, 보내기 전에 중복을 제거하는 이유와 코드는 그대로다.",
+      "why": "D7 K4 가 세 백엔드 모두 중복 태그 id 를 400 으로 거절한다고 쟀다. 원본의 NestJS 만 조용히 제거한다는 문장은 그 실측보다 앞선 기록이어서 현재 사실로 읽히지 않게 고쳤다."
+    },
+    {
       "path": "test/unit/resources/form.test.ts",
       "what": "readFormValues describe(8개)와 그 도우미 probeForm, import 의 readFormValues 를 지웠다.",
       "why": "form.ts 가 readFormValues 를 뺐다(스펙 6.2). 폼 상태 객체를 고치는 함수는 test/unit/resources/form-expo.test.ts 가 잰다."
@@ -257,6 +264,11 @@
       "path": "test/unit/lab/result.test.ts",
       "what": "원본의 test/unit/app/contract-result.test.ts 에서 옮겼다. import 와 머리말이 가리키는 파일을 app/(lab)/contract/result 에서 lib/lab/result 로 바꿨다.",
       "why": "result.ts 가 lib/lab/ 로 옮겨졌다(스펙 4장 - app/ 에는 라우트 파일만 둔다)."
+    },
+    {
+      "path": "test/unit/e2e/matrix.test.ts",
+      "what": "Playwright 에 기대던 셋을 이 저장소의 하네스로 바꿨다. playwright test --list 로 제목 경로를 맞대던 identifierResolves·looseIdentifierResolves 와 그 대조 절을 식별자가 가리키는 파일(flows/<이름>.yaml·test/contract/<파일>)의 실재 검사로, stack.ts 의 모듈 평가를 재던 절을 하네스 스크립트(test/contract/run.sh·test/e2e/run-android.sh·test/e2e/run-ios.sh·test/e2e/native-backend.sh)의 검증 줄이 부수 효과보다 먼저인지 소스에서 보고 그 줄을 떼어 모르는 값·아는 값으로 돌리는 절로, *.spec.ts 의 test.fail 세기를 test/contract/*.test.ts 의 it.fails 세기로 바꿨다. 프로브 목록의 식별자, 머리말, import 순서를 이 저장소에 맞게 고쳤다. 빈 KNOWN_DIVERGENCES 를 순회하던 두 시험을 항목의 실재 식별자·비어 있지 않은 이유를 함께 판단하는 knownDivergenceIsValid 와 정상·없는 식별자·빈 이유 프로브 시험으로 바꾸고, 실제 목록은 빈 배열인지 직접 단언한다. 중복 resolveBash 를 빼고 test/unit/support/bash 의 resolveBash·BASH_TIMEOUT_MS 를 import 해 Windows Git Bash 후보 탐색·실행 확인·30초 상한을 하네스 시험들이 공유한다. backendKind·knownDivergenceReason·reportKnownDivergences 를 재는 절은 그대로 두었다.",
+      "why": "이 저장소의 E2E 는 Playwright 가 아니라 Maestro 플로(bash 하네스)와 vitest 계약 거울이다(스펙 6.2 의 \"하네스가 Maestro다\"). @playwright/test 도 stack.ts 도 없어 원본 그대로는 돌지 않는다. 검증 줄만 떼어 돌리는 까닭은 검증이 빠진 판이 되었을 때 시험이 도커·기기를 건드리지 않게 하려는 것이다. 빈 목록 때문에 단언 없이 통과하던 불변식을 실제 항목 프로브로 구동해 잘못된 식별자나 빈 이유를 놓치지 않는다. 원본 Next.js 시험과 다른 공유 도우미 import 는 복제된 Bash 탐색 판단과 서로 다른 timeout 정책을 한 곳에서 유지하기 위한 이탈이다."
     }
   ],
   "sourceBlobs": {
@@ -291,6 +303,7 @@
     "test/unit/auth/flow.test.ts": "1579380da841000bc6b025b64e91a3efb9c556cd",
     "test/e2e/probe-email.ts": "70d57b3fd387f599d85dc76e3cb10f5c0032f8fb",
     "test/unit/e2e/probe-email.test.ts": "406e0fd808767c0a605bbbf25c414eec129b165e",
-    "lib/lab/result.ts": "8a389e226964326ab28b8816d07c8a6d4449cb15"
+    "lib/lab/result.ts": "8a389e226964326ab28b8816d07c8a6d4449cb15",
+    "test/e2e/matrix.ts": "8bf82bb6f7de4d9991e2856bfc9392224fece354"
   }
 }

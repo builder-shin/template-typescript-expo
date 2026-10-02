@@ -52,3 +52,20 @@ export function decideGuard({ status, loggingOut, latched, pathname }: GuardInpu
 
   return { redirect: signedOut && protectedPath && !holding, latched: holding }
 }
+
+export interface PendingLoginInput {
+  status: SessionStatus
+  /** 셸이 가진 첫 로그인 목적지. 셸이 해제되면 상태도 사라진다. 전역으로 보관하지 않는다. */
+  pending: string | null
+  /** decideGuard가 요청한 loginHref, 이동할 필요가 없으면 null. */
+  requested: string | null
+}
+
+/** 내비게이터가 준비되는 동안 홈 앵커가 잠깐 보여도 첫 로그인 목적지를 유지한다(K3 콜드 링크). */
+export function decidePendingLogin({
+  status,
+  pending,
+  requested,
+}: PendingLoginInput): string | null {
+  return status === 'signedOut' ? (pending ?? requested) : null
+}

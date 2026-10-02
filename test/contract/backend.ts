@@ -77,6 +77,20 @@ export function postTo(
   return exchange('POST', path, null, body, accessToken)
 }
 
+/** 부분 수정 - 앱의 화이트리스트·중복 제거를 거치지 않은 문서도 그대로 보낸다. */
+export function patchTo(
+  path: string,
+  body: unknown,
+  accessToken: string,
+): Promise<BackendResponse> {
+  return exchange('PATCH', path, null, body, accessToken)
+}
+
+/** 프로브가 만든 행을 지운다. */
+export function deleteFrom(path: string, accessToken: string): Promise<BackendResponse> {
+  return exchange('DELETE', path, null, undefined, accessToken)
+}
+
 function accessTokenOf(body: unknown): string | undefined {
   if (typeof body !== 'object' || body === null) return undefined
   const data = (body as { data?: { attributes?: { accessToken?: unknown } } }).data

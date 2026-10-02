@@ -1,0 +1,86 @@
+# e2e-allow-http: 0
+# e2e-platforms: android
+# 삭제 실패 - 삭제가 실패하면 시트를 닫지 않고 그 문구를 시트 안에 그린다. 취소하고 다시 열면 지난 실패를 들고
+# 열리지 않는다(DeleteWrite.reset - 스펙 8.1·11.3). 실패는 비행기 모드로 만든다 - 쓰기 앞의 회전이나 삭제 요청이 닿지
+# 못한다(끊긴 요청은 상태 0, 선언했다). 끝으로 연결을 되살리고 돌아온 것을 확인한다.
+# D4 가 examples-delete 의 가운데에 두었던 갈래를 D7 이 떼어 냈다 - Maestro 2.11.0 의 iOS 시뮬레이터에는 비행기 모드가
+# 없고(setAirplaneMode 가 경고만 남긴다) 가드는 선언한 상태가 기기 로그에 한 번도 없으면 실패한다(test/e2e/guard-log.sh).
+# 그래서 이 플로는 Android 에서만 돌고, 삭제의 나머지는 examples-delete 가 두 플랫폼에서 돈다.
+# 비행기 모드는 이 플로가 끝나면 실패해도 끈다(onFlowComplete) - 켜 둔 채 끝나면 다음 플로가 백엔드에 닿지 못한다.
+appId: com.example.templateexpo.e2e
+onFlowComplete:
+  - setAirplaneMode: disabled
+---
+- runFlow: ../subflows/start-signed-out.yaml
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: account
+- runScript:
+    file: ../scripts/examples-api.js
+    env:
+      STEP: example
+      TITLE: ${output.prefix} f1
+- runFlow: ../subflows/login.yaml
+- openLink: templateexpo-e2e://examples/${output.exampleId}/edit
+- runFlow: ../subflows/confirm-ios-open-link.yaml
+- extendedWaitUntil:
+    visible:
+      id: field-input-title
+      text: ${output.prefix} f1
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: delete-button
+    direction: DOWN
+- setAirplaneMode: enabled
+- tapOn:
+    id: delete-button
+- extendedWaitUntil:
+    visible:
+      id: delete-confirm-accept
+    timeout: 10000
+- tapOn:
+    id: delete-confirm-accept
+- extendedWaitUntil:
+    visible:
+      id: form-banner
+    timeout: 20000
+- assertVisible:
+    id: delete-confirm-cancel
+- tapOn:
+    id: delete-confirm-cancel
+- extendedWaitUntil:
+    notVisible:
+      id: delete-confirm-cancel
+    timeout: 10000
+- tapOn:
+    id: delete-button
+- extendedWaitUntil:
+    visible:
+      id: delete-confirm-accept
+    timeout: 10000
+- assertNotVisible:
+    id: form-banner
+- tapOn:
+    id: delete-confirm-cancel
+- extendedWaitUntil:
+    notVisible:
+      id: delete-confirm-cancel
+    timeout: 10000
+# 연결을 되살리고 돌아온 것을 확인한다 - 아직 읽지 않은 목록(씨앗, 읽기만 한다)을 열어 행이 그려질 때까지 기다린다. 첫
+# 조회가 닿지 못해도 네트워크 복귀의 재조회가 그린다. 뒤로 가면 이 수정 화면이다.
+- setAirplaneMode: disabled
+- openLink: templateexpo-e2e://examples?filter%5Btitle%5D%5Bcontains%5D=probe-seed
+- runFlow: ../subflows/confirm-ios-open-link.yaml
+- extendedWaitUntil:
+    visible:
+      id: resource-row-title
+      text: probe-seed alpha
+    timeout: 30000
+- runFlow: ../subflows/back.yaml
+- extendedWaitUntil:
+    visible:
+      id: field-input-title
+      text: ${output.prefix} f1
+    timeout: 10000
