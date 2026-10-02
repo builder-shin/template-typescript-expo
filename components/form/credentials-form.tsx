@@ -10,6 +10,7 @@ import { Text } from '@/components/ui/text'
 import type { Credentials } from '@/lib/auth/credentials'
 import { EMAIL_FIELD, PASSWORD_FIELD, type AuthFormState } from '@/lib/auth/form-state'
 import { cn } from '@/lib/utils'
+import { observeE2eCredentials } from '@/platform/e2e-events'
 import { useSubmitOnce } from '@/queries/submit-once'
 
 interface CredentialsFormProps {
@@ -69,12 +70,20 @@ export function CredentialsForm({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const passwordInput = useRef<TextInput>(null)
+  const diagnosticSequence = useRef(0)
   const submitOnce = useSubmitOnce(mutationKey)
   const emailErrors = state.fieldErrors[EMAIL_FIELD] ?? []
   const passwordErrors = state.fieldErrors[PASSWORD_FIELD] ?? []
 
   const submit = () => {
     submitOnce(() => {
+      observeE2eCredentials(
+        'submit',
+        passwordAutoComplete,
+        ++diagnosticSequence.current,
+        email.length,
+        password.length,
+      )
       onSubmit({ email, password })
     })
   }
@@ -98,7 +107,16 @@ export function CredentialsForm({
           accessibilityLabel="이메일"
           {...errorHint(emailErrors)}
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(text) => {
+            observeE2eCredentials(
+              'email',
+              passwordAutoComplete,
+              ++diagnosticSequence.current,
+              text.length,
+              password.length,
+            )
+            setEmail(text)
+          }}
           autoCapitalize="none"
           autoCorrect={false}
           autoComplete="email"
@@ -122,7 +140,16 @@ export function CredentialsForm({
           accessibilityLabel="비밀번호"
           {...errorHint(passwordErrors)}
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(text) => {
+            observeE2eCredentials(
+              'password',
+              passwordAutoComplete,
+              ++diagnosticSequence.current,
+              email.length,
+              text.length,
+            )
+            setPassword(text)
+          }}
           secureTextEntry
           autoCapitalize="none"
           autoCorrect={false}

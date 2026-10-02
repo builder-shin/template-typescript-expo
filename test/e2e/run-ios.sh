@@ -4,8 +4,8 @@
 #
 #   test/e2e/run-ios.sh
 #
-# 순서: 백엔드 종류 검증 → 도구 확인 → 시뮬레이터 부팅(test/e2e/ios.sh boot) → 앱(E2E_APP 의 .app, 없으면
-# test/e2e/ios.sh build) 설치 → 백엔드(test/e2e/native-backend.sh start) → test/e2e/flows/*.yaml 을 하나씩 돌리며
+# 순서: 백엔드 종류 검증 → 도구 확인 → 앱(E2E_APP 의 .app, 없으면 ios.sh build) 검증 → 전용 기기 생성·
+# 서비스/설정 준비·한 번 재부팅·readback → 앱 설치 → 백엔드(test/e2e/native-backend.sh start) → test/e2e/flows/*.yaml 을 하나씩 돌리며
 # 플로마다 시뮬레이터 로그에 가드를 걸고(test/e2e/ios-log.ts 로 logcat 모양으로 옮겨 test/e2e/guard-log.sh) 백엔드
 # 요청 수를 단언한다(test/e2e/request-counts.ts) → E2E_CHECKS=1 이면 백엔드 대신 멈춘 서버로 test/e2e/checks/*.yaml →
 # 백엔드를 내린다(실패해도 내린다).
@@ -14,7 +14,7 @@
 #
 #   BACKEND_KIND      fastapi·nestjs·rails(기본 fastapi) - native-backend.sh 가 띄울 백엔드
 #   E2E_APP           미리 만든 e2e 변형 .app(CI 의 build-ios 잡). 없으면 test/e2e/ios.sh build 로 만든다
-#   E2E_SIMULATOR     부팅할 시뮬레이터 이름(test/e2e/ios.sh boot)
+#   E2E_SIMULATOR     새 전용 기기의 runtime/type 기준이 될 기존 iPhone 이름 또는 UDID
 #   E2E_API_PORT      백엔드 포트(기본 4100 - 앱의 BACKEND_URL http://localhost:4100 과 같다)
 #   E2E_ACCESS_EXPIRES_SECONDS
 #                     백엔드의 access token 수명(초). 기본 10 - run-android.sh 와 같다
@@ -56,6 +56,9 @@ fail() {
 node_quiet() {
   node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON "$@"
 }
+
+# shellcheck source=test/e2e/ios-simulator.sh
+source test/e2e/ios-simulator.sh
 
 # ── 도구 ────────────────────────────────────────────────────────────
 [ "$(uname -s)" = Darwin ] || fail "iOS E2E 는 macOS 에서만 돈다"
@@ -325,8 +328,6 @@ run_checks() {
 # ── 실행 ────────────────────────────────────────────────────────────
 rm -rf "$OUT"
 mkdir -p "$OUT"
-UDID=$(test/e2e/ios.sh boot)
-readonly UDID
 if [ -n "${E2E_APP:-}" ]; then
   APP="$E2E_APP"
   echo "미리 만든 .app 을 쓴다 - 빌드하지 않는다 ($APP)"
@@ -335,7 +336,6 @@ else
   APP=$(BACKEND_URL="http://localhost:$API_PORT" test/e2e/ios.sh build | tail -n 1)
 fi
 readonly APP
-xcrun simctl install "$UDID" "$APP"
 
 cleanup() {
   local settings_failed=0
@@ -344,11 +344,19 @@ cleanup() {
   test/e2e/native-backend.sh stop || true
   restore_scheme_approval || settings_failed=1
   restore_autofill || settings_failed=1
+  remove_owned_simulator || settings_failed=1
   [ "$settings_failed" = 0 ] || fail "시뮬레이터의 원래 딥링크 승인/AutoFill 설정을 복원하지 못했다"
 }
 trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+create_owned_simulator || fail "E2E 전용 simulator를 만들거나 부팅하지 못했다"
+readonly UDID
+prepare_simulator_services || fail "E2E 전용 simulator 서비스를 준비하지 못했다"
 prepare_autofill || fail "시뮬레이터의 Password AutoFill을 끄지 못했다"
 prepare_scheme_approval || fail "시뮬레이터의 딥링크 사전 승인을 준비하지 못했다"
+reboot_prepared_simulator || fail "재부팅 뒤 E2E simulator 설정이 적용되지 않았다"
+xcrun simctl install "$UDID" "$APP"
 node_quiet --input-type=module \
   -e "import { backendKind, reportKnownDivergences } from './test/e2e/matrix.ts'; reportKnownDivergences(backendKind())"
 test/e2e/native-backend.sh stop

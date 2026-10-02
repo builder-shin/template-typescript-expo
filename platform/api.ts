@@ -11,6 +11,7 @@ import {
 import { httpFailureLine } from '@/lib/jsonapi/failure-log'
 import type { JsonApiSend } from '@/lib/jsonapi/send'
 import { startupVariant } from '@/platform/config'
+import { startE2eRequest } from '@/platform/e2e-events'
 
 /**
  * 기기의 언어 목록(getLocales)으로 만든 Accept-Language 값 - 부를 때마다 다시 읽는다(앱이 켜진 채
@@ -36,10 +37,12 @@ export const apiRequest: JsonApiSend = async <T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<JsonApiResult<T>> => {
+  const finishObservation = startE2eRequest(path, options.method ?? 'GET')
   const result = await request<T>(
     path,
     withAcceptLanguage(options, options.acceptLanguage ?? deviceAcceptLanguage()),
   )
+  finishObservation(result.status)
   if (!result.ok && variantProfile(startupVariant()).logsHttpFailures) {
     console.info(httpFailureLine(options.method ?? 'GET', path, result.status, result.errors))
   }

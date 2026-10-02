@@ -708,3 +708,64 @@ D7-R32가 이 한 키의 사전승인·readback·EXIT 원복과 R31의 새 simul
 통과했다. bash -n·bash 3.2 금지 구문 검사·ShellCheck 0.11.0·diff 검사도 통과했다. 종료된 27 기기의 실제
 승인 키/값을 plutil로 다시 읽어 확인했으며 새 기기는 부팅하지 않았다. 내부 지연 원인을 해결했다고 주장하지
 않으며 통합 CI가 실제 검증이다.
+
+**실행 5 최종 결과와 R33.** 실행 5는 최종 failure, checks·두 빌드·Android 세 셀은 success다.
+iOS Rails/NestJS는 각각 auth-links만 실패(나머지19 통과), FastAPI는 auth-links와 contract-lab-signed-in 실패
+(나머지18 통과)였다. 세 iOS 셀 모두 examples-empty-notfound와 register-restore-logout은 통과했다.
+
+NestJS는 warm 링크·로그인/가입 왕복에 성공한 뒤 00:01:54.507Z의 가입422/VALIDATION_ERROR에서 멈췄다.
+실패 AX 계층은 전체 이메일71글자와 비밀번호20bullets, password-error를 보였다. native 입력 기록은20글자지만
+CFNetwork의 전송 본문은140bytes였다. 같은 문서·이메일·20글자라면156bytes,4글자라면140bytes다. 본문 원문이나
+JS 제출 길이는 관측하지 않았으므로 실제 비밀번호를4글자라고 확정하지 않는다. 00:01:22–29Z에
+AutomaticStrongPassword 준비와 signalAutofillUIBringup이 있었다. AutoFill 설정을 첫 부팅 뒤에 쓴 상태여서
+이미 시작한 시스템 UI가 옛 설정을 썼을 가능성을 R33의 재부팅 경계로 검증한다.
+
+FastAPI auth-links는 submit tap 00:00:30.998–32.942Z 뒤 native request50.158Z(156bytes),
+register20156.819Z, login20057.184Z, route=/examples/new57.486Z였다. 목적 화면 단언은55.439Z에 끝났고
+실패 AX는 register-screen·submit busy·전체 이메일·20bullets였다. 첫 요청 전 약17초 공백은 기존 로그로
+JS/네이티브 경계를 확정할 수 없다. contract-lab-signed-in은 native login request00:09:21.733Z(173bytes),
+응답0bytes로14.853초 뒤 취소(-999),36.801Z에 앱의15초 REQUEST_TIMEOUT이었다. 백엔드 접근 로그에도 이
+로그인의 응답은 없었다. 시간이나 재시도를 늘려 통과 처리하지 않는다.
+
+같은 CI native 로그의 apsd는 첫 부팅12분 이후에도 분당 약73–80k줄을 남겼으며 Poster/widget·chronod·
+identityservicesd 등의 활동이 겹쳤다. 코디네이터는 이를 러너의 자원 경쟁으로 판단하고 **D7-R33**을 승인했다.
+[yeetd](https://github.com/insidegui/yeetd)는 CPU를 쓰는 simulator의 Poster/widget 프로세스를 다루며,
+[simslim](https://github.com/MobAI-App/simslim)은 선택 기기의 launchd override와 재부팅 후 검증을 제공한다.
+이 저장소는 도구를 설치하지 않고 서비스 분류만 참고했다. host 서비스와 Keychain/securityd·URL opening·
+SpringBoard·XCTest·키보드·네트워크·설정·로그 서비스는 유지한다.
+
+R33 하네스는 고른 기기와 같은 runtime/type의 **새 전용 기기**를 만들어 실제 launchctl list에 등록된 허용
+서비스만 simctl spawn 안에서 disable한다. 사용하던 기기는 정보만 읽는다. 모든 disable·AutoFill·scheme 승인과
+OS 영어/키보드 안내 설정을 쓴 뒤 **한 번** 재부팅하고 각 값을 다시 읽는다. 목록/적용/readback 오류는 실패이며
+성공·후속 실패·TERM 모두 EXIT에서 자기 기기를 종료·삭제한다. 전후 기록은 서비스 목록과 선택 launchd_sim
+자손의 프로세스 수·RSS KiB·CPU 합계다. RSS는 압축 메모리를 포함한 phys_footprint와 다르다. host 전체 프로세스
+인자는 파일이나 로그에 저장하지 않는다.
+
+추가 R20 관측은 e2e에서만 credentials change/submit의 길이·순번·시각, HTTP 시작/결과 시각을 정보로 남긴다.
+입력 값·본문·토큰은 남기지 않으며 요청의 쿼리 문자열도 버린다. 앱 동작·타임아웃·재시도·목적 화면 단언은 같다.
+R33의 실제 자원 감소와 실패 해소는 다음 로컬/CI 실측 결과로 판정한다.
+
+R33의 첫 기기 준비는 실제96개 override와 AutoFill/scheme의 재부팅 후 유지까지 확인했으나,
+NSGlobalDomain 전체 plist를 JSON으로 바꾸는 언어 검사에서 Invalid object로 멈췄다. 앱/흐름은 시작 전이었고
+EXIT가 전용 기기를 삭제했다. 필요한 AppleLanguages 배열만 `plutil -extract`로 읽도록 고쳤으며 전체 domain
+변환을 거절하는 가짜 경계로 검증했다. 10:15 필수 정적 검사와 **95파일/1902시험**이 모두 통과했다.
+
+수정된 새 iOS26.5 기기에서는 모든 설정 readback이 통과했다. 재부팅 전후 launchd_sim 자손은 **227→92개**,
+RSS 합계는 **24,942,032→8,146,336 KiB**, CPU 합계는 **886.2→166.4%**였다. 이는 부팅 직후의 스냅샷이며
+RSS의 공유 매핑을 포함한다. 96개 선택 서비스는 재부팅 후 모두 disabled이고 실행 PID가 없었다.
+PosterBoard/chronod는 없어졌지만 동적 UIKitApplication label의 WidgetRenderer-Default 하나는 남았다
+(관측 시 CPU0%, RSS232,016KiB). 전체 위젯 프로세스를 없앴다고 주장하지 않는다. 호스트 평균 부하는 첫 준비의
+stock 부팅 약97까지 올랐다가 종료 후 내려갔고, 수정 실행의 재부팅 후29→13으로 내려왔다.
+
+10:18 NestJS `auth-links`는 UI·로그 가드까지 통과했다. R33 진단에서 password change 길이20 뒤 제출 길이20,
+같은1790903913152ms에 HTTP 시작, 가입201(73ms)→로그인200(37ms)→보호 화면을 확인했다. 첫 OS Open 조건은
+사전승인으로 건너뛰었다. 이어지는 cold-links/세션복원 결과와 통합 CI 결과는 아래에 남긴다.
+
+**10:21 R33 로컬 최종 결과:** 새 iOS26.5/NestJS에서 `auth-links`, `cold-links`,
+`register-restore-logout` 세 흐름의 UI·로그 가드가 모두 통과했고 전체 exit0이었다. 보호 cold 링크의 로그인 후
+원래 화면, 공개 cold404, SecureStore 저장→프로세스 재시작 복원→로그아웃 삭제→다른 계정 가입을 포함한다.
+R16의 정확한 Open 조건은 세 흐름에서 모두 건너뛰었다. 전용 기기의 삭제, booted simulator0,
+소유 compose project 컨테이너0을 확인했다. 사용자 기존 기기는 바꾸지 않았고 추가 simulator 실행은 하지 않는다.
+증거는 `.maestro-output/mac-repro/r33-nestjs-ios26/`, 같은 이름의 `.log`, `r33-final-*.log`, `r33-build.log`다.
+최종 통합 CI 전까지 전체 아홉 셀 성공으로 세지 않는다. 새 관측은 로컬에서 값 없이 입력20/제출20과
+즉시 시작한 요청을 확인했으며, CI5의 내부 지연 원인 전체가 입증됐다는 뜻은 아니다.

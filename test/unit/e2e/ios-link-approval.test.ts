@@ -104,6 +104,7 @@ scheme_approval_original=''
 fail() { echo "$*" >&2; exit 1; }
 stop_device_log() { :; }
 stop_stall_server() { :; }
+remove_owned_simulator() { :; }
 restore_autofill() { echo restored > autofill-restored; }
 ${functions.join('\n')}
 ${trap}

@@ -27,8 +27,8 @@ fail() {
 
 [ "$(uname -s)" = Darwin ] || fail "iOS 시뮬레이터는 macOS 에서만 돈다"
 
-# simctl 의 기기 목록(JSON)에서 기기 하나의 UDID 를 고른다. 켜진 iPhone 이 있으면 그것, 없으면 E2E_SIMULATOR
-# 이름의 기기, 그것도 없으면 가장 새 iOS 런타임에서 이름이 "iPhone <숫자>" 인 첫 기기.
+# E2E_SIMULATOR의 이름/UDID를 우선하고 없으면 켜진 iPhone, 이어서 최신 runtime의 iPhone을 고른다.
+# 명시한 값이 없으면 실패한다 - 다른 runtime으로 조용히 바뀌지 않는다.
 pick_simulator() {
   xcrun simctl list devices available --json | E2E_SIMULATOR="${E2E_SIMULATOR:-}" node -e '
     const { devices } = JSON.parse(require("fs").readFileSync(0, "utf8"))
@@ -44,11 +44,10 @@ pick_simulator() {
       })
     const phones = runtimes.flatMap((key) => devices[key].filter((device) => device.name.startsWith("iPhone")))
     const wanted = process.env.E2E_SIMULATOR
-    const pick =
-      phones.find((device) => device.state === "Booted") ??
-      (wanted ? phones.find((device) => device.name === wanted) : undefined) ??
-      phones.find((device) => /^iPhone \d+$/.test(device.name)) ??
-      phones[0]
+    const pick = wanted
+      ? phones.find((device) => device.udid === wanted || device.name === wanted)
+      : phones.find((device) => device.state === "Booted") ??
+        phones.find((device) => /^iPhone \d+$/.test(device.name)) ?? phones[0]
     if (pick === undefined) {
       console.error("쓸 수 있는 iPhone 시뮬레이터가 없다 - xcrun simctl list devices available")
       process.exit(1)
@@ -65,6 +64,22 @@ boot() {
   # 첫 입력 때 뜨는 "밀어서 입력" 안내를 끈다 - 입력 칸을 가려 단계를 흔든다.
   xcrun simctl spawn "$udid" defaults write com.apple.keyboard.preferences DidShowContinuousPathIntroduction -bool true
   printf '%s\n' "$udid"
+}
+
+# 사용자 기기는 선택 정보만 읽는다. E2E가 설정을 바꾸는 것은 같은 종류/런타임의 새 전용 기기다(K3 R33).
+create_simulator() {
+  local template settings device_type runtime
+  template=$(pick_simulator) || return 1
+  settings=$(xcrun simctl list devices available --json | node -e '
+    const { devices } = JSON.parse(require("fs").readFileSync(0, "utf8"))
+    for (const [runtime, list] of Object.entries(devices)) {
+      const device = list.find((item) => item.udid === process.argv[1])
+      if (device) { console.log(device.deviceTypeIdentifier); console.log(runtime); process.exit(0) }
+    }
+    process.exit(1)' "$template") || return 1
+  device_type=$(printf '%s\n' "$settings" | head -n 1) || return 1
+  runtime=$(printf '%s\n' "$settings" | tail -n 1) || return 1
+  xcrun simctl create "Template Expo E2E $$" "$device_type" "$runtime"
 }
 
 app_path() {
@@ -195,6 +210,7 @@ build() {
 
 case "${1:-}" in
   boot) boot ;;
+  create-simulator) create_simulator ;;
   build) build ;;
   app-path) app_path ;;
   assert-app)
@@ -202,7 +218,7 @@ case "${1:-}" in
     assert_app "$@"
     ;;
   *)
-    echo "사용법: $0 boot|build|app-path|assert-app <.app> [<BACKEND_URL>]" >&2
+    echo "사용법: $0 boot|create-simulator|build|app-path|assert-app <.app> [<BACKEND_URL>]" >&2
     exit 1
     ;;
 esac

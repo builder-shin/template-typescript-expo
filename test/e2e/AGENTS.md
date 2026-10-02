@@ -287,6 +287,15 @@ Android 와 같고, 다른 것은 이렇다.
   SDK 57의 Xcode 27 호환은 기존 `expo-build-properties`의 `ios.enableSceneSupport`로 켠다(D7-R22b, 모든 변형).
   CI는 Xcode 26.6을 명시하며 Mac의 27.0과 함께 검증한다. iOS Maestro 호출은 `--platform ios`로 Android 기기
   열거를 막는다 - 연결된 Android 기기가 응답하지 않아 iOS 실행도 시작 못 한 사례가 K3에 있다.
+- 전용 기기/자원 준비(D7-R33): `run-ios.sh`는 선택한 기기의 runtime/type만 읽어 새 기기를 만들고 EXIT에서
+  종료·삭제한다. 기존 사용자 기기는 부팅·설정하지 않는다. `ios-simulator.ts`의 허용 목록 중 실제 launchctl list에
+  등록된 서비스만 `simctl spawn` 안의 launchctl disable로 끈다. apsd·Poster/chronod·Siri·검색·클라우드 동기화·
+  StoreKit·미디어 분석·건강·News/Weather·Safari 동기화·Game Center·telemetry가 대상이며 Keychain/securityd·
+  SpringBoard·URL opening·XCTest·키보드·네트워크·설정·로그는 유지한다. 아래 두 설정과 OS 영어/키보드 안내까지
+  모두 쓴 뒤 한 번 재부팅하고 disable 목록과 설정을 다시 읽어 어긋나면 실패한다. 전후 서비스 목록·기기 프로세스
+  수·RSS KiB·CPU 합계는 artifact에 남긴다. RSS는 압축 메모리 포함 footprint가 아니다. host 전체 프로세스 인자는
+  기록하지 않는다. [simslim](https://github.com/MobAI-App/simslim)·[yeetd](https://github.com/insidegui/yeetd)는
+  근거 자료이며 의존성으로 설치하지 않는다. 앱이 위 기능을 사용하게 되면 허용 목록을 다시 검토한다.
 - Password AutoFill: `run-ios.sh`는 선택한 시뮬레이터의 `com.apple.WebUI AutoFillPasswords`를 실행 중 0으로
   설정하고 다시 읽어 0이 아니면 실패한다. 먼저 defaults export의 성공한 domain 사전에서 원래 값/키 없음을
   구분하며 명령·변환 실패면 쓰기 전에 멈춘다. 종료 시 원래 값 또는 키 없음 상태로 복원한다. K3 Mac 재현에서
@@ -307,7 +316,8 @@ Android 와 같고, 다른 것은 이렇다.
   R16 서브플로와 엄격한 규칙, 앱의 URL 처리·목적 화면·시간·재시도는 유지한다.
 - D7-R20의 e2e 전용 `[e2e-state]` 정보 줄은 라우트·AppState·상세 조회 상태와 관찰자 수만 기록한다.
   `device.ndjson` 원본과 `device.log`의 `I/ReactNativeJS` 줄로 함께 보존한다. 앱 동작이나 가드를 바꾸지 않으며,
-  딥링크 뒤 홈 유지/완료된 404 뒤 스켈레톤 유지의 경계를 찾기 위한 관측이다(실측 K3 실행 3).
+  딥링크 뒤 홈 유지/완료된 404 뒤 스켈레톤 유지의 경계를 찾기 위한 관측이다(실측 K3 실행 3). R33은 입력과 제출의
+  길이·순번·시각과 HTTP 시작/결과 시각을 더한다(`platform/e2e-events.ts`). 입력 값·본문·토큰·쿼리는 기록하지 않는다.
 - 백엔드: macOS 러너에는 Docker 가 없다. `native-backend.sh` 가 Homebrew 의 PostgreSQL 18·Redis 를 저장소
   밖(`E2E_NATIVE_DIR`)에서 127.0.0.1 에만 띄우고, 백엔드 저장소 `main` 을 받아(`fetch`) 런타임을 갖춘 뒤(`prepare`)
   DB 를 새로 만들어 마이그레이션 → 같은 SQL 시드(`seed/`) → API 를 4100 에 띄운다(`start`). 롤·DB 이름·JWT 더미·Rails 의
@@ -338,12 +348,12 @@ BACKEND_KIND=fastapi test/e2e/native-backend.sh prepare      # uv·pnpm·bundler
 iOS 하네스(`run-ios.sh`·`ios.sh`·`native-backend.sh`)가 더 읽는 환경 변수다. `BACKEND_KIND`·`E2E_API_PORT`·`E2E_FLOW`·
 `E2E_CHECKS`·`E2E_ACCESS_EXPIRES_SECONDS`·`MAESTRO` 는 위 표와 같다.
 
-| 변수                             | 뜻                                                                                                                         |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `E2E_APP`                        | 미리 만든 e2e `.app`(CI 의 build-ios 잡). 주면 빌드하지 않고 단언한 뒤 설치한다                                            |
-| `E2E_SIMULATOR`                  | 부팅할 시뮬레이터 이름(예: `iPhone 17`). 켜진 iPhone 이 있으면 그것을, 없으면 가장 새 iOS 런타임의 `iPhone <숫자>` 를 쓴다 |
-| `E2E_NATIVE_DIR`                 | 백엔드 저장소·DB·로그를 두는 곳(절대 경로, 기본 `~/.cache/template-typescript-expo-e2e`)                                   |
-| `E2E_DB_PORT`                    | 네이티브 PostgreSQL 의 포트(기본 55432)                                                                                    |
-| `E2E_REDIS_PORT`                 | 네이티브 Redis 의 포트(기본 56379)                                                                                         |
-| `E2E_PG_BIN`                     | PostgreSQL 의 bin 디렉터리(기본 Homebrew 의 `postgresql@18`)                                                               |
-| `MAESTRO_DRIVER_STARTUP_TIMEOUT` | Maestro 의 iOS 드라이버를 기다리는 ms(하네스 기본 180000)                                                                  |
+| 변수                             | 뜻                                                                                                                                |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `E2E_APP`                        | 미리 만든 e2e `.app`(CI 의 build-ios 잡). 주면 빌드하지 않고 단언한 뒤 설치한다                                                   |
+| `E2E_SIMULATOR`                  | 전용 기기의 runtime/type 기준이 될 기존 iPhone의 이름 또는 UDID. 지정이 없으면 켜진 iPhone, 이어서 최신 runtime의 iPhone을 고른다 |
+| `E2E_NATIVE_DIR`                 | 백엔드 저장소·DB·로그를 두는 곳(절대 경로, 기본 `~/.cache/template-typescript-expo-e2e`)                                          |
+| `E2E_DB_PORT`                    | 네이티브 PostgreSQL 의 포트(기본 55432)                                                                                           |
+| `E2E_REDIS_PORT`                 | 네이티브 Redis 의 포트(기본 56379)                                                                                                |
+| `E2E_PG_BIN`                     | PostgreSQL 의 bin 디렉터리(기본 Homebrew 의 `postgresql@18`)                                                                      |
+| `MAESTRO_DRIVER_STARTUP_TIMEOUT` | Maestro 의 iOS 드라이버를 기다리는 ms(하네스 기본 180000)                                                                         |
