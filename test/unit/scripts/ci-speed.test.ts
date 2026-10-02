@@ -212,3 +212,53 @@ describe('CI APK의 설치 전 ABI 가드', () => {
     }
   })
 })
+
+describe('CI의 검증된 main 생략 배선', () => {
+  const workflow = readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
+
+  function job(name: string) {
+    const found = new RegExp(`^  ${name}:\\n[\\s\\S]*?(?=^  [\\w-]+:|$(?![\\s\\S]))`, 'm').exec(
+      workflow,
+    )?.[0]
+    if (found === undefined) throw new Error(`${name} 잡이 없다`)
+    return found
+  }
+
+  it('첫 잡이 full-history checkout과 읽기 권한만으로 검증 스크립트를 돈다', () => {
+    expect(workflow.match(/^  [\w-]+:/gm)?.slice(-6)).toEqual([
+      '  verified:',
+      '  checks:',
+      '  build-android:',
+      '  e2e-android:',
+      '  build-ios:',
+      '  e2e-ios:',
+    ])
+    const verified = job('verified')
+    expect(verified).toContain('runs-on: ubuntu-24.04')
+    expect(verified).toContain('timeout-minutes: 5')
+    expect(verified).toContain('actions: read')
+    expect(verified).toContain('contents: read')
+    expect(verified).toContain('fetch-depth: 0')
+    expect(verified).toContain('skip: ${{ steps.verified.outputs.skip }}')
+    expect(verified).toContain('id: verified')
+    expect(verified).toContain('GH_TOKEN: ${{ github.token }}')
+    expect(verified).toContain('run: ./scripts/ci-verified-main.sh')
+    expect(verified).not.toMatch(/^    (if|needs):/m)
+    expect(verified).not.toContain('pnpm')
+  })
+
+  it.each(['checks', 'build-android', 'build-ios'])('%s는 생략 판단만 기다린다', (name) => {
+    const source = job(name)
+    expect(source).toContain('needs: verified')
+    expect(source).toContain("if: needs.verified.outputs.skip != 'true'")
+    expect(source).not.toMatch(/^    permissions:/m)
+  })
+
+  it.each(['android', 'ios'])('%s E2E는 기존 build 의존과 세 backend를 유지한다', (platform) => {
+    const source = job(`e2e-${platform}`)
+    expect(source).toContain(`needs: build-${platform}`)
+    expect(source).toContain('backend: [fastapi, nestjs, rails]')
+    expect(source).toContain('fail-fast: false')
+    expect(source).not.toMatch(/^    if:/m)
+  })
+})
