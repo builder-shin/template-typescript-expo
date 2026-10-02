@@ -12,6 +12,9 @@
 #                                   빌드 앞에 Metro 의 디스크 캐시를 비우고, 만든 APK 의
 #                                   assets/app.config 가 e2e 변형인지 확인한다
 #                                   앱 설정과 AndroidManifest.xml 이 OTA 를 끄고 평문 HTTP 를 켰는지도 확인한다
+#                                   E2E_ANDROID_ABIS 미지정은 네 ABI, x86_64 는 CI 에뮬레이터용 단일 ABI 다
+#   test/e2e/android.sh assert-apk-abis <APK>
+#                                   E2E_ANDROID_ABIS=x86_64 일 때 lib ABI 집합이 정확히 x86_64 인지 검사한다
 #   test/e2e/android.sh install     만든 APK 를 설치한다
 #   test/e2e/android.sh wait-text <텍스트>
 #                                   그 텍스트가 화면에 나타날 때까지(최대 60초) 기다리고
@@ -290,7 +293,7 @@ case "${1:-}" in
     wait_text "$@"
     ;;
   *)
-    echo "사용법: $0 boot|check-path|build|install|wait-text <텍스트>" >&2
+    echo "사용법: $0 boot|check-path|build|install|assert-apk-abis <APK>|wait-text <텍스트> (E2E_ANDROID_ABIS: 미지정 또는 x86_64)" >&2
     exit 1
     ;;
 esac

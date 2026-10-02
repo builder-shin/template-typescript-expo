@@ -17,9 +17,9 @@
   `scripts/e2e-flow-shards.mjs`가 만든 두 manifest의 합집합은 iOS 21개이고 중복이 없어야 한다.
   아티팩트는 `e2e-ios-<backend>-shard-<shard>`로 나눠 manifest와 성공·실패한 이름의 로그를 함께 올린다.
 
-- 두 iOS 잡은 `DEVELOPER_DIR=/Applications/Xcode_26.6.app/Contents/Developer`로 판을 명시한다(D7-R22b).
+- build-ios와 여섯 e2e-ios 물리 잡은 모두 `DEVELOPER_DIR=/Applications/Xcode_26.6.app/Contents/Developer`로 판을 명시한다(D7-R22b).
   기본 Xcode가 27로 바뀌면 SDK 57의 기존 AppDelegate lifecycle은 iOS 27에서 시작 전에 종료된다. 앱은 이제
-  Expo의 공식 scene opt-in을 쓰며, Mac은 27.0으로 검증한다. CI 판을 바꾸는 날에는 두 iOS 잡을 함께 확인한다.
+  Expo의 공식 scene opt-in을 쓰며, Mac은 27.0으로 검증한다. CI 판을 바꾸는 날에는 일곱 iOS 물리 잡을 함께 확인한다.
 
 - 잡이 하는 일은 스크립트가 정한다. 워크플로에 검사 논리를 적지 않는다 - 로컬에서 같은 스크립트로 재현할 수 있어야
   한다. 스크립트는 `bash x.sh` 처럼 우회하지 않고 `./x.sh` 로 부른다(실행 권한이 빠지면 여기서 드러난다).

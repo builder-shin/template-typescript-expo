@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { BASH_TIMEOUT_MS, resolveBash } from '../support/bash'
 
 const WORK = mkdtempSync(join(tmpdir(), 'ci-speed-'))
@@ -10,6 +10,10 @@ const ANDROID = readFileSync(resolve('test/e2e/android.sh'), 'utf8')
 const RUN_ANDROID = readFileSync(resolve('test/e2e/run-android.sh'), 'utf8')
 const JVM = '-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m'
 const CI = readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
+let bash: string
+beforeAll(() => {
+  bash = resolveBash()
+})
 afterAll(() => rmSync(WORK, { recursive: true, force: true }))
 let sequence = 0
 
@@ -34,16 +38,12 @@ function executable(directory: string, name: string, body: string) {
 function shell(directory: string, source: string, env: Partial<NodeJS.ProcessEnv> = {}) {
   const environment: NodeJS.ProcessEnv = { ...process.env, ...env }
   delete environment.BASH_ENV
-  return spawnSync(
-    resolveBash(),
-    ['-c', `set -euo pipefail\nexport PATH="$PWD:$PATH"\n${source}`],
-    {
-      cwd: directory,
-      env: environment,
-      encoding: 'utf8',
-      timeout: BASH_TIMEOUT_MS,
-    },
-  )
+  return spawnSync(bash, ['-c', `set -euo pipefail\nexport PATH="$PWD:$PATH"\n${source}`], {
+    cwd: directory,
+    env: environment,
+    encoding: 'utf8',
+    timeout: BASH_TIMEOUT_MS,
+  })
 }
 
 function androidBuild(
@@ -144,6 +144,76 @@ describe('CI Android ABI와 두 단계 Gradle', () => {
   })
 })
 
+describe('CI APK의 설치 전 ABI 가드', () => {
+  it('다른 ABI·여러 ABI·네이티브 라이브러리가 없는 APK는 exit 1이다', () => {
+    for (const listing of [
+      'lib/arm64-v8a/libapp.so',
+      'lib/x86_64/libapp.so\nlib/arm64-v8a/libapp.so',
+      'assets/app.config',
+    ]) {
+      const directory = scene()
+      executable(directory, 'unzip', 'printf "%s\\n" "$FAKE_APK_LIST"')
+      const result = shell(
+        directory,
+        `${block(ANDROID, 'assert_apk_abis')}\nassert_apk_abis input.apk`,
+        {
+          E2E_ANDROID_ABIS: 'x86_64',
+          FAKE_APK_LIST: listing,
+        },
+      )
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('APK 의 lib ABI 집합이 x86_64 가 아니다')
+    }
+  })
+  it('받은 APK도 검사하고 다른 ABI면 adb install 전에 실패한다', () => {
+    for (const abi of ['arm64-v8a', 'x86_64']) {
+      const directory = scene()
+      mkdirSync(join(directory, 'test/e2e'), { recursive: true })
+      writeFileSync(join(directory, 'input.apk'), 'fixture')
+      executable(directory, 'unzip', 'printf "lib/%s/libapp.so\\n" "$FAKE_APK_ABI"')
+      executable(directory, 'adb', 'echo install > installed')
+      executable(
+        join(directory, 'test/e2e'),
+        'android.sh',
+        `${block(ANDROID, 'assert_apk_abis')}\n[ "$1" = assert-apk-abis ] || exit 99\nassert_apk_abis "$2"`,
+      )
+      const result = shell(
+        directory,
+        `ADB="$PWD/adb"\nE2E_APK="$PWD/input.apk"\n${block(RUN_ANDROID, 'fail')}\n${block(RUN_ANDROID, 'build_and_install')}\nbuild_and_install`,
+        {
+          E2E_ANDROID_ABIS: 'x86_64',
+          FAKE_APK_ABI: abi,
+        },
+      )
+      expect(result.status, result.stderr).toBe(abi === 'x86_64' ? 0 : 1)
+      expect(shell(directory, '[ -f installed ]').status).toBe(abi === 'x86_64' ? 0 : 1)
+    }
+  })
+  it('x86_64 이외의 emulator는 앱 설치 전에 실패한다', () => {
+    const execution = /^test\/e2e\/android\.sh boot\n[\s\S]*?^build_and_install$/m.exec(
+      RUN_ANDROID,
+    )?.[0]
+    expect(execution).toBeDefined()
+    for (const abi of ['arm64-v8a', 'x86_64']) {
+      const directory = scene()
+      mkdirSync(join(directory, 'test/e2e'), { recursive: true })
+      executable(join(directory, 'test/e2e'), 'android.sh', '[ "$1" = boot ]')
+      executable(directory, 'adb', 'printf "%s\\r\\n" "$FAKE_DEVICE_ABI"')
+      const result = shell(
+        directory,
+        `ADB="$PWD/adb"\n${block(RUN_ANDROID, 'fail')}\nbuild_and_install() { echo install > installed; }\n${execution}`,
+        {
+          E2E_ANDROID_ABIS: 'x86_64',
+          FAKE_DEVICE_ABI: abi,
+        },
+      )
+      expect(result.status, result.stderr).toBe(abi === 'x86_64' ? 0 : 1)
+      expect(shell(directory, '[ -f installed ]').status).toBe(abi === 'x86_64' ? 0 : 1)
+      expect(result.stdout).toContain(`에뮬레이터 ro.product.cpu.abi=${abi}`)
+    }
+  })
+})
+
 const IOS_JOB = CI.split('\n  e2e-ios:\n')[1] ?? ''
 function iosStep() {
   const step = /      - name: E2E\n[\s\S]*?        run: \|\n([\s\S]*?)(?=\n      - name:)/.exec(
@@ -210,6 +280,7 @@ describe('CI iOS shard 배선', () => {
     }
   })
   it('아티팩트 여섯 이름은 구별되며 정리 실패가 잡 실패로 전파된다', () => {
+    expect(CI).toMatch(/^defaults:\n  run:\n    shell: bash$/m)
     const template = /name: (e2e-ios-\$\{\{ matrix.backend \}\}[^\n]*)/.exec(IOS_JOB)?.[1]
     expect(template).toBe('e2e-ios-${{ matrix.backend }}-shard-${{ matrix.shard }}')
     const names = ['fastapi', 'nestjs', 'rails'].flatMap((backend) =>

@@ -1210,10 +1210,15 @@ e2e-ios × 3       macOS    백엔드를 네이티브로 실행 → Maestro
 
 > 정정(2026-10-02, D8 CI 최적화): iOS의 백엔드별 논리 셀은 두 shard의 합집합으로 판정한다. 논리 아홉 칸은 유지하며
 > 물리 잡은 checks 1·빌드 2·Android 3·iOS 6의 총 12개다. iOS는 16·5 플로로 나누며 합집합 21개와 무중복을 검사한다.
-> CI APK만 x86_64로 만들고 로컬 기본은 네 ABI다. iOS 컴파일 캐시는 네이티브 fingerprint·락파일·빌드 레시피·
-> Xcode/SDK·architecture·ccache 판이 같은 입력에서만 복원하며 현재 JS 번들과 앱 설정·서명은 매번 빌드하고 검증한다.
+> CI APK만 x86_64로 만들고 로컬 기본은 네 ABI다.
 > 세 백엔드 × 두 플랫폼, Android 23개·iOS 21개, 백엔드별 계약 거울 94개, 플랫폼별 fastapi request-stall,
-> 재시도 0과 기존 HTTP·로그·화면 단언 및 timeout은 그대로다. 실제 cold/warm 시간과 대기는 D8 실측 기록 G4에 적는다.
+> 재시도 0과 기존 HTTP·로그·화면 단언 및 timeout은 그대로다. 실제 빌드·E2E 시간과 macOS 대기는 D8 실측 기록 G4에 적는다.
+
+> 정정(2026-10-02, D8 캐시 후보 철회): [36963954302](https://github.com/builder-shin/template-typescript-expo/actions/runs/36963954302)의
+> iOS Clang 컴파일 511개가 모두 `-fmodules`를 사용해 ccache의 정확성 기본값으로 캐시할 수 없었다.
+> 모듈 내부 상태 변화를 놓칠 수 있는 sloppiness는 허용하지 않는다. 새 러너의 DerivedData 재사용도 검증되지 않아
+> iOS native-fingerprint 컴파일 캐시는 전체를 되돌렸다. 추후 Xcode compilation caching 또는 C_COMPILER_LAUNCHER를
+> 실제 실행으로 측정한 뒤 재검토한다. ABI 선택·iOS shard와 전체 검증 범위는 유지한다.
 
 ## 14. 문서
 
