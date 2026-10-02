@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { spawnSync } from 'node:child_process'
+import { resolveBash } from '../support/bash'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -97,27 +98,7 @@ afterAll(() => {
   rmSync(fixtureRoot, { recursive: true, force: true })
 })
 
-/**
- * 쓸 수 있는 bash 를 하나 고른다. 후보를 실제로 돌려 보고 판정한다 - 존재
- * 여부만 보면 WSL 의 `bash.exe` 가 통과해 버린다(위 머리말).
- */
-function resolveBash(): string {
-  const programFiles = process.env.ProgramW6432 ?? process.env.ProgramFiles ?? 'C:\\Program Files'
-  const candidates =
-    process.platform === 'win32'
-      ? [
-          'bash',
-          join(programFiles, 'Git', 'bin', 'bash.exe'),
-          join(programFiles, 'Git', 'usr', 'bin', 'bash.exe'),
-        ]
-      : ['bash']
-
-  for (const candidate of candidates) {
-    const probe = spawnSync(candidate, ['-c', 'printf ok'], { encoding: 'utf8' })
-    if (probe.status === 0 && probe.stdout === 'ok') return candidate
-  }
-  throw new Error(`쓸 수 있는 bash 를 찾지 못했다 - 후보: ${candidates.join(' · ')}`)
-}
+/** Bash 후보의 실제 실행 확인과 30초 제한은 test/unit/support/bash.ts 가 소유한다. */
 
 const BASH = resolveBash()
 

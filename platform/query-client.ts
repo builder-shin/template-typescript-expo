@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { AppState } from 'react-native'
 
 import { errorDetail } from '@/lib/auth/error-detail'
+import { isOnline } from '@/lib/jsonapi/online'
 import { isSessionRejected } from '@/lib/resources/write'
 import { sessionManager } from '@/platform/session'
 
@@ -66,9 +67,7 @@ export function useQueryRefetchTriggers(): void {
     })
     onlineManager.setEventListener((setOnline) =>
       NetInfo.addEventListener((state) => {
-        // isConnected 가 null 이면 아직 모르는 것이다 - 끊겼다고 보지 않는다. 끊김→연결을 지어내면
-        // 앱이 켜지자마자 조회를 한 번 더 부른다.
-        setOnline(state.isConnected !== false)
+        setOnline(isOnline(state.isConnected))
       }),
     )
     return () => {

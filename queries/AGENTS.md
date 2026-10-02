@@ -7,6 +7,7 @@ TanStack Query 의 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화를 소�
 | 파일                  | 역할                                                                                                                                                                                                                                                                                                                                                               |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `auth.ts`             | 가입·로그인·로그아웃 쓰기 훅과 로그아웃 진행 여부(`useIsLoggingOut`). `lib/auth/flow.ts`의 결정을 실행만 한다 - 세션을 세우는 데까지, 화면 이동은 화면이 한다. 로그인·가입의 옵션(`loginMutationOptions`·`registerMutationOptions`)과 키를 내보낸다 - 시험이 MutationObserver 로 돌린다                                                                            |
+| `error-boundary.ts`   | 오류 경계의 "다시 시도"(`retryWithClearedQueries`) - 조회 캐시를 비운 뒤 경계를 푼다. 루트 레이아웃의 `ErrorBoundary` 가 부른다(스펙 9.3)                                                                                                                                                                                                                          |
 | `keys.ts`             | 캐시 키(`['resources', type, 'list' \| 'detail', …]`)와 쓰기의 키(`mutationKeys` - 수정·삭제는 id 까지 좁힌다), 쓰기 뒤 무효화 표(`cacheEffects`), 표를 캐시에 옮기는 `applyCacheEffects`(스펙 8.5). 시험이 표와 실제 `QueryClient` 로 잰다                                                                                                                        |
 | `lab.ts`              | 계약 실험실의 실험 하나를 돌리는 쓰기 훅(`useLabExperiment`). 판단은 `lib/lab/run.ts` 가 한다 - 결과는 캐시에 두지 않고, 세션 거절이면 화면이 넘긴 콜백이 로그인으로 보낸다. 훅이 쓰는 옵션(`labExperimentMutationOptions`)을 내보낸다 - 시험이 MutationObserver 로 돌린다                                                                                         |
 | `resources.ts`        | 자원의 조회 훅 - 목록(`useResourceList`, 무한 스크롤)과 상세(`useResourceDetail`), 관계 선택기의 참조 목록(`useRelationshipReferences` - 조회 계획과 결과 합성은 `resource-options.ts`). 판단은 `lib/resources/view.ts`·`screen-state.ts`·`form.ts` 가 한다. 쌓인 화면은 구독하지 않는다(`subscribed`)                                                             |
@@ -81,8 +82,8 @@ TanStack Query 의 캐시 키, 조회·쓰기 훅, 쓰기 후 무효화를 소�
   모양에 영원히 멈추고, 던진 채로는 같은 관찰자의 다른 조회가 요청을 보내지도 못해 형제 선택기까지 얼린다.
   `referenceState` 는 결함에 던지므로(문구 없는 거절, 조회 함수의 결함) `combineReferences` 가 그것을 `{ kind: 'defect' }` 값으로 담고
   훅이 `referencesOf` 로 꺼내 던진다 - 오류 경계로 가는 길은 목록·상세와 같고, 결함이 가시면 다음 합성이 다시 참조 목록이다.
-  결함이 가시는 것은 다시 부를 때뿐이다 - 오류 경계의 "다시 시도" 는 다시 부르지 않아 캐시에 든 결함을 그대로 다시 던진다(스펙
-  9.3 의 D4 정정).
+  결함이 가시는 것은 다시 부를 때뿐이다 - 루트 오류 경계의 "다시 시도" 는 `error-boundary.ts` 의 `retryWithClearedQueries` 로
+  조회 캐시를 비운 뒤 경계를 풀어, 다시 그린 화면이 캐시의 결함 대신 새 응답을 받게 한다(스펙 9.3 의 D8 정정).
   새 `combine` 도 던지지 않는다. 시험이 설치본 `QueriesObserver` 에 `useQueries` 가 하는 렌더·커밋 순서를 그대로 돌려 잰다.
 - 쓰기의 오류는 값이다 - `write.ts` 는 검증·충돌·없는 자원·닿지 못함 같은 기대한 실패를 값으로 돌려주고, 던지는 것은 세션 거절뿐이다
   (쓰기 캐시의 `onError` 가 받는다). 그 밖에 `mutationFn` 안에서 던져진 것은 결함이다 - 쓰기 훅의 옵션이

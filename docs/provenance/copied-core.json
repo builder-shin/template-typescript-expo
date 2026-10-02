@@ -107,7 +107,7 @@
     },
     {
       "path": "test/unit/scripts/check-citations.test.ts",
-      "what": "GATE_TARGETS 를 app·components·lib·platform·queries·test 로 바꿨고, 주석의 원본 게이트 단계 번호 [5/9] 를 이 저장소의 [5/13] 로 바꿨다.",
+      "what": "GATE_TARGETS 를 app·components·lib·platform·queries·test 로 바꿨고, 주석의 원본 게이트 단계 번호 [5/9] 를 이 저장소의 [5/13] 로 바꿨다. D8은 중복 resolveBash를 기존 test/unit/support/bash.ts의 실제 후보 probe와30초 제한으로 모았다.",
       "why": "이 저장소에는 proxy.ts 가 없고 platform/ 이 있다. 테스트는 check.sh 의 호출 인자와 이 목록을 맞대므로 둘이 같아야 한다. queries/ 는 그 디렉터리의 첫 파일(queries/auth.ts)과 함께 두 자리에 더했다. 대상이 여섯이 되어 주석과 시험 이름의 \"다섯\"을 \"여섯\"으로 바꿨다."
     },
     {
