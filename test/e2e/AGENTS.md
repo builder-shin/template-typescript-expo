@@ -24,7 +24,7 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
   Maestro 2.11.0의 `IOSDriver.openLink`는 그 창을 처리하지 않는다. 모든 `openLink` 뒤에 이 서브플로를 부른다.
   iOS이고 정확한 제목이 보일 때만 누르고 제목이 사라졌는지 단언한다. 앱의 목적 화면 단언은 그대로다.
   OS 버튼에는 앱의 testID가 없다. 앱별 `AppleLanguages` 인자는 OS 영어 확인창과 별개다.
-  `flows.test.ts`는 예외 파일의 명령 구조 전체를 고정한다: iOS와 정확한 제목을 조건으로 하는 runFlow 하나,
+  `test/unit/e2e/flows.test.ts`는 예외 파일의 명령 구조 전체를 고정한다: iOS와 정확한 제목을 조건으로 하는 runFlow 하나,
   그 안의 Open 누름 하나와 같은 제목의 부재 단언 하나뿐이다. 저장소 전체에서 직접 id가 없는 누름도 정확히
   이 하나여야 한다. 무조건/중복 누름·넓어진 제목·블록 밖 단언과 호출 누락을 거절한다.
   증거는 실측 K3의 실행 2 스크린샷·hierarchy다. D7-R32 하네스는 아래 사전 승인을 준비하므로 보통 이 조건은
@@ -266,6 +266,16 @@ prebuild 가 만드는 `android/gradle.properties` 의 기본값(Metaspace 512Mi
 기본 입력기가 음성 입력으로 남아, 다음 실행의 로캘 없는 플로도 키보드 없이 돈다 - "키보드가 떠 있어도 제출 버튼이 한
 번에 눌리는지"를 조용히 재지 않는다. 그렇게 끝난 뒤에는 `adb shell settings get secure default_input_method` 로
 확인하고 `adb shell ime set com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME` 로 되돌린다.
+
+## Windows 게이트의 시작 상태
+
+소유 AVD를 새로 부팅하고 이 저장소의 Metro와 다른 무거운 작업이 끝난 뒤 게이트를 혼자 돌린다(D5 실측 C2).
+다른 기기/에이전트 작업을 임의 종료하지 않는다. adb 서버 재시작은 다른 기기가 없고 컨트롤러가 시간을 비운
+경우에만 수동으로 한다. 하네스가 자동으로 adb 서버를 재시작하지 않는다. UI 계층 질의 정지/연결 끊김은
+실패 회차의 로그·uptime·동시 작업과 함께 기록하고 retry/timeout을 늘리지 않는다.
+
+`ios-simulator.sh`는 run-ios.sh가 source하는 도우미다(100644). `ios-simulator.ts`의 허용 목록으로 전용 simulator의
+서비스를 축소하고 설정 준비 뒤 한 번만 재부팅한다. 사용자 기기는 선택 정보를 읽는 데만 쓰고 설정하지 않는다.
 
 ## iOS
 

@@ -75,6 +75,23 @@
 `lib/resources/index.ts`는 손으로 채우는 배열이다. **여기 없으면 그 자원은 존재하지 않는
 것과 같다.** 자동 탐색(glob · 동적 `import`)을 쓰지 않는다.
 
+## 새 자원 추가 절차
+
+백엔드에 이미 있는 자원을 앱에 더하는 순서다(스펙 14장). 백엔드에 표면이 없는 것은 더하지 않는다 - 이 템플릿은
+백엔드를 바꾸지 않는다.
+
+1. `lib/resources/<자원>.ts` - 선언. 속성·관계·필터·정렬은 백엔드의 조회 정책과 시리얼라이저를 **손으로 베낀
+   거울**이다(`lib/resources/example.ts` 가 본보기다). 화면마다의 판단을 새로 쓰지 않는다 - 목록·상세·폼은
+   `lib/resources/view.ts`·`form.ts` 가 선언을 읽어 정한다.
+2. `lib/resources/index.ts` - `RESOURCES` 배열에 손으로 더한다. **여기 없으면 그 자원은 존재하지 않는 것과 같다.**
+3. `queries/` - 조회·쓰기 훅은 자원을 인자로 받으므로 새로 만들지 않는다. 한 자원의 쓰기가 다른 자원의 목록을
+   바꾸면 `queries/keys.ts` 의 무효화 표(`cacheEffects`)에 그 규칙을 더한다.
+4. `app/(app)/<자원>/` - 화면. 손으로 만든다(제네릭 화면 생성기를 두지 않는다 - 스펙 1.2). `app/(app)/examples/` 를
+   따라 훅 호출과 JSX 만 둔다(`app/AGENTS.md`). 쓰기 화면은 `lib/auth/protected-paths.ts` 에 보호 경로를 더한다.
+5. 검증 - 계약 거울은 `RESOURCES` 를 읽어 조회 정책·응답 속성 키·enum 값을 저절로 잰다(속성 제약은 쓰기 라우트가
+   있는 자원만 - `test/contract/AGENTS.md`). 화면의 E2E 플로를 `test/e2e/flows/` 에 더한다(`test/e2e/AGENTS.md`).
+   게이트(`./scripts/check.sh`)가 통과해야 끝이다.
+
 ## 복사한 코어
 
 `lib/`의 상당 부분은 `template-typescript-nextjs`에서 복사했다(스펙 6장). 어떤 파일을
@@ -85,7 +102,7 @@
 
 ## `app/`에는 라우트 파일만 둔다
 
-Expo Router는 `app/` 아래의 모든 파일을 라우트로 취급한다. 판단 함수·타입·상수는
+Expo Router는 `app/` 아래의 `.tsx`·`.ts` 파일을 확장자로 골라 라우트로 읽는다 - `AGENTS.md`는 라우트가 아니다. 판단 함수·타입·상수는
 `lib/`의 해당 계층에 둔다. `+native-intent.tsx`는 라우트가 아닌 라우터의 특별 파일이지만 `app/`에 있어야
 라우터가 찾는다 - 배선만 하고 판단은 `lib/navigation/`에 둔다.
 
@@ -180,3 +197,27 @@ EAS·OTA 설정의 변형별 검증, 설정이 다르면 fingerprint runtime ver
 `docs/superpowers/notes/2026-10-01-d6-measurements.md`에 있다.
 세 백엔드의 계약 거울, 멈춘 서버로 잰 요청 타임아웃, 360dp 의 날짜 자리표시자, CI 매트릭스의 첫 실행, 쓰기 갈림과 access token 수명(D7 실측 K1–K4)은
 `docs/superpowers/notes/2026-10-01-d7-measurements.md`에 있다.
+Windows 게이트 전체와 CI 매트릭스의 마지막 실행, 문서군의 일치 검사(D8 실측 G1–G4)는
+`docs/superpowers/notes/2026-10-01-d8-measurements.md`에 있다.
+
+## 디렉터리 문서 탐색
+
+실행·환경 변수·변형·EAS·CI 는 `README.md` 가, 계층 계약은 이 파일이 갖는다. 디렉터리마다의 `AGENTS.md` 가 그
+디렉터리의 세부 - 파일마다의 역할과 그 자리의 함정 - 를 소유한다. 게이트 [7] 의 `test/unit/docs/doc-set.test.ts` 가
+문서군과 파일을 맞댄다 - 인용한 경로가 있어야 하고, 각 `AGENTS.md` 는 자기 디렉터리의 바로 아래 항목을 모두 불러야
+한다. 그래서 새 파일을 만들면 그 디렉터리의 문서에 한 줄을 더한다. 저장소 밖의 경로(원본·백엔드 저장소의 파일)를
+이름 그대로 불러야 하면 그 시험의 `EXTERNAL` 에 까닭과 함께 적는다.
+
+| 디렉터리                              | 무엇                                                                                     |
+| ------------------------------------- | ---------------------------------------------------------------------------------------- |
+| [`.github/`](.github/AGENTS.md)       | CI 워크플로 - 잡이 하는 일의 정본은 스크립트다                                           |
+| [`app/`](app/AGENTS.md)               | 라우트 - 화면·레이아웃·가드 배치                                                         |
+| `assets/`                             | 앱 아이콘·스플래시 이미지 - `app.config.ts` 가 가리킨다                                  |
+| [`components/`](components/AGENTS.md) | 화면이 나눠 쓰는 부품 - React Native Reusables 복사본, 폼, 자원 UI, 앱 조각, 실험실 카드 |
+| [`docs/`](docs/AGENTS.md)             | 설계·계획·실측 기록과 복사 출처 기록                                                     |
+| [`lib/`](lib/AGENTS.md)               | 순수 TypeScript 판단 - JSON:API 코어, 자원, 인증, 설정, 실험실, 딥링크, 빌드 정보        |
+| [`plugins/`](plugins/AGENTS.md)       | Expo 설정 플러그인 - 생성 네이티브 프로젝트의 변환과 정확한 앵커 검사                    |
+| [`platform/`](platform/AGENTS.md)     | 기기 모듈 호출과 배선 - API 클라이언트, 세션 관리자, Query 캐시, 업데이트                |
+| [`queries/`](queries/AGENTS.md)       | TanStack Query 의 캐시 키·조회·쓰기 훅·무효화                                            |
+| [`scripts/`](scripts/AGENTS.md)       | 단일 게이트와 검사기                                                                     |
+| [`test/`](test/AGENTS.md)             | 단위 시험, 계약 거울, E2E                                                                |

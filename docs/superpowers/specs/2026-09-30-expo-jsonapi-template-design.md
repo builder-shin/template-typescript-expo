@@ -1277,6 +1277,14 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 5. 계약 거울에 자원 추가, E2E 플로 추가
 ```
 
+> 정정(2026-10-01, D8): 문서군은 위 목록에 더해 `components/`(그리고 `app/`·`form/`·`ui/`·`lab/`)·`lib/`·`lib/updates/`·
+> `scripts/`·`test/`·`test/unit/`·`docs/` 의 `AGENTS.md` 를 둔다(`lib/config/`·`lib/navigation/`·`lib/lab/`·
+> `test/contract/`·`test/e2e/`·`.github/` 의 것은 앞 단계가 뒀다). 루트 `AGENTS.md` 가 새 자원 추가 절차와 디렉터리
+> 문서 탐색을 갖는다. 17장 조건 5 는 게이트 [7] 의 `test/unit/docs/doc-set.test.ts` 가 매번 잰다 - README 와
+> `AGENTS.md` 가 인용한 경로가 있고, 각 `AGENTS.md` 가 자기 디렉터리의 바로 아래 항목을 모두 부르고, 이 장의 문서가
+> 있고, 환경 변수가 10.1 의 세 곳에서 같다. 저장소 밖의 경로를 이름 그대로 부르는 자리는 그 시험의 `EXTERNAL` 에
+> 까닭과 함께 적는다.
+
 ## 15. 구현 단계
 
 | 단계 | 내용 | 산출 |
@@ -1313,6 +1321,10 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > `json()` 을 요청 signal 과 경주시킨다(이유는 실측 기록 M6 의 소스 확인). 본문을 읽는 도중 시간이
 > 다 되면 `REQUEST_TIMEOUT`, 호출자가 끊으면 `NON_JSONAPI_RESPONSE`(status 는 응답의 것)이고 단위 시험이
 > 지킨다.
+
+> 정정(2026-10-01, D8): 단계 8 의 "GitHub 저장소 생성" 은 D3 전에 끝났다 - `builder-shin/template-typescript-expo` 는
+> 공개 저장소다(사용자 확인). 끝난 단계는 컨트롤러가 `main` 에 병합 커밋으로 병합해 push 하고, CI 는 모든 브랜치의
+> push 에서 돈다(13장의 D7 정정). 태그·릴리스는 만들지 않았다 - 이 표가 산출로 정하지 않았다.
 
 ## 16. 리스크
 
