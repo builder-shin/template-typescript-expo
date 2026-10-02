@@ -27,7 +27,8 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
   `flows.test.ts`는 예외 파일의 명령 구조 전체를 고정한다: iOS와 정확한 제목을 조건으로 하는 runFlow 하나,
   그 안의 Open 누름 하나와 같은 제목의 부재 단언 하나뿐이다. 저장소 전체에서 직접 id가 없는 누름도 정확히
   이 하나여야 한다. 무조건/중복 누름·넓어진 제목·블록 밖 단언과 호출 누락을 거절한다.
-  증거는 실측 K3의 실행 2 스크린샷·hierarchy다.
+  증거는 실측 K3의 실행 2 스크린샷·hierarchy다. D7-R32 하네스는 아래 사전 승인을 준비하므로 보통 이 조건은
+  건너뛴다. 창이 다시 나타나면 같은 정확한 조건·누름·부재 단언으로 처리한다.
 - 콜드 링크는 `cold-links`가 별도로 잰다(D7-R29). 앱 종료 뒤 보호 경로를 열어 로그인하고 원래 보호 화면에
   도착해야 하며 공개 없는 상세의 콜드 링크는 not-found여야 한다. warm `auth-links`와 로그아웃 가드는 그대로다.
   현재 흐름은 Android 23개, iOS 21개(비행기 모드 두 흐름 제외)이며 request-stall은 checks로 따로 돈다.
@@ -292,6 +293,18 @@ Android 와 같고, 다른 것은 이렇다.
   강력한 비밀번호 추천 UI가 직접 입력을 한 글자로 잘랐고, 로그인 뒤 `Save Password?` 창이 홈을 덮었다.
   설정을 끈 대조에서는 20글자 전체가 전달됐고 가입·로그인·SecureStore 재시작 복원이 통과했다.
   앱의 자동완성 속성이나 플로·가드·목적 화면 단언은 바꾸지 않는다. CI와 로컬 모두 같은 준비 단계를 쓴다.
+- 딥링크 사전 승인: 첫 Maestro 흐름 전에 선택한 simulator의 `com.apple.launchservices.schemeapproval`에서
+  `com.apple.CoreSimulator.CoreSimulatorBridge-->templateexpo-e2e` 한 키만 `com.example.templateexpo.e2e`로
+  준비한다(D7-R32). 성공한 export만 원래 값/부재를 판정하며 읽기·해석 오류는 쓰기 전에 멈춘다. write 뒤 readback이
+  다르거나 실패하면 실행하지 않는다. 기존 cleanup EXIT trap은 성공·후속 실패 모두에서 원래 값/부재를 복원하고,
+  이 복원이 실패해도 AutoFill 복원을 시도한 뒤 실패로 끝낸다. 다른 스킴과 host 설정은 건드리지 않는다.
+  실행 5 Rails는 Open 뒤 login-screen 단언 종료 6.7초 후 경로가 관측됐다(K3). 첫 승인 지연의 내부 원인은
+  상류에서도 미해결이며 이 준비는 OS 승인 경로를 제거한다. 근거는
+  [Maestro #940](https://github.com/mobile-dev-inc/Maestro/issues/940#issuecomment-3587472809),
+  [#2610](https://github.com/mobile-dev-inc/Maestro/issues/2610),
+  [Expo #47614](https://github.com/expo/expo/pull/47614)다. 로컬/CI 배선은 동일하다. R31의 host 부하 제한 때문에
+  새 simulator의 전후 실측은 하지 않았고 가짜 경계 단위 시험·종료된 기기의 실제 키 확인과 통합 CI로 검증한다.
+  R16 서브플로와 엄격한 규칙, 앱의 URL 처리·목적 화면·시간·재시도는 유지한다.
 - D7-R20의 e2e 전용 `[e2e-state]` 정보 줄은 라우트·AppState·상세 조회 상태와 관찰자 수만 기록한다.
   `device.ndjson` 원본과 `device.log`의 `I/ReactNativeJS` 줄로 함께 보존한다. 앱 동작이나 가드를 바꾸지 않으며,
   딥링크 뒤 홈 유지/완료된 404 뒤 스켈레톤 유지의 경계를 찾기 위한 관측이다(실측 K3 실행 3).

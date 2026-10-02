@@ -682,3 +682,29 @@ host mediaanalysisd 약 300%였다. Rails `auth-links`는 UI·로그 가드까�
 D7-R31은 host 서비스와 메모리 부하 때문에 로컬 실행을 여기서 종료하고, Rails 전체와 Android의 새 cold-links를
 통합 CI에서 검증하도록 승인했다. Rails cold-links는 단언 실패가 아니라 작업자가 중단한 실행이다. I1/I2/M1과
 R29의 판단·배선·시험·플로·현재 수·문서를 함께 커밋하되 실행 5가 끝날 때까지 push하지 않는다.
+
+**실행 5 Rails의 warm 링크 지연.** iOS Rails는 `auth-links` 한 흐름만 실패했고 나머지 19개(404·SecureStore
+재시작 복원 포함)는 통과했다. commands.json의 Open 누름은 23:59:07.745Z, 제목 사라짐 확인 끝은 12.262Z,
+login-screen 단언은 12.264–28.108Z였으며 실패 화면은 홈이다. R20은 active 복귀 10.553Z 뒤에
+`/examples/new`를 **34.790Z**, `/login`을 35.694Z에 처음 기록했다. 이는 단언이 끝난 뒤의 관측이며
+R29의 `/examples/new`→`/` 목적지 손실과 다르다. 이 로그만으로 native URL 도착과 JS 처리 중 어느 경계에서
+지연됐는지는 확정하지 않는다. CoreSimulatorBridge의 Opening URL은 05.471Z였고 Maestro의 native 로그는
+29.5Z에 끝났다. 이후 같은 스킴 링크는 Open 조건을 건너뛰며 통과했다.
+
+상류 [Maestro #2610](https://github.com/mobile-dev-inc/Maestro/issues/2610)에는 GHA의 첫 Open 승인 뒤 이동 실패와
+로컬 성공을 보인 Expo 재현이 있으나 원인은 해결되지 않았다. [#940의 댓글](https://github.com/mobile-dev-inc/Maestro/issues/940#issuecomment-3587472809)은
+대상 simulator의 schemeapproval 사전 지정을 제안한다. 종료된 로컬 27 기기의 실제 plist에도
+`com.apple.CoreSimulator.CoreSimulatorBridge-->templateexpo-e2e` → `com.example.templateexpo.e2e`가 있었다.
+이는 하네스 후보의 근거이며 우리 실패의 직접 전후 입증은 아니다. 사전승인·readback·원복과 새 로컬 실측 면제는
+코디네이터 판단을 요청했으며 아직 적용하지 않았다.
+
+D7-R32가 이 한 키의 사전승인·readback·EXIT 원복과 R31의 새 simulator 실측 면제를 승인했다.
+[Expo #47614](https://github.com/expo/expo/pull/47614)도 simulator 안의 defaults로 같은 요청자→스킴 승인을
+준비하고 clearState 뒤에도 유지함을 확인했다. 이 저장소는 R16의 정확한 조건·Open 누름·부재 단언을 남긴다.
+`run-ios.sh`의 성공한 export만 부재/원래 값을 가르며 읽기·해석·쓰기·readback 실패를 전달한다. cleanup은
+승인 복원이 실패해도 AutoFill 복원을 시도한다. 앱 동작·타임아웃·재시도는 바꾸지 않는다. 최초 경계 시험은
+준비 함수/배선이 없는 상태에서 13실패했고 구현 뒤 기존 하네스·흐름 규칙과 함께 40시험이 통과했다.
+읽기 JSON/값 오류까지 추가한 승인 경계 15시험을 포함해 09:54 필수 정적 검사와 **91파일/1884시험**이
+통과했다. bash -n·bash 3.2 금지 구문 검사·ShellCheck 0.11.0·diff 검사도 통과했다. 종료된 27 기기의 실제
+승인 키/값을 plutil로 다시 읽어 확인했으며 새 기기는 부팅하지 않았다. 내부 지연 원인을 해결했다고 주장하지
+않으며 통합 CI가 실제 검증이다.

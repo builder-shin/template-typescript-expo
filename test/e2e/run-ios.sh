@@ -125,6 +125,49 @@ restore_autofill() {
   autofill_original=''
 }
 
+# 첫 OS 승인 경로의 GHA 지연을 피한다(K3, D7-R32). 앱의 링크/인증 처리와 R16 단언은 그대로 둔다.
+# 성공한 export만 부재와 값을 가른다. JSON 문자열로 보관해 실제 문자열 "absent"도 부재와 구별한다.
+scheme_approval_original=''
+prepare_scheme_approval() {
+  local domain='com.apple.launchservices.schemeapproval'
+  local key='com.apple.CoreSimulator.CoreSimulatorBridge-->templateexpo-e2e'
+  local exported original actual
+  exported=$(xcrun simctl spawn "$UDID" defaults export "$domain" -) || {
+    echo "E2E(iOS): 원래 딥링크 승인을 읽지 못했다 - 설정을 바꾸지 않는다" >&2
+    return 1
+  }
+  original=$(printf '%s' "$exported" | plutil -convert json -o - - | node -e '
+    const values = JSON.parse(require("fs").readFileSync(0, "utf8"))
+    const key = process.argv[1]
+    if (!Object.hasOwn(values, key)) console.log("absent")
+    else {
+      const value = values[key]
+      if (typeof value !== "string" || !/^[A-Za-z0-9.-]+$/.test(value)) {
+        throw new Error("알 수 없는 딥링크 승인 앱 식별자")
+      }
+      console.log(JSON.stringify(value))
+    }' "$key") || { echo "E2E(iOS): 원래 딥링크 승인을 해석하지 못했다" >&2; return 1; }
+  scheme_approval_original=$original
+  xcrun simctl spawn "$UDID" defaults write "$domain" "$key" -string "$APP_ID" || return 1
+  actual=$(xcrun simctl spawn "$UDID" defaults read "$domain" "$key") || return 1
+  [ "$actual" = "$APP_ID" ] || { echo "E2E(iOS): 딥링크 사전 승인이 적용되지 않았다" >&2; return 1; }
+  echo "E2E(iOS): templateexpo-e2e 스킴 사전 승인·readback 완료"
+}
+
+restore_scheme_approval() {
+  [ -n "$scheme_approval_original" ] || return 0
+  local domain='com.apple.launchservices.schemeapproval'
+  local key='com.apple.CoreSimulator.CoreSimulatorBridge-->templateexpo-e2e'
+  local original
+  if [ "$scheme_approval_original" = absent ]; then
+    xcrun simctl spawn "$UDID" defaults delete "$domain" "$key" || return 1
+  else
+    original=$(node -e 'process.stdout.write(JSON.parse(process.argv[1]))' "$scheme_approval_original") || return 1
+    xcrun simctl spawn "$UDID" defaults write "$domain" "$key" -string "$original" || return 1
+  fi
+  scheme_approval_original=''
+}
+
 # 시뮬레이터 로그(React Native 의 JS 줄)를 플로 동안 받는다. info 수준까지 받아야 앱의 console.log·[e2e-http] 줄이
 # 온다(--level debug).
 start_device_log() {
@@ -295,13 +338,17 @@ readonly APP
 xcrun simctl install "$UDID" "$APP"
 
 cleanup() {
+  local settings_failed=0
   stop_device_log || true
   stop_stall_server
   test/e2e/native-backend.sh stop || true
-  restore_autofill || fail "시뮬레이터의 원래 AutoFillPasswords 설정을 복원하지 못했다"
+  restore_scheme_approval || settings_failed=1
+  restore_autofill || settings_failed=1
+  [ "$settings_failed" = 0 ] || fail "시뮬레이터의 원래 딥링크 승인/AutoFill 설정을 복원하지 못했다"
 }
 trap cleanup EXIT
 prepare_autofill || fail "시뮬레이터의 Password AutoFill을 끄지 못했다"
+prepare_scheme_approval || fail "시뮬레이터의 딥링크 사전 승인을 준비하지 못했다"
 node_quiet --input-type=module \
   -e "import { backendKind, reportKnownDivergences } from './test/e2e/matrix.ts'; reportKnownDivergences(backendKind())"
 test/e2e/native-backend.sh stop
