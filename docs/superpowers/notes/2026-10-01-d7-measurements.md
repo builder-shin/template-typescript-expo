@@ -598,3 +598,87 @@ secrets·인용·출처, 변경 셸 bash 3.2/ShellCheck 0.11.0, actionlint 1.7.1
 
 08:32 KST R26 수정 후 같은 iOS 27+NestJS에서 `E2E_FLOW=examples-browse` 하네스 전체가 exit 0이었다.
 두 태그의 정확한 멤버 검사와 나머지 목록·상세·필터·정렬 단언, JS 가드가 통과했다.
+
+08:32 KST `4d2d099`를 push해 실행 5
+[36941340879](https://github.com/builder-shin/template-typescript-expo/actions/runs/36941340879)를 시작했다.
+FastAPI 로컬 전체와 멈춘 서버 검사를 병행한다. 08:39까지 auth-links·계약 두 흐름·browse·create가 통과했고,
+생성의 요청 수는 **회전 1·POST 1·로그인 1**이었다. 결정 43의 FastAPI 스크린샷도 둘째 누름 뒤 시스템 저장 창 없이
+홈의 같은 빌드 정보 카드를 보여 주며 목적 좌표는 (201,384)였다. 이로써 NestJS의 좌표 대조와 FastAPI의 실제
+요청 수 한 번을 함께 확인했다. 실행 5의 최종 아홉 칸은 아직 대기 중이다.
+
+08:53 KST FastAPI+iOS 27 전체는 **20개 흐름과 request-stall 모두 exit 0**이었다. Android 전용 두 흐름은 선언대로
+제외했다. 두 404 상세는 R20의 pending/fetching→success/idle, 관찰자 1과 목적 not-found 화면을 확인했다.
+헤더/본문 정지 요청은 각각 23:52:39.825Z/23:52:55.141Z에 서버에 닿았고 REQUEST_TIMEOUT 가드도 통과했다.
+
+**Task 4+4b 리뷰 보완.** 원래 AutoFill 읽기 실패를 키 없음으로 오인하면 기존 0/1을 지울 수 있었다(I1).
+두 값에서 회귀 시험이 실패함을 확인하고, 성공한 `defaults export` 사전을 해석해 부재와 값을 가르게 했다.
+실제 iOS 27의 없는 domain export도 exit 0/빈 dict였으며 명령/변환 오류는 쓰기 전에 멈춘다. 준비/복원과 실제
+cleanup EXIT trap의 후속 실패를 포함한 10시험이 통과했고, 기기에서도 absent→0→의도한 exit 23→absent를 확인했다.
+
+I2는 시스템 Open 예외 파일 전체를 검사에서 빼 추가/중복 누름과 블록 밖 단언을 놓쳤다(회귀 3실패).
+이제 주석·빈 줄·줄끝 공백만 뺀 명령 구조 전체를 고정하고 직접 selector id 없는 누름을 저장소 전체 정확히 하나로
+제한한다. 넓어진 제목과 다른 파일의 속성 순서/하위 id 우회도 거절한다. 흐름 규칙 17시험이 통과했다.
+M1은 스펙의 Android splash CI 결과를 실행 3의 세 셀 통과/timeout 0건으로 바로잡고 로컬 미재현·fade 손실은 유지했다.
+08:52 보완 뒤 필수 정적 검사와 **90파일/1863시험**, bash 3.2 구문/금지 구문/ShellCheck 0.11.0이 통과했다.
+코디네이터 지시로 실행 5가 끝나기 전에는 보완 커밋을 push하지 않는다.
+
+**콜드 링크 추가 재현.** R22b의 콜드 시작 대조에서 새 앱+iOS 27은 종료 뒤 `/examples/new`를 열면 로그인 대신
+홈에 머물렀다. R20은 새 PID의 `/examples/new`→`/`를 남겼다. 공개 없는 상세의 콜드 링크는
+`/examples/<id>`→`/`→`/examples/<id>` 뒤 404/not-found·가드가 통과했다. 받은 **실행 3 원본 앱**(scene/R20 없음)도
+같은 27의 보호 콜드 링크에서 실패했으므로 scene 변경만의 회귀는 아니다. 기존 실행 3의 warm 실패와 같은 원인이라고
+확정하지 않는다. 설치본 Redirect는 내비게이터 준비를 기다리며 중첩 Stack을 거두면 홈 앵커가 보일 수 있다.
+첫 로그인 목적지를 셸 해제 때까지 유지하는 수정 후보와 `cold-links` 회귀 흐름을 만들었고 실제 재검증 중이다.
+
+D7-R29로 승인된 수정은 `lib/auth/guard-latch.ts`의 `decidePendingLogin`이 첫 목적지를 유지하고 앱 셸은
+마운트 동안의 상태와 배선만 가진다. signedIn/restoring이면 이동하지 않으며 기존 로그아웃 래치 시험은 그대로다.
+설치본 Expo Router의 `build/link/Redirect.js:37`은 replace를 focus 효과에서 부르고, `build/useFocusEffect.js:95`는
+loaded navigation이 없으면 기다린다(`build/link/useLoadedNavigation.js:42–45`). 중첩 Stack을 거두면
+`build/react-navigation/core/useNavigationBuilder.js:495–500`이 navigator state를 비우며,
+`build/global-state/getRouteInfoFromState.js:92–97`은 자식이 사라진 `(app)`의 경로를 `/`로 만든다.
+앵커 `index`는 `build/getRoutesCore.js:655`에서 initial route가 된다. 이때 매 렌더의 보호 판정만 따르면 첫
+로그인 목적지가 사라져 Redirect가 취소됐다. 설치본의 실제 라우트 정보 함수를 이용한 상태 경계 시험도 추가했다.
+
+09:11 iOS 27/FastAPI의 수정 앱에서 새 `cold-links`는 UI·JS 가드까지 통과했다. R20은 보호 콜드 시작에서
+`/examples/new`→`/`→`/login`→(로그인 뒤)`/examples/new`를 남겼다. 공개 콜드 링크도 404→success/idle/observer1과
+not-found에 도착했다. 기존 `auth-links`도 통과했다. 새 플로는 두 플랫폼에서 로그인 후 원래 보호 화면 도착까지
+검사한다. 현재 수는 **Android 23 / iOS 21**이며 앞선 실행들의 22/20은 그 시점의 실제 수다.
+
+같은 배치 도중 호스트 부하가 약 281로 올라 사용 중인 27 시뮬레이터와 하네스를 중단했다. 최종 로그를 보면
+cold-links는 이미 끝났고 다음 guard-return에서 중단됐으므로 배치 전체 통과로 세지 않는다. 호스트의 상위 CPU는
+mds/mdworker였고 BackgroundShortcutRunner는 관측되지 않았다. 다른 서비스는 건드리지 않았으며 Docker cleanup과
+AutoFill의 원래 키 없음 복원을 확인했다. 두 시뮬레이터를 끈 뒤 부하가 내려가는 것을 보고 나머지 검증을 이어간다.
+
+09:18 새로 지운 iOS 26.5 기기에서 **실행 3 원본 앱**과 NestJS의 warm `auth-links`를 대조했다. 최초 시스템
+Open 창의 제목 확인·Open 누름·제목 사라짐을 실제로 거친 뒤 로그인/가입 링크 왕복과 보호 화면, 홈 복귀까지 UI가
+통과했다. 원래 홈 유지 실패는 재현되지 않았으며 unsigned 앱의 예상한 Keychain missing entitlement 오류는
+남았다. 따라서 이 원본 실행을 JS 가드까지 통과했다고 세지 않는다. 같은 26.5에서 I1의 실제 native 설정도
+absent→0→의도한 exit 23→absent 복원을 확인했다. 마지막 라우트 상태 경계 시험을 포함한 필수 정적 검사와
+**90파일/1869시험**, bash 3.2 금지 구문 검사·ShellCheck 0.11.0·actionlint 1.7.12가 모두 통과했다.
+
+09:24 iOS 26.5의 전후 대조도 완료했다. 수정 전 CI5 앱(SDK 26/scene/정상 서명)은 PID64288의
+`/examples/new`→`/` 뒤 login-screen 단언이 실패했다. 최종 수정 앱은 PID69280의
+`/examples/new`→`/`→`/login`→인증 뒤 `/examples/new`로 도착했고 공개 cold 404도 success/idle/observer1이었다.
+NestJS에서 `auth-links`, `cold-links`, `guard-return`, `logout-from-protected`, `register-restore-logout`의
+**다섯 흐름과 로그 가드가 모두 exit 0**이었다. Docker 정리와 AutoFill 키 없음 복원도 확인했다.
+
+09:25 같은 26.5 기기/FastAPI에서 받은 **실행 3 원본 앱**의 `examples-empty-notfound`도 전체 UI와 404 허용
+로그 가드가 통과했다. 빈 목록·필터 해제, 없는 UUID와 잘못된 UUID의 HTTP 404/not-found, 없는 앱 경로까지 확인했다.
+원래 CI의 404 뒤 skeleton 정체는 이 대조에서도 재현되지 않았다. 원본에는 R20이 없으므로 응답 뒤 관찰자 상태를
+소급해 단정하지 않는다. 그 뒤 26.5를 끄고 27의 중단됐던 세 인증 흐름만 별도 실행한다.
+
+09:26 iOS 27만 다시 부팅하자 빌드 없이도 host load 130→167, simulator의 Rs 프로세스 133개가 관측됐다.
+사용 중인 하네스·Java만 TERM하고 AutoFill 키 없음 복원·Docker 정리를 확인한 뒤 그 simulator를 종료했다.
+**D7-R30은 이 작업에서 27을 다시 부팅하지 않고 나머지를 26.5에서 마치도록 했다.** 최종 R29 앱의 27
+`guard-return`, `logout-from-protected`, `register-restore-logout`은 자원 문제로 **미실행(NOT RUN)**이며
+통과로 세지 않는다. 앞서 27의 cold/auth 성공과 26.5의 다섯 흐름 전체 성공은 각각의 증거 범위로 남긴다.
+27의 원래 언어 ko-KR·로캘 ko_KR은 종료된 기기의 plist에서 복원하고 다시 읽어 확인했다. 기기는 계속 꺼져 있다.
+
+09:30 Rails 이미지(main `231576eeac21c583b2cc28532248223351f2c92f`)는 정상 빌드됐지만 26.5에서도
+load 92→114, Rs 프로세스 68개를 관측했다. CPU idle 약 42%, 메모리 46/48 GB(compressor 약 9.6 GB),
+host mediaanalysisd 약 300%였다. Rails `auth-links`는 UI·로그 가드까지 통과했지만 다음 `cold-links` 도중
+소유 runner·Java를 중단하고 AutoFill 키 없음·Docker 정리를 확인한 뒤 26.5도 종료했다.
+**Rails 전체는 미완료**이며 통과로 세지 않는다. 다른 host 서비스에는 손대지 않았다.
+
+D7-R31은 host 서비스와 메모리 부하 때문에 로컬 실행을 여기서 종료하고, Rails 전체와 Android의 새 cold-links를
+통합 CI에서 검증하도록 승인했다. Rails cold-links는 단언 실패가 아니라 작업자가 중단한 실행이다. I1/I2/M1과
+R29의 판단·배선·시험·플로·현재 수·문서를 함께 커밋하되 실행 5가 끝날 때까지 push하지 않는다.

@@ -93,15 +93,22 @@ reset_app() {
 # 재므로 선택한 시뮬레이터의 AutoFill만 실행 중 끈다. 앱의 textContentType은 유지하고 원래 설정은 복원한다.
 autofill_original=''
 prepare_autofill() {
-  local original actual
-  if original=$(xcrun simctl spawn "$UDID" defaults read com.apple.WebUI AutoFillPasswords 2>/dev/null); then
-    case "$original" in
-      0|1) ;;
-      *) echo "E2E(iOS): 알 수 없는 AutoFillPasswords 값: $original" >&2; return 1 ;;
-    esac
-  else
-    original=absent
-  fi
+  local original actual domain
+  # defaults export는 없는 domain도 성공한 빈 dict로 돌려준다(K3). 명령 실패를 키 없음으로 오인하지 않는다.
+  domain=$(xcrun simctl spawn "$UDID" defaults export com.apple.WebUI -) || {
+    echo "E2E(iOS): 원래 AutoFill 설정을 읽지 못했다 - 설정을 바꾸지 않는다" >&2
+    return 1
+  }
+  original=$(printf '%s' "$domain" | plutil -convert json -o - - | node -e '
+    const values = JSON.parse(require("fs").readFileSync(0, "utf8"))
+    if (!Object.hasOwn(values, "AutoFillPasswords")) console.log("absent")
+    else {
+      const value = values.AutoFillPasswords
+      if (value !== 0 && value !== 1 && value !== false && value !== true) {
+        throw new Error("알 수 없는 AutoFillPasswords 값")
+      }
+      console.log(Number(value))
+    }') || { echo "E2E(iOS): 원래 AutoFill 설정을 해석하지 못했다" >&2; return 1; }
   autofill_original=$original
   xcrun simctl spawn "$UDID" defaults write com.apple.WebUI AutoFillPasswords -int 0 || return 1
   actual=$(xcrun simctl spawn "$UDID" defaults read com.apple.WebUI AutoFillPasswords) || return 1

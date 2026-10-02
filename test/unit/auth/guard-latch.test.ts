@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { decideGuard, type GuardDecision, type GuardInput } from '@/lib/auth/guard-latch'
+import {
+  decideGuard,
+  decidePendingLogin,
+  type GuardDecision,
+  type GuardInput,
+} from '@/lib/auth/guard-latch'
+import { loginHref } from '@/lib/auth/protected-paths'
 import type { SessionStatus } from '@/lib/auth/session-manager'
 
 /**
@@ -9,6 +15,56 @@ import type { SessionStatus } from '@/lib/auth/session-manager'
 
 const PROTECTED = '/examples/new'
 const PUBLIC = '/'
+
+describe('로그인 이동이 완료되기 전의 목적지', () => {
+  it('콜드 보호 경로 뒤 홈 앵커가 나타나도 next를 가진 첫 목적지를 유지한다', () => {
+    const first = decidePendingLogin({
+      status: 'signedOut',
+      pending: null,
+      requested: loginHref(PROTECTED),
+    })
+    expect(first).toBe('/login?next=%2Fexamples%2Fnew')
+    expect(decidePendingLogin({ status: 'signedOut', pending: first, requested: null })).toBe(first)
+    expect(
+      decidePendingLogin({
+        status: 'signedOut',
+        pending: first,
+        requested: loginHref('/examples/42/edit'),
+      }),
+    ).toBe(first)
+  })
+
+  it.each(['signedIn', 'restoring'] as const)('%s이면 보류된 로그인 이동도 없다', (status) => {
+    expect(
+      decidePendingLogin({
+        status,
+        pending: loginHref(PROTECTED),
+        requested: loginHref(PROTECTED),
+      }),
+    ).toBeNull()
+  })
+
+  it('셸의 새 상태는 이전 셸의 목적지를 물려받지 않는다', () => {
+    const previousLayout = decidePendingLogin({
+      status: 'signedOut',
+      pending: null,
+      requested: loginHref(PROTECTED),
+    })
+    expect(previousLayout).not.toBeNull()
+    expect(decidePendingLogin({ status: 'signedOut', pending: null, requested: null })).toBeNull()
+  })
+
+  it('로그아웃 래치가 이동을 막는 동안 목적지를 만들지 않는다', () => {
+    const guard = decideGuard(input({ loggingOut: true }))
+    expect(
+      decidePendingLogin({
+        status: 'signedOut',
+        pending: null,
+        requested: guard.redirect ? loginHref(PROTECTED) : null,
+      }),
+    ).toBeNull()
+  })
+})
 
 function input(overrides: Partial<GuardInput> = {}): GuardInput {
   return {

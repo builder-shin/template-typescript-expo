@@ -4,8 +4,8 @@ import { resolve } from 'node:path'
 import type { getRouteInfoFromState } from 'expo-router/build/global-state/getRouteInfoFromState'
 import { describe, expect, it } from 'vitest'
 
-import { decideGuard } from '@/lib/auth/guard-latch'
-import { isProtectedPath, routePattern } from '@/lib/auth/protected-paths'
+import { decideGuard, decidePendingLogin } from '@/lib/auth/guard-latch'
+import { isProtectedPath, loginHref, routePattern } from '@/lib/auth/protected-paths'
 
 /**
  * 경로 가드가 보호 판정에 쓰는 것은 `usePathname()` 이 아니라 라우트 모양(`routePattern(useSegments())`)이다 - 스펙 7.3
@@ -101,6 +101,27 @@ describe('설치본 Expo Router 의 라우트 정보 - usePathname()·useSegment
 describe('앱 셸이 가드에 넘기는 입력', () => {
   const signedOut = (pathname: string) =>
     decideGuard({ status: 'signedOut', loggingOut: false, latched: false, pathname })
+
+  it('중첩 navigator가 state를 거두면 설치본은 /를 보고하지만 첫 로그인 next는 남는다', () => {
+    const initial = routeInfoOf(stateOf('examples/new'))
+    // 설치본 useNavigationBuilder의 unmount cleanup은 현재 navigator state를 undefined로 비운다.
+    const afterUnmount = routeInfoOf({
+      routes: [{ name: '__root', state: { routes: [{ name: '(app)' }] } }],
+    })
+    expect(initial.pathname).toBe('/examples/new')
+    expect(afterUnmount.pathname).toBe('/')
+    expect(signedOut(routePattern(afterUnmount.segments)).redirect).toBe(false)
+    const first = decidePendingLogin({
+      status: 'signedOut',
+      pending: null,
+      requested: signedOut(routePattern(initial.segments)).redirect
+        ? loginHref(initial.pathname)
+        : null,
+    })
+    expect(decidePendingLogin({ status: 'signedOut', pending: first, requested: null })).toBe(
+      '/login?next=%2Fexamples%2Fnew',
+    )
+  })
 
   it('세션이 없고 id 에 %2F 가 든 수정 화면이면 라우트 모양을 넘겨야 로그인으로 보낸다 - 경로를 넘기면 가드가 비껴간다', () => {
     const info = routeInfoOf(stateOf('examples/[id]/edit', { id: 'a%2Fb' }))

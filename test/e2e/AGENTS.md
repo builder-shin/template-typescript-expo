@@ -24,7 +24,13 @@ Maestro 플로, E2E 하네스, SQL 시드가 산다(스펙 4장·11.3·11.4). �
   Maestro 2.11.0의 `IOSDriver.openLink`는 그 창을 처리하지 않는다. 모든 `openLink` 뒤에 이 서브플로를 부른다.
   iOS이고 정확한 제목이 보일 때만 누르고 제목이 사라졌는지 단언한다. 앱의 목적 화면 단언은 그대로다.
   OS 버튼에는 앱의 testID가 없다. 앱별 `AppleLanguages` 인자는 OS 영어 확인창과 별개다.
-  `flows.test.ts`가 이 한 곳의 예외와 호출 누락을 막는다. 증거는 실측 K3의 실행 2 스크린샷·hierarchy다.
+  `flows.test.ts`는 예외 파일의 명령 구조 전체를 고정한다: iOS와 정확한 제목을 조건으로 하는 runFlow 하나,
+  그 안의 Open 누름 하나와 같은 제목의 부재 단언 하나뿐이다. 저장소 전체에서 직접 id가 없는 누름도 정확히
+  이 하나여야 한다. 무조건/중복 누름·넓어진 제목·블록 밖 단언과 호출 누락을 거절한다.
+  증거는 실측 K3의 실행 2 스크린샷·hierarchy다.
+- 콜드 링크는 `cold-links`가 별도로 잰다(D7-R29). 앱 종료 뒤 보호 경로를 열어 로그인하고 원래 보호 화면에
+  도착해야 하며 공개 없는 상세의 콜드 링크는 not-found여야 한다. warm `auth-links`와 로그아웃 가드는 그대로다.
+  현재 흐름은 Android 23개, iOS 21개(비행기 모드 두 흐름 제외)이며 request-stall은 checks로 따로 돈다.
 - D1 실측(M8·M3)에서 걸린 것: `evalScript` 값은 따옴표로 감싼다. `launchApp` 뒤에는 화면 요소를
   기다린 다음 `openLink`를 보낸다(직후의 딥링크는 버려진다). `console.log`는 콘솔이 아니라 디버그
   로그(`maestro.log`)에 남는다. 로캘 플로에는 `clearState`를 쓰지 않는다 - 앱별 언어가 지워진다.
@@ -281,7 +287,8 @@ Android 와 같고, 다른 것은 이렇다.
   CI는 Xcode 26.6을 명시하며 Mac의 27.0과 함께 검증한다. iOS Maestro 호출은 `--platform ios`로 Android 기기
   열거를 막는다 - 연결된 Android 기기가 응답하지 않아 iOS 실행도 시작 못 한 사례가 K3에 있다.
 - Password AutoFill: `run-ios.sh`는 선택한 시뮬레이터의 `com.apple.WebUI AutoFillPasswords`를 실행 중 0으로
-  설정하고 다시 읽어 0이 아니면 실패한다. 종료 시 원래 값 또는 키 없음 상태로 복원한다. K3 Mac 재현에서
+  설정하고 다시 읽어 0이 아니면 실패한다. 먼저 defaults export의 성공한 domain 사전에서 원래 값/키 없음을
+  구분하며 명령·변환 실패면 쓰기 전에 멈춘다. 종료 시 원래 값 또는 키 없음 상태로 복원한다. K3 Mac 재현에서
   강력한 비밀번호 추천 UI가 직접 입력을 한 글자로 잘랐고, 로그인 뒤 `Save Password?` 창이 홈을 덮었다.
   설정을 끈 대조에서는 20글자 전체가 전달됐고 가입·로그인·SecureStore 재시작 복원이 통과했다.
   앱의 자동완성 속성이나 플로·가드·목적 화면 단언은 바꾸지 않는다. CI와 로컬 모두 같은 준비 단계를 쓴다.

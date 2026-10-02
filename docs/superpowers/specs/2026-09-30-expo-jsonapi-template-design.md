@@ -1327,7 +1327,8 @@ components/resource/AGENTS.md   "자원 이름으로 분기하지 않는다"
 > 120초 RPC 제한으로 실패했다. `with-android-splash-exit.ts`가 등록 직후·`super.onCreate` 전에 API 31 이상에서
 > `splashScreen.clearOnExitAnimationListener()`를 호출해 시스템 기본 exit를 쓴다. Expo의 splash 유지·hide 프리드로우
 > 게이트와 iOS는 보존하지만 Android의 400ms fade를 포기한다. 생성 앵커가 바뀌면 prebuild가 오류로 멈춘다. 로컬에서
-> 자연 재현되지 않은 한계를 K3에 적었으며 수정의 CI 검증은 아직 진행 중이다.
+> 자연 재현되지 않은 한계는 남는다. K3의 실행 3에서는 Android 세 셀이 모두 통과했고 splash 전송 timeout과
+> `starting_reveal` timeout은 0건이었다.
 
 > 정정(2026-10-02, D7-R22b): Xcode 27 SDK의 scene lifecycle 필수화로 SDK 57의 기본 AppDelegate 앱은 iOS 27에서
 > JS 시작 전에 SIGTRAP으로 종료된다. 11.4의 공식 Expo opt-in으로 대응하며 native fingerprint가 바뀐다.

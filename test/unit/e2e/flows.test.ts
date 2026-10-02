@@ -55,6 +55,68 @@ function commands(source: string): string {
 const BACK_COMMAND = /^\s*-\s*(?:back|pressKey:\s*back)\s*$/im
 const AIRPLANE_COMMAND = /^\s*-?\s*(?:setAirplaneMode|toggleAirplaneMode)\b/m
 
+function assertNativeOpenRules(all: readonly Flow[]): void {
+  const path = 'subflows/confirm-ios-open-link.yaml'
+  // 주석·빈 줄·줄 끝 공백만 걷는다. 들여쓰기는 구조이므로 보존해 블록 밖 단언도 거절한다.
+  const normalize = (source: string) =>
+    commands(source)
+      .split('\n')
+      .map((line) => line.trimEnd())
+      .filter((line) => line.trim() !== '')
+      .join('\n')
+  expect(normalize(all.find((flow) => flow.path === path)?.source ?? '')).toBe(
+    normalize(String.raw`
+appId: com.example.templateexpo.e2e
+---
+- runFlow:
+    when:
+      platform: iOS
+      visible: '^Open in “Template Expo \(E2E\)”\?$'
+    commands:
+      - tapOn:
+          text: 'Open'
+      - assertNotVisible: '^Open in “Template Expo \(E2E\)”\?$'
+`),
+  )
+  const exceptions = all.flatMap((flow) =>
+    Array.from({ length: textOnlyTaps(flow.source) }, () => flow.path),
+  )
+  expect(exceptions).toEqual([path])
+}
+
+/** tapOn의 직접 selector에 id가 있는지 잰다. text의 위치나 below 같은 하위 selector의 id에 기대지 않는다. */
+function textOnlyTaps(source: string): number {
+  const lines = commands(source)
+    .split('\n')
+    .filter((line) => line.trim() !== '')
+  let count = 0
+  for (const [index, line] of lines.entries()) {
+    const tap = /^(\s*)-\s+tapOn:\s*(.*)$/.exec(line)
+    if (tap === null) continue
+    if (tap[2] !== '') {
+      count += 1
+      continue
+    }
+    const indent = tap[1]?.length ?? 0
+    const properties: string[] = []
+    for (const next of lines.slice(index + 1)) {
+      if (next.length - next.trimStart().length <= indent) break
+      properties.push(next)
+    }
+    const first = properties[0] ?? ''
+    const selectorIndent = first.length - first.trimStart().length
+    if (
+      !properties.some(
+        (property) =>
+          property.length - property.trimStart().length === selectorIndent &&
+          /^id:/.test(property.trimStart()),
+      )
+    )
+      count += 1
+  }
+  return count
+}
+
 describe('Maestro 플로의 두 플랫폼 규칙', () => {
   const all = flows()
 
@@ -166,17 +228,40 @@ describe('Maestro 플로의 두 플랫폼 규칙', () => {
   })
 
   it('native Open 텍스트 누름은 iOS 의 정확한 시스템 창 안에서만 허용한다', () => {
+    assertNativeOpenRules(all)
+  })
+
+  it.each([
+    ['무조건 누름 추가', (source: string) => source + "\n- tapOn: 'Open'\n"],
+    [
+      '넓어진 제목',
+      (source: string) =>
+        source.replaceAll(String.raw`^Open in “Template Expo \(E2E\)”\?$`, '.*Open.*'),
+    ],
+    [
+      '중복 누름',
+      (source: string) =>
+        source.replace(
+          '      - assertNotVisible:',
+          "      - tapOn:\n          text: 'Open'\n      - assertNotVisible:",
+        ),
+    ],
+    [
+      '블록 밖 단언',
+      (source: string) => source.replace('      - assertNotVisible:', '- assertNotVisible:'),
+    ],
+  ] as const)('시스템 예외의 %s를 거절한다', (_name, mutate) => {
     const path = 'subflows/confirm-ios-open-link.yaml'
-    const source = commands(all.find((flow) => flow.path === path)?.source ?? '')
-    expect(source).toMatch(/when:\s*\n\s*platform: iOS\s*\n\s*visible:/)
-    expect(source).toContain(String.raw`visible: '^Open in “Template Expo \(E2E\)”\?$'`)
-    expect(source).toMatch(/- tapOn:\s*\n\s*text: 'Open'/)
-    expect(source).toContain(String.raw`- assertNotVisible: '^Open in “Template Expo \(E2E\)”\?$'`)
-    for (const flow of all.filter((entry) => entry.path !== path)) {
-      const body = commands(flow.source)
-      // 데이터 행은 id 와 text 를 함께 쓴다. text 하나로 누르는 시스템 예외는 위 파일뿐이다.
-      expect(body, flow.path).not.toMatch(/- tapOn:\s*\n\s*text:/)
-      expect(body, flow.path).not.toMatch(/- tapOn:[ \t]*[^\s\n]/)
-    }
+    const mutated = all.map((flow) =>
+      flow.path === path ? { ...flow, source: mutate(flow.source) } : flow,
+    )
+    expect(() => assertNativeOpenRules(mutated)).toThrow()
+  })
+
+  it.each([
+    "- tapOn:\n    optional: false\n    text: 'Open'\n",
+    "- tapOn:\n    text: 'Open'\n    below:\n      id: screen\n",
+  ])('다른 파일의 속성 순서/하위 id로 텍스트 누름 상한을 우회하지 못한다: %s', (source) => {
+    expect(() => assertNativeOpenRules([...all, { path: 'flows/extra.yaml', source }])).toThrow()
   })
 })
