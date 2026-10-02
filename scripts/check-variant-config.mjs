@@ -24,7 +24,7 @@
  */
 import { readFileSync } from 'node:fs'
 
-import { BASE_APP_ID, BASE_NAME, BASE_SCHEME } from '../app.config.ts'
+import { BASE_APP_ID, BASE_NAME, BASE_SCHEME, DEV_CLIENT_SCHEME } from '../app.config.ts'
 import { parseAppVariant, variantProfile } from '../lib/config/app-variant.ts'
 import { easProjectId, updatesConfig } from '../lib/config/updates.ts'
 
@@ -63,6 +63,8 @@ function main() {
   const updates = updatesConfig(variant, projectId)
   const appId = `${BASE_APP_ID}${profile.idSuffix}`
   const scheme = `${BASE_SCHEME}${profile.schemeSuffix}`
+  // 개발 클라이언트의 scheme 은 설정 플러그인이 변형의 scheme 뒤에 더한다 - development 만(devClientScheme)
+  const devClient = profile.devClientScheme ? [DEV_CLIENT_SCHEME] : []
   const runtimeVersion = updates.enabled ? FINGERPRINT_SENTINEL : undefined
 
   const problems = []
@@ -98,7 +100,7 @@ function main() {
 
   expectValue('Android 패키지', config?.android?.package, appId)
   expectValue('Android 앱 이름', strings.get('app_name'), `${BASE_NAME}${profile.nameSuffix}`)
-  expectValue('Android 딥링크 scheme', androidSchemes, [scheme])
+  expectValue('Android 딥링크 scheme', androidSchemes, [scheme, ...devClient])
   expectValue(
     'Android 평문 HTTP(usesCleartextTraffic)',
     application?.$?.['android:usesCleartextTraffic'],
@@ -141,8 +143,13 @@ function main() {
   )
 
   expectValue('iOS 번들 ID', config?.ios?.bundleIdentifier, appId)
+  expectValue(
+    'iOS 앱 이름',
+    ios?.infoPlist?.CFBundleDisplayName,
+    `${BASE_NAME}${profile.nameSuffix}`,
+  )
   // Expo 는 번들 ID 도 URL scheme 으로 더한다.
-  expectValue('iOS URL scheme', iosSchemes, [scheme, appId])
+  expectValue('iOS URL scheme', iosSchemes, [scheme, appId, ...devClient])
   expectValue('iOS scene lifecycle', ios?.infoPlist?.UIApplicationSceneManifest, {
     UIApplicationSupportsMultipleScenes: false,
     UISceneConfigurations: {

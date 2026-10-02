@@ -34,6 +34,7 @@ describe('variantProfile', () => {
       allowCleartext: true,
       logsHttpFailures: false,
       updatesChannel: null,
+      devClientScheme: true,
     })
     expect(variantProfile('preview')).toEqual({
       idSuffix: '.preview',
@@ -42,6 +43,7 @@ describe('variantProfile', () => {
       allowCleartext: false,
       logsHttpFailures: false,
       updatesChannel: 'preview',
+      devClientScheme: false,
     })
     expect(variantProfile('production')).toEqual({
       idSuffix: '',
@@ -50,6 +52,7 @@ describe('variantProfile', () => {
       allowCleartext: false,
       logsHttpFailures: false,
       updatesChannel: 'production',
+      devClientScheme: false,
     })
     expect(variantProfile('e2e')).toEqual({
       idSuffix: '.e2e',
@@ -58,6 +61,7 @@ describe('variantProfile', () => {
       allowCleartext: true,
       logsHttpFailures: true,
       updatesChannel: null,
+      devClientScheme: false,
     })
   })
 
@@ -75,6 +79,12 @@ describe('variantProfile', () => {
       ['preview', 'preview'],
       ['production', 'production'],
       ['e2e', null],
+    ])
+  })
+
+  it('개발 클라이언트의 scheme 은 development 에만 싣는다 - 여러 변형에 실리면 딥링크가 갈 곳이 정해지지 않는다', () => {
+    expect(APP_VARIANTS.filter((variant) => variantProfile(variant).devClientScheme)).toEqual([
+      'development',
     ])
   })
 

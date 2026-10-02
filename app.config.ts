@@ -26,6 +26,14 @@ import { easProjectId, RUNTIME_VERSION_POLICY, updatesConfig } from './lib/confi
 export const BASE_APP_ID = 'com.example.templateexpo'
 export const BASE_SCHEME = 'templateexpo'
 export const BASE_NAME = 'Template Expo'
+/** Expo 프로젝트의 slug - EAS 프로젝트의 slug 와 같아야 한다. */
+export const SLUG = 'template-typescript-expo'
+/**
+ * 개발 클라이언트(expo-dev-client)가 slug 로 만드는 scheme - 그 설정 플러그인의 규칙 그대로다(URI scheme 에 못 쓰는
+ * 글자를 빼고 소문자로, 앞에 `exp+`). development 변형만 싣는다(lib/config/app-variant.ts 의 devClientScheme). 게이트
+ * [8] 이 설정 플러그인이 실제로 더한 값과 맞댄다(scripts/check-variant-config.mjs).
+ */
+export const DEV_CLIENT_SCHEME = `exp+${SLUG.replace(/[^A-Za-z0-9+\-.]/g, '').toLowerCase()}`
 
 export default function appConfig({ config }: ConfigContext): ExpoConfig {
   const variant = parseAppVariant(process.env.APP_VARIANT)
@@ -39,7 +47,7 @@ export default function appConfig({ config }: ConfigContext): ExpoConfig {
   return {
     ...config,
     name: `${BASE_NAME}${profile.nameSuffix}`,
-    slug: 'template-typescript-expo',
+    slug: SLUG,
     version: '0.1.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
@@ -83,6 +91,10 @@ export default function appConfig({ config }: ConfigContext): ExpoConfig {
       // 세션 항목(SecureStore)을 Android 자동 백업에서 뺀다 - 복원된 백업은 키 저장소의 키가 없어
       // 풀 수 없다. 생체 인증을 쓰지 않으므로(스펙 1.2) Face ID 사용 문구를 넣지 않는다(스펙 7.1).
       ['expo-secure-store', { configureAndroidBackup: true, faceIDPermission: false }],
+      // 개발 클라이언트(스펙 1.2 - 개발은 development build 로 한다). 그 플러그인은 기본으로 모든 변형에 같은 scheme
+      // (exp+<slug>)을 더한다 - development 에만 싣는다(lib/config/app-variant.ts 의 devClientScheme). release 빌드의
+      // 개발 런처는 빈 구현이라 e2e·배포 변형의 동작은 바뀌지 않는다.
+      ['expo-dev-client', { addGeneratedScheme: profile.devClientScheme }],
     ],
     experiments: { typedRoutes: true, reactCompiler: true },
     // eas-cli 와 EAS 빌드는 extra.eas.projectId 로 프로젝트를 찾는다.

@@ -863,6 +863,14 @@ Native Generation). 네이티브 설정은 `app.config.ts`와 config plugin으�
 > 묻는다(비대화형이면 멈춘다). 프로필과 변형이 맞는지(이름·`APP_VARIANT`·채널·Node·pnpm, `BACKEND_URL` 없음)는
 > `test/unit/config/eas-json.test.ts` 가 보고, 스키마는 `@expo/eas-json` 24.8.0 의 해석기로 쟀다(D6 실측 O2).
 
+> 정정(2026-10-01, D8): `expo-dev-client`(~57.0.19)를 설치했다 - `development` 프로필의 `developmentClient` 가 그것을
+> 요구하고(위 D6 정정), 개발은 development build 로 한다(1.2). 그 설정 플러그인이 기본으로 모든 변형에 더하는 scheme
+> `exp+template-typescript-expo` 는 `development` 에만 싣는다(`lib/config/app-variant.ts` 의 `devClientScheme`,
+> `app.config.ts` 의 `addGeneratedScheme`) - 10.2 의 D1 정정(변형마다 다른 scheme)을 지킨다. 게이트 [8] 이 네 변형의
+> introspect 에서 그 scheme 이 development 의 Android·iOS 에만 있는지 잰다. release 빌드의 개발 런처는 빈 구현이라
+> e2e·배포 변형의 동작은 바뀌지 않는다. iOS 의 Info.plist 에는 모든 변형에 로컬 네트워크 키(`NSBonjourServices`)가
+> 더해지고, Debug 가 아닌 빌드에서 그 플러그인의 빌드 단계가 지운다.
+
 ### 10.6 OTA 업데이트
 
 - `runtimeVersion`은 `fingerprint` 정책이다. 네이티브 구성이 같은 빌드에만
