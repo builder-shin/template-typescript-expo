@@ -13,6 +13,10 @@
 
 ## 작업 규칙
 
+- iOS native cache는 Expo fingerprint·락파일·레시피·Xcode/SDK·architecture·ccache 판이 같은 prefix만 복원한다.
+  DerivedData와 ccache는 `ios/` 밖에 둔다. 성공 빌드 뒤만 저장하며 hit에서도 prebuild와 현재 JS 번들·앱 설정·서명을
+  다시 빌드하고 검증한다. CocoaPods 다운로드 캐시는 별도로 유지한다. 통계·원천 목록·빌드 시간을 기록으로 올린다.
+
 - iOS는 macOS 최대 다섯 슬롯에서 여섯 잡을 실행한다. 실제 대기를 기록하며 matrix 순서가 러너 배정을 보장하지 않는다.
   `scripts/e2e-flow-shards.mjs`가 만든 두 manifest의 합집합은 iOS 21개이고 중복이 없어야 한다.
   아티팩트는 `e2e-ios-<backend>-shard-<shard>`로 나눠 manifest와 성공·실패한 이름의 로그를 함께 올린다.

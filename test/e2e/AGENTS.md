@@ -269,6 +269,10 @@ prebuild 가 만드는 `android/gradle.properties` 의 기본값(Metaspace 512Mi
 
 ## iOS
 
+`E2E_IOS_DERIVED_DATA`의 미지정 기본은 `ios/build`이고 CI는 `$RUNNER_TEMP/expo-ios-derived-data`를 쓴다.
+`E2E_IOS_CCACHE=1`은 CI 빌드에서만 공식 `ios.ccacheEnabled: true`를 더한다. 기본 로컬·배포 설정에는 그 키가 없다.
+캐시 hit에서도 `prebuild --clean`·Xcode·현재 JS 번들·앱 설정·서명 단언을 실행한다.
+
 CI iOS는 백엔드마다 `scripts/e2e-flow-shards.mjs`의 두 shard를 `E2E_FLOW`로 전달한다. 초기 16·5 플로의 합집합은
 21개이고 중복이 없어야 한다. 각 shard의 manifest와 실제 성공·실패한 플로 이름은 CI 아티팩트에 남긴다.
 

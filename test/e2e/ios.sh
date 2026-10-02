@@ -16,7 +16,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 readonly APP_ID=com.example.templateexpo.e2e
-readonly DERIVED_DATA=ios/build
+readonly DERIVED_DATA="${E2E_IOS_DERIVED_DATA:-ios/build}"
 readonly PRODUCTS="$DERIVED_DATA/Build/Products/Release-iphonesimulator"
 readonly BUILD_LOG=.maestro-output/ios-build.log
 
@@ -193,15 +193,33 @@ build() {
   workspace=$(find ios -maxdepth 1 -name '*.xcworkspace' | head -n 1)
   [ -n "$workspace" ] || fail "prebuild 가 ios/*.xcworkspace 를 만들지 않았다"
   scheme=$(basename "$workspace" .xcworkspace)
+  # 해당 앱·현재 번들·EXConstants만 다시 만든다. 라이브러리 객체와 모듈 캐시는 보존한다.
+  local product
+  if [ -d "$PRODUCTS" ]; then
+    for product in "$PRODUCTS/$scheme.app" "$PRODUCTS/EXConstants.bundle"; do
+      [ ! -e "$product" ] || rm -rf "$product"
+    done
+  fi
+  rm -rf "$DERIVED_DATA/Build/Intermediates.noindex/$scheme.build/Release-iphonesimulator/$scheme.build" \
+    "$DERIVED_DATA/Build/Intermediates.noindex/Pods.build/Release-iphonesimulator/EXConstants.build"
   mkdir -p "$(dirname "$BUILD_LOG")"
+  if [ "${E2E_IOS_CCACHE:-}" = 1 ]; then
+    grep -Eq '"apple.ccacheEnabled"[[:space:]]*:[[:space:]]*"true"' ios/Podfile.properties.json || fail "pod install의 ccache 설정이 켜지지 않았다"
+    grep -q 'ccache-clang' ios/Pods/Pods.xcodeproj/project.pbxproj || fail "Clang ccache wrapper가 없다"
+  fi
   echo "xcodebuild: $workspace ($scheme, Release, iphonesimulator $(uname -m)) - 기록은 $BUILD_LOG" >&2
   if ! xcodebuild -workspace "$workspace" -scheme "$scheme" -configuration Release -sdk iphonesimulator \
     -destination 'generic/platform=iOS Simulator' -derivedDataPath "$DERIVED_DATA" \
     ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= \
     COMPILER_INDEX_STORE_ENABLE=NO \
-    build >"$BUILD_LOG" 2>&1; then
+    -showBuildTimingSummary build >"$BUILD_LOG" 2>&1; then
     tail -n 80 "$BUILD_LOG" >&2
     fail "xcodebuild 가 실패했다 - 전체 기록은 $BUILD_LOG"
+  fi
+  grep -Eq 'PhaseScriptExecution .*Bundle.*React.*Native.*code.*and.*images' "$BUILD_LOG" || fail "현재 JS bundle 단계가 실행되지 않았다"
+  if [ "${E2E_IOS_CCACHE:-}" = 1 ]; then
+    grep -q 'ccache-clang' "$BUILD_LOG" || fail "빌드가 Clang ccache wrapper를 쓰지 않았다"
+    ccache --show-stats >>"$BUILD_LOG"
   fi
   app=$(app_path)
   assert_app "$app" "$BACKEND_URL"

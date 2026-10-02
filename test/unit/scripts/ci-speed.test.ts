@@ -10,6 +10,7 @@ const ANDROID = readFileSync(resolve('test/e2e/android.sh'), 'utf8')
 const RUN_ANDROID = readFileSync(resolve('test/e2e/run-android.sh'), 'utf8')
 const JVM = '-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m'
 const CI = readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
+const IOS = readFileSync(resolve('test/e2e/ios.sh'), 'utf8')
 afterAll(() => rmSync(WORK, { recursive: true, force: true }))
 let sequence = 0
 
@@ -141,6 +142,119 @@ describe('CI Android ABI와 두 단계 Gradle', () => {
       androidBuild('x86_64', '> Task :app:createReleaseUpdatesResources UP-TO-DATE', 17).result
         .status,
     ).toBe(17)
+  })
+})
+
+function iosBuild(override: boolean, hit: boolean, xcodeExit = 0) {
+  const directory = scene()
+  const derived = override ? join(directory, 'derived').split('\\').join('/') : 'ios/build'
+  const products = join(
+    directory,
+    override ? 'derived' : 'ios/build',
+    'Build/Products/Release-iphonesimulator',
+  )
+  mkdirSync(join(products, 'Probe.app'), { recursive: true })
+  writeFileSync(join(products, 'Probe.app/stale'), 'old app')
+  mkdirSync(join(directory, 'ios/Probe.xcworkspace'), { recursive: true })
+  if (hit) {
+    mkdirSync(join(directory, 'derived/ModuleCache.noindex'), { recursive: true })
+    writeFileSync(join(directory, 'derived/ModuleCache.noindex/object'), 'cached library')
+  }
+  writeFileSync(join(directory, 'current-js'), 'current JS')
+  executable(
+    directory,
+    'pnpm',
+    'echo prebuild >> calls.log\nrm -rf ios\nmkdir -p ios/Probe.xcworkspace',
+  )
+  executable(directory, 'uname', 'echo arm64')
+  executable(
+    directory,
+    'plutil',
+    'case "$2" in EXUpdatesEnabled) echo false ;; NSAppTransportSecurity.NSAllowsLocalNetworking) echo true ;; CFBundleIdentifier) echo com.example.templateexpo.e2e ;; *) exit 99 ;; esac',
+  )
+  executable(directory, 'codesign', 'echo signature >> calls.log')
+  executable(
+    directory,
+    'xcodebuild',
+    `echo xcodebuild >> calls.log
+dd=''
+while [ "$#" -gt 0 ]; do if [ "$1" = -derivedDataPath ]; then shift; dd=$1; fi; shift; done
+[ ! -f "$dd/Build/Products/Release-iphonesimulator/Probe.app/stale" ] || exit 91
+echo 'PhaseScriptExecution Bundle\\ React\\ Native\\ code\\ and\\ images'
+[ "$FAKE_XCODE_EXIT" = 0 ] || exit "$FAKE_XCODE_EXIT"
+app="$dd/Build/Products/Release-iphonesimulator/Probe.app"
+mkdir -p "$app/EXConstants.bundle"
+printf '%s' '{"extra":{"appVariant":"e2e","backendUrl":"http://localhost:4100"},"updates":{"enabled":false}}' > "$app/EXConstants.bundle/app.config"
+cp current-js "$app/main.jsbundle"
+touch "$app/Expo.plist" "$app/Info.plist"`,
+  )
+  const constants =
+    IOS.match(/^readonly (?:DERIVED_DATA|PRODUCTS|BUILD_LOG|APP_ID)=.*$/gm)?.join('\n') ?? ''
+  const result = shell(
+    directory,
+    `${constants}
+${block(IOS, 'fail')}
+${block(IOS, 'app_path')}
+${block(IOS, 'assert_app')}
+assert_signature() { codesign --verify --strict --deep "$1"; }
+${block(IOS, 'build')}
+build`,
+    {
+      BACKEND_URL: 'http://localhost:4100',
+      E2E_IOS_DERIVED_DATA: override ? derived : '',
+      FAKE_XCODE_EXIT: String(xcodeExit),
+      E2E_IOS_CCACHE: '',
+    },
+  )
+  return { result, directory, products, derived }
+}
+
+describe('iOS native cache가 현재 앱 빌드를 건너뛰지 않는다', () => {
+  it('기본 DerivedData는 ios/build이고 CI override만 저장소 밖을 쓴다', () => {
+    for (const override of [false, true]) {
+      const { result, derived } = iosBuild(override, false)
+      expect(result.status, result.stderr).toBe(0)
+      expect(result.stdout.trim()).toBe(
+        `${derived}/Build/Products/Release-iphonesimulator/Probe.app`,
+      )
+    }
+  })
+  it('prebuild clean은 CI DerivedData의 라이브러리 객체를 보존한다', () => {
+    const { result, directory } = iosBuild(true, true)
+    expect(result.status, result.stderr).toBe(0)
+    expect(readFileSync(join(directory, 'derived/ModuleCache.noindex/object'), 'utf8')).toBe(
+      'cached library',
+    )
+  })
+  it('cache miss와 hit 모두 prebuild·Xcode·현재 JS bundle·assert-app을 실행한다', () => {
+    for (const hit of [false, true]) {
+      const { result, directory, products } = iosBuild(true, hit)
+      expect(result.status, result.stderr).toBe(0)
+      expect(readFileSync(join(directory, 'calls.log'), 'utf8').trim().split('\n')).toEqual([
+        'prebuild',
+        'xcodebuild',
+        'signature',
+      ])
+      expect(readFileSync(join(products, 'Probe.app/main.jsbundle'), 'utf8')).toBe('current JS')
+      expect(result.stderr).toContain('extra.appVariant=e2e backendUrl=http://localhost:4100')
+    }
+  })
+  it('다른 native/toolchain cache는 복원하지 않고 성공 빌드 뒤만 저장한다', () => {
+    const build = CI.split('\n  build-ios:\n')[1]?.split('\n  e2e-ios:\n')[0] ?? ''
+    const restore =
+      /uses: actions\/cache\/restore@v6\n([\s\S]*?)(?=\n      - name:)/.exec(build)?.[1] ?? ''
+    expect(restore).toContain(
+      'key: ios-native-v1-${{ steps.native-key.outputs.cacheKey }}-${{ github.sha }}',
+    )
+    expect(restore).toContain(
+      'restore-keys: ios-native-v1-${{ steps.native-key.outputs.cacheKey }}-',
+    )
+    expect(restore.match(/restore-keys:/g)?.length).toBe(1)
+    expect(build).toContain("if: success() && steps.native-cache.outputs.cache-hit != 'true'")
+    expect(build.indexOf('uses: actions/cache/save@v6')).toBeGreaterThan(
+      build.indexOf('run: test/e2e/ios.sh build'),
+    )
+    expect(iosBuild(true, true, 17).result.status).not.toBe(0)
   })
 })
 
