@@ -46,26 +46,65 @@ NestJS **24.63/12.25분**, Rails **20.80/10.62분**이다. 플로 준비 비용�
 
 **Task 0 측정 실행 A.**
 [36963954302](https://github.com/builder-shin/template-typescript-expo/actions/runs/36963954302)는
-`12afb8b237fc29cf559e5331052f7d00f27b49f2`에서 시작한 첫 iOS native cache 실행이다.
-조회 시 전체 실행은 완료되지 않았다(`queued`, 진행 중인 E2E와 대기 중인 shard가 있다).
+`12afb8b237fc29cf559e5331052f7d00f27b49f2`의 ABI·iOS shard와 컴파일 캐시 후보를 측정한 실행이다.
+전체 실행은 **completed/success, 물리12잡 모두 success**로 완료됐다(04:18:08Z–05:17:57Z, 마지막 잡 기준59.82분).
 완료된 checks는 **2.25분**, build-android는 **11.23분**(APK 단계 **10.25분**),
 build-ios는 **12.95분**(.app 단계 **11.18분**)이었다.
 build-ios의 캐시 키 계산은 **6초**, 복원 단계는 **0초**, 저장 단계는 **17초**였다.
-단계 시간 0초를 cache hit로 해석하지 않는다. 실행 미완료로 GitHub 잡 로그를 아직 받을 수 없어
-native key·Xcode/SDK/architecture의 실제 출력·ccache hit/miss·최종 shard 대기와 E2E 결론은 확인하지 않았다.
-이 부분 완료 수치를 물리 12잡 성공이나 전체 시간 절감으로 쓰지 않는다.
-여기서 cold는 새 iOS native compile cache 기준이며 기존 pnpm·Gradle·CocoaPods·AVD 캐시를 모두 비운 뜻이 아니다.
+APK 단계는 기준 25.98분보다 **15.73분 짧았다(60.55%)**. 이 한 실행의 관찰값이며 러너와 기존 Gradle 캐시의 영향을
+분리한 인과 추정은 아니다. 기준·실행 A 모두 기존 pnpm·Gradle·CocoaPods·AVD 캐시를 강제로 비우지 않았다.
+원본 로그와 여섯 manifest를 맞대 Android는 백엔드마다23플로·계약94시험, iOS는16+5플로의 무중복 합집합21개를
+확인했다. request-stall은 Android FastAPI와 iOS FastAPI shard1에서 각 한 번 통과했다.
+
+| 실행 A 물리 잡 | 전체(분) | 주요 단계(분) | iOS 배정 대기(분) |
+| --- | ---: | ---: | ---: |
+| checks | 2.25 | 1.73 | - |
+| build-android | 11.23 | 10.25 | - |
+| build-ios | 12.95 | 11.18 | - |
+| e2e-android fastapi | 31.85 | 28.68 | - |
+| e2e-android nestjs | 31.50 | 27.87 | - |
+| e2e-android rails | 30.63 | 26.40 | - |
+| e2e-ios fastapi shard1 | 30.78 | 29.47 | 0.22 |
+| e2e-ios fastapi shard2 | 22.10 | 20.83 | 5.53 |
+| e2e-ios nestjs shard1 | 34.50 | 33.32 | 0.13 |
+| e2e-ios nestjs shard2 | 21.18 | 19.85 | 3.73 |
+| e2e-ios rails shard1 | 34.33 | 33.20 | 10.58 |
+| e2e-ios rails shard2 | 21.68 | 20.42 | 25.05 |
+
+iOS 배정 대기는 build-ios 완료부터 각 잡의 Set up job 시작까지다.
+[D7 main 실행36960944908](https://github.com/builder-shin/template-typescript-expo/actions/runs/36960944908)의 iOS 세 잡이
+같은 macOS 슬롯을 사용했고 NestJS04:34:50Z·Rails04:36:36Z·FastAPI04:41:42Z에 끝났다. 바로 뒤에 실행 A의
+NestJS shard2 04:34:58Z·FastAPI shard2 04:36:45Z·Rails shard1 04:41:49Z가 시작했다.
+마지막 Rails shard2는 NestJS shard2가 끝난04:56:09Z 뒤04:56:17Z에 Set up job을 시작했다.
+include의 긴 shard 우선 순서가 배정 순서를 보장하지 않는다는 사실도 확인됐다.
+
+iOS 잡 자체는 기준40.13–45.50분에서 shard1 30.78–34.50분, shard2 21.18–22.10분으로 짧아졌다.
+하지만 실제 iOS 전체 꼬리는 build-ios 완료 뒤 **46.72분**이었다. 준비 반복과 여섯 잡의 배정 대기가 포함된 값이며
+이 실행에서 shard만의 전체 시간 절감을 분리해 확정하지 않는다. runner-minutes 합계는 기준264.80분에서
+**285.00분**으로20.20분 늘었다(정리·아티팩트 포함, 배정 대기 제외). 짧은 잡이 전체 러너 비용 감소를 뜻하지 않는다.
+생성부터 마지막 잡 완료까지는 기준62.10분·실행 A59.82분으로 **2.28분 짧았다**. 러너·기존 캐시·동시 실행의
+영향이 섞인 한 쌍의 관찰이며 APK 단계의15.73분 감소를 전체 실행의 절감으로 바꾸지 않는다.
+
+백엔드별 iOS 두 shard가 받은 main SHA는 같았다. FastAPI `3c4eee39a2f3b69f594b7d610b0a7a423433fbe0`,
+NestJS `92cc2b1f5c5914d5d24b1688ab84468528dce95b`, Rails `231576eeac21c583b2cc28532248223351f2c92f`다.
+실행 A는 Task 0 head의 범위·시간 증거이며 Task 1·2가 통합된 코드의 최종 CI 증거는 G2에서 별도로 닫는다.
 
 CI는 APK를 x86_64만 빌드하며 로컬 미지정 빌드는 기존 네 ABI다. iOS는 백엔드마다 두 shard,
-최대 다섯 동시 잡이고 현재 앱·JS 번들을 항상 다시 만든다. 같은 native fingerprint·락파일·레시피·
-Xcode/SDK·architecture·ccache 판에서만 DerivedData/ccache를 복원한다.
+최대 다섯 동시 잡이다. 앱은 플랫폼마다 한 번 빌드해 백엔드별 잡에 전달한다.
 범위는 세 백엔드 × Android/iOS, Android 23·iOS 21플로, 백엔드마다 계약 거울 94시험,
 각 플랫폼 FastAPI request-stall, 재시도 0·기존 단언·timeout 그대로다. 논리 9칸의 성공에는 물리 12잡 모두가 필요하다.
 
-**별도의 warm 측정 실행은 하지 않는다.** Task 3가 Task 1 뒤의 첫 실행과 같은 native key를 쓰는 최종 실행에서
-warm 비교를 기록한다. 실행 A와 Task 1의 의존성 변경 뒤 실행은 key가 다를 수 있으므로 그 둘을 cold/warm 쌍으로
-비교하지 않는다. Task 3는 실제 SHA·native key·toolchain·복원/저장·ccache 통계와 shard별 대기를 확인하고,
-같은 key의 두 실행에서 잡 전체와 컴파일·캐시 비용을 나눠 실제 절감값을 계산한다.
+**정정(2026-10-02, 컴파일 캐시 후보 철회).** 실행 A의 빌드 artifact에서 Xcode26.6 build17F113·SDK26.5·arm64·
+ccache4.14와 키 `dab4a7336810f764b9e9a912306ff8f3350fd71e09d1e2cda1ab904119bd4ca6`을 확인했다.
+복원은 miss, archive 저장은 17초·661,632,577바이트였지만 지정 ccache의 통계는 크기0만 보여 cacheable 호출·miss를
+입증하지 못했다. archive는 DerivedData도 포함하므로 이 크기는 ccache 컴파일 결과의 크기가 아니다.
+실제 RN wrapper 호출512개 중511개가 `-fmodules` Clang 컴파일, 나머지1개는 linker였다.
+[ccache4.14의 구현](https://github.com/ccache/ccache/blob/v4.14/src/ccache/argprocessing.cpp)은 Clang modules에
+direct·depend mode와 `sloppiness=modules`를 요구한다. 모듈 내부 상태 변화를 놓칠 수 있는 설정은 허용하지 않으며
+fresh VM의 DerivedData-only 절감도 입증하지 못했다. 따라서 `69a7de4`에서 후보 커밋 전체를 되돌렸고 캐시 절감은
+**0으로 기록한다**. 설치·복원·저장 비용과 캐시 키 스크립트도 제거했다.
+**warm 비교는 더 이상 계획하지 않는다.** 후속 CI는 캐시 실험이 아닌 통합 코드의 전체 범위 검증이다.
+Xcode compilation caching 또는 C_COMPILER_LAUNCHER는 실제 실행으로 효과와 정확성을 잰 뒤 재검토할 후보다.
 
 ## G3 — 문서군의 일치(게이트 [7])
 
@@ -120,3 +159,8 @@ Tests  4 failed | 7 passed (11)
 변경 마크다운은 저장소의 Prettier 규칙으로 정렬했다. `docs/` 산문은 기존 무시 규칙대로 서식을 보존했다.
 그 무시 패턴이 `test/unit/docs/`까지 가려 새 시험은 `.gitignore`를 ignore-path로 지정해 별도로 정렬했고,
 서식만 바꾼 뒤 문서 시험 11개가 다시 통과했다. 기기·계약 거울·전체 CI의 최종 검증은 G1·G2와 Task 3의 범위다.
+
+**정정(2026-10-02, 캐시 철회 후 통합 검증).** 캐시 기능과 해당16시험을 제거하고 ABI 음수 경로3시험을 보강한 뒤
+Task 1·2를 통합한 상태는 정적 게이트 [1]–[11] 전부 통과, **100파일 / 1960시험**이었다. 문서군 시험은 계속11개다.
+복사 출처54·이탈42·원본 그대로33, 네 변형×EAS 유무의 설정8평가, doctor·export --clear·compose config도 통과했다.
+README와 scripts 문서의 철회된 캐시 계약을 제거하고 G4에 그 근거와 warm 비교 철회를 기록했다.

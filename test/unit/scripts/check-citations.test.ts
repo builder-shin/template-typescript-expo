@@ -1,10 +1,10 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { resolveBash } from '../support/bash'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { resolveBash } from '../support/bash'
 
 /**
  * `scripts/check-citations.sh` 를 **실제로 돌려서** 잰다 - 게이트 [5/13] 의 몸통이다.
@@ -99,7 +99,6 @@ afterAll(() => {
 })
 
 /** Bash 후보의 실제 실행 확인과 30초 제한은 test/unit/support/bash.ts 가 소유한다. */
-
 const BASH = resolveBash()
 
 interface CitationsRun {

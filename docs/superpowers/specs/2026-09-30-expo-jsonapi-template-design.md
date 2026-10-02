@@ -885,7 +885,7 @@ Native Generation). 네이티브 설정은 `app.config.ts`와 config plugin으�
 > `exp+template-typescript-expo` 는 `development` 에만 싣는다(`lib/config/app-variant.ts` 의 `devClientScheme`,
 > `app.config.ts` 의 `addGeneratedScheme`) - 10.2 의 D1 정정(변형마다 다른 scheme)을 지킨다. 게이트 [8] 이 네 변형의
 > introspect 에서 그 scheme 이 development 의 Android·iOS 에만 있는지 잰다. release 빌드의 개발 런처는 빈 구현이라
-> e2e·배포 변형의 동작은 바뀌지 않는다. iOS 의 Info.plist 에는 모든 변형에 로컬 네트워크 키(`NSBonjourServices`)가
+> e2e·배포 변형의 동작은 바뀌지 않는다. iOS 의 Info.plist 에는 모든 변형에 로컬 네트워크 키(`NSBonjourServices`·`NSLocalNetworkUsageDescription`)가
 > 더해지고, Debug 가 아닌 빌드에서 그 플러그인의 빌드 단계가 지운다.
 
 ### 10.6 OTA 업데이트

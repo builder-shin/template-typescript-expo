@@ -200,7 +200,7 @@ APK 를 다시 만들 때 하네스는 Metro 캐시를 비우고 Gradle 을 데�
 - 매트릭스는 `fail-fast: false` 이고 재시도는 0 입니다 - 실패한 잡을 코드 변경 없이 다시 돌리지 않습니다. 흔들리는 플로는 원인을 고칩니다.
 - 아티팩트: 갈래마다 `e2e-android-<백엔드>` · `e2e-ios-<백엔드>-shard-<번호>` 에 플로별 Maestro 기록 · 스크린샷 · 기기 로그 · `api.log`(14일), 앱 둘(7일), iOS 빌드 기록이 남습니다. 빨간 칸은 그 플로의 기기 로그(`device.log` - 가드가 본 것)와 스크린샷부터 봅니다.
 - macOS 실행은 계정의 동시 잡 한도를 공유합니다. 이 워크플로는 다섯 이하로 제한하며 여섯 번째 shard의 대기도 측정합니다.
-- CI APK는 x86_64만 만들고 로컬 기본 APK는 네 ABI입니다. iOS는 backend마다 두 shard이며 macOS 동시 잡은 최대 다섯입니다. 플로 목록의 합집합·무중복이 검사됩니다. 네이티브 fingerprint·Xcode/SDK·architecture가 같은 빌드만 DerivedData/ccache를 복원하고 현재 JS 번들을 항상 다시 만듭니다. 전후 시간/실제 cache hit는 `docs/superpowers/notes/2026-10-01-d8-measurements.md`의 G4에 있습니다. Expo 미리 빌드한 모듈과 action SHA 고정은 이번 최적화에 포함하지 않습니다.
+- CI APK는 x86_64만 만들고 로컬 기본 APK는 네 ABI입니다. iOS는 backend마다 두 shard이며 macOS 동시 잡은 최대 다섯입니다. 플로 목록의 합집합·무중복이 검사됩니다. 빌드·E2E 시간과 실제 macOS 대기는 `docs/superpowers/notes/2026-10-01-d8-measurements.md`의 G4에 있습니다. 검증되지 않은 iOS 컴파일 캐시는 철회했습니다. Expo 미리 빌드한 모듈과 action SHA 고정은 이번 최적화에 포함하지 않습니다.
 
 잡이 하는 일의 정본은 저장소의 스크립트이고 워크플로는 러너 · 캐시 · 아티팩트만 정합니다(`.github/workflows/AGENTS.md`). Mac 이 있으면 iOS 갈래를 로컬에서 같은 스크립트로 돕니다.
 

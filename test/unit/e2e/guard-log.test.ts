@@ -1,9 +1,9 @@
 import { spawnSync } from 'node:child_process'
-import { resolveBash } from '../support/bash'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
+import { resolveBash } from '../support/bash'
 import { httpFailureLine } from '@/lib/jsonapi/failure-log'
 
 /**
@@ -26,7 +26,6 @@ afterAll(() => {
 })
 
 /** Bash 후보의 실제 실행 확인과 30초 제한은 test/unit/support/bash.ts 가 소유한다. */
-
 const BASH = resolveBash()
 
 let written = 0
