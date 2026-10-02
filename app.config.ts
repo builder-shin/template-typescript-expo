@@ -76,10 +76,7 @@ export default function appConfig({ config }: ConfigContext): ExpoConfig {
       [
         'expo-build-properties',
         {
-          ios: {
-            enableSceneSupport: true,
-            ...(process.env.E2E_IOS_CCACHE === '1' ? { ccacheEnabled: true } : {}),
-          },
+          ios: { enableSceneSupport: true },
           android: { usesCleartextTraffic: profile.allowCleartext },
         },
       ],

@@ -246,11 +246,6 @@ jobs:
     env:
       # K3의 CI 재현 환경을 고정한다. Xcode 27의 scene lifecycle 검증은 Mac에서도 따로 했다.
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
-      CI_CACHE_MEASUREMENT: cold
-      E2E_IOS_CCACHE: '1'
-      CCACHE_BASEDIR: ${{ github.workspace }}
-      # RN wrapper의 느슨한 기본 sloppiness 대신 ccache의 기본 정확성 설정을 쓴다.
-      CCACHE_CONFIGPATH: /dev/null
     steps:
       - name: 저장소 체크아웃
         uses: actions/checkout@v7
@@ -280,52 +275,11 @@ jobs:
           key: pods-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: pods-${{ runner.os }}-
 
-      - name: ccache 설치와 판 기록
-        run: |
-          brew install ccache
-          echo "E2E_IOS_DERIVED_DATA=$RUNNER_TEMP/expo-ios-derived-data" >> "$GITHUB_ENV"
-          echo "CCACHE_DIR=$RUNNER_TEMP/expo-ccache" >> "$GITHUB_ENV"
-          mkdir -p .maestro-output
-          echo "CI_CACHE_MEASUREMENT=$CI_CACHE_MEASUREMENT" | tee .maestro-output/ios-cache.log
-          ccache --version | tee -a .maestro-output/ios-cache.log
-          ccache --show-config | tee -a .maestro-output/ios-cache.log
-          ccache --zero-stats
-
-      - name: iOS native cache key
-        id: native-key
-        env:
-          BACKEND_URL: http://localhost:4100
-          EAS_PROJECT_ID: ''
-          EAS_BUILD_PROJECT_ID: ''
-        run: node scripts/ios-native-fingerprint.mjs | tee -a "$GITHUB_OUTPUT" .maestro-output/ios-cache.log
-
-      - name: iOS 컴파일 캐시 복원
-        id: native-cache
-        uses: actions/cache/restore@v6
-        with:
-          path: |
-            ${{ runner.temp }}/expo-ios-derived-data
-            ${{ runner.temp }}/expo-ccache
-          key: ios-native-v1-${{ steps.native-key.outputs.cacheKey }}-${{ github.sha }}
-          restore-keys: ios-native-v1-${{ steps.native-key.outputs.cacheKey }}-
-
-      - name: ccache 실행 통계 초기화
-        run: ccache --zero-stats
-
-      # iOS 시뮬레이터에서 호스트는 localhost 다(스펙 11.4). hit에서도 현재 앱과 JS 번들을 빌드하고 검증한다.
+      # iOS 시뮬레이터에서 호스트는 localhost 다(스펙 11.4). ios.sh build 가 .app 의 변형·OTA·평문 HTTP 를 단언한다.
       - name: e2e .app
         env:
           BACKEND_URL: http://localhost:4100
         run: test/e2e/ios.sh build
-
-      - name: iOS 컴파일 캐시 저장
-        if: success() && steps.native-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
-        with:
-          path: |
-            ${{ runner.temp }}/expo-ios-derived-data
-            ${{ runner.temp }}/expo-ccache
-          key: ios-native-v1-${{ steps.native-key.outputs.cacheKey }}-${{ github.sha }}
 
       # 아티팩트는 실행 권한·심볼릭 링크를 지키지 않는다 - .app 은 ditto 로 묶어 올리고 받는 잡이 푼다.
       - name: .app 묶기
@@ -346,10 +300,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ios-build-log
-          path: |
-            .maestro-output/ios-build.log
-            .maestro-output/ios-cache.log
-            .maestro-output/ios-native-fingerprint.json
+          path: .maestro-output/ios-build.log
           if-no-files-found: ignore
           retention-days: 14
 
